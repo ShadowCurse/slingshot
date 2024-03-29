@@ -19,6 +19,11 @@ pub const Vector2 = struct {
 
     const Self = @This();
 
+    pub const ZERO = Self{
+        .x = 0.0,
+        .y = 0.0,
+    };
+
     pub fn from_b2(vec: b2.b2Vec2) Self {
         return Self{
             .x = vec.x,
@@ -75,7 +80,7 @@ pub fn main() anyerror!void {
 
     var platform_body_def = b2.b2DefaultBodyDef();
     platform_body_def.type = b2.b2_kinematicBody;
-    platform_body_def.position = b2.b2Vec2{ .x = 0, .y = -10 };
+    platform_body_def.position = b2.b2Vec2{ .x = 0, .y = -100 };
     const platform_body_id = b2.b2CreateBody(world_id, &platform_body_def);
 
     const platform_box = b2.b2MakeBox(50, 10);
@@ -83,7 +88,8 @@ pub fn main() anyerror!void {
     const platform_shape_id = b2.b2CreatePolygonShape(platform_body_id, &platform_shape_def, &platform_box);
     _ = platform_shape_id;
 
-    const ball = shapes.Ball.new(world_id, Vector2{ .x = 0.0, .y = 0.0 }, 10.0, BALL_COLOR);
+    const ball = shapes.Ball.new(world_id, Vector2{ .x = 0.0, .y = 40.0 }, 10.0, BALL_COLOR);
+    const arc = shapes.Arc.new(world_id, Vector2{ .x = 0.0, .y = -40.0 }, 30.0, rl.GOLD);
 
     const sub_steps: i32 = 4;
     while (!rl.WindowShouldClose()) {
@@ -105,6 +111,8 @@ pub fn main() anyerror!void {
 
         b2.b2Body_SetLinearVelocity(platform_body_id, platform_velocity);
 
+        arc.update();
+
         rl.BeginDrawing();
         rl.ClearBackground(BACKGROUND_COLOR);
         rl.BeginMode2D(camera);
@@ -113,6 +121,7 @@ pub fn main() anyerror!void {
         const platform_position = Vector2.from_b2(b2.b2Body_GetPosition(platform_body_id));
         rl.DrawRectangleV(platform_position.add(&Vector2{ .x = -50.0, .y = 10.0 }).to_rl_as_pos(), PLATFORM_SIZE, PLATFORM_COLOR);
         ball.draw();
+        arc.draw();
 
         rl.EndMode2D();
         rl.EndDrawing();
