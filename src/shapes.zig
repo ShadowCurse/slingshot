@@ -103,14 +103,15 @@ pub const Arc = struct {
 
     pub fn update(self: *const Self) void {
         b2.b2Body_SetLinearVelocity(self.body_id, (Vector2{ .x = 0.0, .y = 5.0 }).to_b2());
-        // b2.b2Body_SetAngularVelocity(self.body_id, 1.0);
+        b2.b2Body_SetAngularVelocity(self.body_id, 0.2);
     }
 
     pub fn draw(self: *const Self) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        // const angle = b2.b2Body_GetAngle(self.body_id);
+        const angle = b2.b2Body_GetAngle(self.body_id);
         for (&self.sub_circles) |*sub_circle| {
-            const p = body_position.add(&sub_circle.offset).to_rl_as_pos();
+            const rotated_offset = sub_circle.offset.rotate(angle);
+            const p = body_position.add(&rotated_offset).to_rl_as_pos();
             rl.DrawCircleV(p, self.sub_circle_radius, self.color);
         }
     }

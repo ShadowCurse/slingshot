@@ -58,6 +58,15 @@ pub const Vector2 = struct {
             .y = self.y + other.y,
         };
     }
+
+    pub fn rotate(self: *const Self, angle: f32) Self {
+        const sin = std.math.sin(angle);
+        const cos = std.math.cos(angle);
+        return Self{
+            .x = cos * self.x - sin * self.y,
+            .y = sin * self.x + cos * self.y,
+        };
+    }
 };
 
 pub fn main() anyerror!void {
