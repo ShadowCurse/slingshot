@@ -41,6 +41,11 @@ pub const Ball = struct {
         };
     }
 
+    pub fn deinit(self: *const Self) void {
+        b2.b2DestroyShape(self.shape_id);
+        b2.b2DestroyBody(self.body_id);
+    }
+
     pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.color);
@@ -100,6 +105,13 @@ pub const Arc = struct {
             .sub_circle_radius = sub_circle_radius,
             .color = color,
         };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        for (&self.sub_circles) |*sub_circle| {
+            b2.b2DestroyShape(sub_circle.shape_id);
+        }
+        b2.b2DestroyBody(self.body_id);
     }
 
     pub fn update(self: *const Self) void {
