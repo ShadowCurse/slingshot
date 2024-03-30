@@ -59,9 +59,50 @@ pub const Vector2 = struct {
         };
     }
 
-    pub fn rotate(self: *const Self, angle: f32) Self {
-        const sin = std.math.sin(angle);
-        const cos = std.math.cos(angle);
+    pub fn sub(self: *const Self, other: *const Self) Self {
+        return Self{
+            .x = self.x - other.x,
+            .y = self.y - other.y,
+        };
+    }
+
+    pub fn mul(self: *const Self, v: f32) Self {
+        return Self{
+            .x = self.x * v,
+            .y = self.y * v,
+        };
+    }
+
+    pub fn div(self: *const Self, v: f32) Self {
+        return Self{
+            .x = self.x / v,
+            .y = self.y / v,
+        };
+    }
+
+    pub fn orthogonal(self: *const Self) Self {
+        return Self{
+            .x = self.y,
+            .y = -self.x,
+        };
+    }
+
+    pub fn length(self: *const Self) f32 {
+        return std.math.sqrt(self.x * self.x + self.y * self.y);
+    }
+
+    pub fn normalized(self: *const Self) Self {
+        const l = self.length();
+        return self.div(l);
+    }
+
+    pub fn angle(self: *const Self) f32 {
+        return std.math.atan2(f32, self.y, self.x);
+    }
+
+    pub fn rotate(self: *const Self, rad: f32) Self {
+        const sin = std.math.sin(rad);
+        const cos = std.math.cos(rad);
         return Self{
             .x = cos * self.x - sin * self.y,
             .y = sin * self.x + cos * self.y,
@@ -70,6 +111,10 @@ pub const Vector2 = struct {
 };
 
 pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
     rl.InitWindow(WIDTH, HEIGHT, "Breakout");
     defer rl.CloseWindow();
 
@@ -99,6 +144,8 @@ pub fn main() anyerror!void {
 
     const ball = shapes.Ball.new(world_id, Vector2{ .x = 0.0, .y = 40.0 }, 10.0, BALL_COLOR);
     const arc = shapes.Arc.new(world_id, Vector2{ .x = 0.0, .y = -40.0 }, 30.0, rl.GOLD);
+    const rect_chain = try shapes.RectangleChain.new(allocator, world_id, Vector2{ .x = 0.0, .y = -100.0 }, &.{ Vector2{ .x = -100.0, .y = 20.0 }, Vector2{ .x = -80.0, .y = -20.0 }, Vector2{ .x = 0.0, .y = 20.0 }, Vector2{ .x = 80.0, .y = -20.0 }, Vector2{ .x = 100.0, .y = 20.0 } }, 10.0, 0.0, rl.ORANGE);
+    defer rect_chain.deinit(allocator);
 
     const sub_steps: i32 = 4;
     while (!rl.WindowShouldClose()) {
@@ -121,6 +168,7 @@ pub fn main() anyerror!void {
         b2.b2Body_SetLinearVelocity(platform_body_id, platform_velocity);
 
         arc.update();
+        rect_chain.update();
 
         rl.BeginDrawing();
         rl.ClearBackground(BACKGROUND_COLOR);
@@ -131,6 +179,7 @@ pub fn main() anyerror!void {
         rl.DrawRectangleV(platform_position.add(&Vector2{ .x = -50.0, .y = 10.0 }).to_rl_as_pos(), PLATFORM_SIZE, PLATFORM_COLOR);
         ball.draw();
         arc.draw();
+        rect_chain.draw();
 
         rl.EndMode2D();
         rl.EndDrawing();
