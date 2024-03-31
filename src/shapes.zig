@@ -14,7 +14,12 @@ pub const Ball = struct {
 
     const Self = @This();
 
-    pub fn new(world_id: b2.b2WorldId, position: Vector2, radius: f32, color: rl.Color) Self {
+    pub fn new(
+        world_id: b2.b2WorldId,
+        position: Vector2,
+        radius: f32,
+        color: rl.Color,
+    ) Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_dynamicBody;
         body_def.position = position.to_b2();
@@ -68,7 +73,12 @@ pub const Arc = struct {
     const SUBCIRCLES_NUM: usize = 8;
     const SUBCIRCLE_RADIUS_DIVISOR: f32 = 4.0;
 
-    pub fn new(world_id: b2.b2WorldId, position: Vector2, radius: f32, color: rl.Color) Self {
+    pub fn new(
+        world_id: b2.b2WorldId,
+        position: Vector2,
+        radius: f32,
+        color: rl.Color,
+    ) Self {
         var sub_circles: [SUBCIRCLES_NUM]SubCircle = undefined;
         const sub_circle_radius = radius / SUBCIRCLE_RADIUS_DIVISOR;
 

@@ -132,13 +132,45 @@ pub fn main() anyerror!void {
     const world_id = b2.b2CreateWorld(&world_def);
     defer b2.b2DestroyWorld(world_id);
 
-    const platform = shapes.Rectangle.new(world_id, Vector2{ .x = 0.0, .y = -100.0 }, Vector2{ .x = -10.0, .y = 0.0 }, Vector2{ .x = 10.0, .y = 0.0 }, 10.0, 1.0, PLATFORM_COLOR);
+    const platform = shapes.Rectangle.new(
+        world_id,
+        Vector2{ .x = 0.0, .y = -100.0 },
+        Vector2{ .x = -10.0, .y = 0.0 },
+        Vector2{ .x = 10.0, .y = 0.0 },
+        10.0,
+        1.0,
+        PLATFORM_COLOR,
+    );
     defer platform.deinit();
-    const ball = shapes.Ball.new(world_id, Vector2{ .x = 0.0, .y = 40.0 }, 10.0, BALL_COLOR);
+    const ball = shapes.Ball.new(
+        world_id,
+        Vector2{ .x = 0.0, .y = 40.0 },
+        10.0,
+        BALL_COLOR,
+    );
     defer ball.deinit();
-    const arc = shapes.Arc.new(world_id, Vector2{ .x = 0.0, .y = -40.0 }, 30.0, rl.GOLD);
+    const arc = shapes.Arc.new(
+        world_id,
+        Vector2{ .x = 0.0, .y = -40.0 },
+        30.0,
+        rl.GOLD,
+    );
     defer arc.deinit();
-    const rect_chain = try shapes.RectangleChain.new(allocator, world_id, Vector2{ .x = 0.0, .y = -100.0 }, &.{ Vector2{ .x = -100.0, .y = 20.0 }, Vector2{ .x = -80.0, .y = -20.0 }, Vector2{ .x = 0.0, .y = 20.0 }, Vector2{ .x = 80.0, .y = -20.0 }, Vector2{ .x = 100.0, .y = 20.0 } }, 10.0, 0.0, rl.ORANGE);
+    const rect_chain = try shapes.RectangleChain.new(
+        allocator,
+        world_id,
+        Vector2{ .x = 0.0, .y = -100.0 },
+        &.{
+            Vector2{ .x = -100.0, .y = 20.0 },
+            Vector2{ .x = -80.0, .y = -20.0 },
+            Vector2{ .x = 0.0, .y = 20.0 },
+            Vector2{ .x = 80.0, .y = -20.0 },
+            Vector2{ .x = 100.0, .y = 20.0 },
+        },
+        10.0,
+        0.0,
+        rl.ORANGE,
+    );
     defer rect_chain.deinit(allocator);
 
     const sub_steps: i32 = 4;
