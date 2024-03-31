@@ -130,34 +130,12 @@ pub const Arc = struct {
     }
 };
 
-pub const RectangleChain = struct {
-    body_id: b2.b2BodyId,
-    rectangles: []Rectangle,
-    color: rl.Color,
-
-    const Rectangle = struct {
-        shape: b2.b2Polygon,
-        shape_id: b2.b2ShapeId,
-        width: f32,
-        height: f32,
-        angle: f32,
-
-        /// Creates a vertical raylib rectangle with origin in vextex[3] corner
-        /// Corner is additionally moved to [`position`] and rotated around (0, 0) by
-        /// [`angle`] rad
-        pub fn rl_rect(self: *const Rectangle, position: Vector2, angle: f32) rl.Rectangle {
-            const corner = Vector2.from_b2(self.shape.vertices[3]);
-            const corner_pos = corner.rotate(angle).add(&position).to_rl_as_pos();
-            return rl.Rectangle{
-                .x = corner_pos.x,
-                .y = corner_pos.y,
-                .width = self.width,
-                .height = self.height,
-            };
-        }
-    };
-
-    const Self = @This();
+pub const RectangleShape = struct {
+    shape: b2.b2Polygon,
+    shape_id: b2.b2ShapeId,
+    width: f32,
+    height: f32,
+    angle: f32,
 
     /// Creates rectangle shape that passes though 2 points in the middle of it.
     ///       width
@@ -174,7 +152,14 @@ pub const RectangleChain = struct {
     ///  |       p2       |
     ///  |               |
     /// 0-----------------1
-    fn make_rectangle_shape(point_1: Vector2, point_2: Vector2, width: f32, height_offset: f32) Rectangle {
+    fn new(
+        body_id: b2.b2BodyId,
+        shape_def: *const b2.b2ShapeDef,
+        point_1: Vector2,
+        point_2: Vector2,
+        width: f32,
+        height_offset: f32,
+    ) RectangleShape {
         const v = point_1.sub(&point_2);
         const v_len = v.length();
         const v_norm = v.div(v_len);
@@ -203,30 +188,70 @@ pub const RectangleChain = struct {
         const angle = v.angle() - std.math.pi / 2.0;
         const height = v_len + height_offset * 2.0;
 
-        return Rectangle{
+        const shape_id = b2.b2CreatePolygonShape(body_id, shape_def, &shape);
+        return RectangleShape{
             .shape = shape,
-            .shape_id = undefined,
+            .shape_id = shape_id,
             .width = width,
             .height = height,
             .angle = angle,
         };
     }
 
-    pub fn new(allocator: Allocator, world_id: b2.b2WorldId, position: Vector2, points: []const Vector2, width: f32, height_offset: f32, color: rl.Color) !Self {
+    /// Creates a vertical raylib rectangle with origin in vextex[3] corner
+    /// Corner is additionally moved to [`position`] and rotated around (0, 0) by
+    /// [`angle`] rad
+    pub fn rl_rect(
+        self: *const RectangleShape,
+        position: Vector2,
+        angle: f32,
+    ) rl.Rectangle {
+        const corner = Vector2.from_b2(self.shape.vertices[3]);
+        const corner_pos = corner.rotate(angle).add(&position).to_rl_as_pos();
+        return rl.Rectangle{
+            .x = corner_pos.x,
+            .y = corner_pos.y,
+            .width = self.width,
+            .height = self.height,
+        };
+    }
+};
+
+pub const RectangleChain = struct {
+    body_id: b2.b2BodyId,
+    rectangles: []RectangleShape,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn new(
+        allocator: Allocator,
+        world_id: b2.b2WorldId,
+        position: Vector2,
+        points: []const Vector2,
+        width: f32,
+        height_offset: f32,
+        color: rl.Color,
+    ) !Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_kinematicBody;
         body_def.position = position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
-        var rectangles = try allocator.alloc(Rectangle, points.len - 1);
+        var rectangles = try allocator.alloc(RectangleShape, points.len - 1);
         for (0..points.len - 1) |i| {
             const p_1 = points[i];
             const p_2 = points[i + 1];
-            var rect = Self.make_rectangle_shape(p_1, p_2, width, height_offset);
 
             const shape_def = b2.b2DefaultShapeDef();
-            const shape_id = b2.b2CreatePolygonShape(body_id, &shape_def, &rect.shape);
-            rect.shape_id = shape_id;
+            const rect = RectangleShape.new(
+                body_id,
+                &shape_def,
+                p_1,
+                p_2,
+                width,
+                height_offset,
+            );
             rectangles[i] = rect;
         }
 
