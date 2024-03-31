@@ -217,6 +217,81 @@ pub const RectangleShape = struct {
     }
 };
 
+pub const Rectangle = struct {
+    body_id: b2.b2BodyId,
+    rectangle: RectangleShape,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn new(
+        world_id: b2.b2WorldId,
+        position: Vector2,
+        point_1: Vector2,
+        point_2: Vector2,
+        width: f32,
+        height_offset: f32,
+        color: rl.Color,
+    ) Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_kinematicBody;
+        body_def.position = position.to_b2();
+        const body_id = b2.b2CreateBody(world_id, &body_def);
+
+        const shape_def = b2.b2DefaultShapeDef();
+        const rectangle = RectangleShape.new(
+            body_id,
+            &shape_def,
+            point_1,
+            point_2,
+            width,
+            height_offset,
+        );
+
+        return Self{
+            .body_id = body_id,
+            .rectangle = rectangle,
+            .color = color,
+        };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        b2.b2DestroyShape(self.rectangle.shape_id);
+        b2.b2DestroyBody(self.body_id);
+    }
+
+    pub fn update(self: *const Self, velocity: f32) void {
+        var platform_velocity = b2.b2Vec2{ .x = 0, .y = 0 };
+        if (rl.IsKeyDown(rl.KEY_A)) {
+            platform_velocity.x = -velocity;
+        }
+        if (rl.IsKeyDown(rl.KEY_D)) {
+            platform_velocity.x = velocity;
+        }
+        if (rl.IsKeyDown(rl.KEY_W)) {
+            platform_velocity.y = velocity;
+        }
+        if (rl.IsKeyDown(rl.KEY_S)) {
+            platform_velocity.y = -velocity;
+        }
+        b2.b2Body_SetLinearVelocity(self.body_id, platform_velocity);
+    }
+
+    pub fn draw(self: *const Self) void {
+        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const body_angle = b2.b2Body_GetAngle(self.body_id);
+        const rl_rect = self.rectangle.rl_rect(body_position, body_angle);
+        const angle = self.rectangle.angle + body_angle;
+        // raylib rotates in clock wise order
+        // we negeate degrees to chacnge it to ccw
+        const rl_angle = -(angle / std.math.pi * 180.0);
+        rl.DrawRectanglePro(rl_rect, rl.Vector2{
+            .x = 0.0,
+            .y = 0.0,
+        }, rl_angle, self.color);
+    }
+};
+
 pub const RectangleChain = struct {
     body_id: b2.b2BodyId,
     rectangles: []RectangleShape,

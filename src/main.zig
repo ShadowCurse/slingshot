@@ -132,16 +132,8 @@ pub fn main() anyerror!void {
     const world_id = b2.b2CreateWorld(&world_def);
     defer b2.b2DestroyWorld(world_id);
 
-    var platform_body_def = b2.b2DefaultBodyDef();
-    platform_body_def.type = b2.b2_kinematicBody;
-    platform_body_def.position = b2.b2Vec2{ .x = 0, .y = -100 };
-    const platform_body_id = b2.b2CreateBody(world_id, &platform_body_def);
-
-    const platform_box = b2.b2MakeBox(50, 10);
-    const platform_shape_def = b2.b2DefaultShapeDef();
-    const platform_shape_id = b2.b2CreatePolygonShape(platform_body_id, &platform_shape_def, &platform_box);
-    _ = platform_shape_id;
-
+    const platform = shapes.Rectangle.new(world_id, Vector2{ .x = 0.0, .y = -100.0 }, Vector2{ .x = -10.0, .y = 0.0 }, Vector2{ .x = 10.0, .y = 0.0 }, 10.0, 1.0, PLATFORM_COLOR);
+    defer platform.deinit();
     const ball = shapes.Ball.new(world_id, Vector2{ .x = 0.0, .y = 40.0 }, 10.0, BALL_COLOR);
     defer ball.deinit();
     const arc = shapes.Arc.new(world_id, Vector2{ .x = 0.0, .y = -40.0 }, 30.0, rl.GOLD);
@@ -153,22 +145,7 @@ pub fn main() anyerror!void {
     while (!rl.WindowShouldClose()) {
         const dt = rl.GetFrameTime();
 
-        var platform_velocity = b2.b2Vec2{ .x = 0, .y = 0 };
-        if (rl.IsKeyDown(rl.KEY_A)) {
-            platform_velocity.x = -PLATFORM_VELOCITY;
-        }
-        if (rl.IsKeyDown(rl.KEY_D)) {
-            platform_velocity.x = PLATFORM_VELOCITY;
-        }
-        if (rl.IsKeyDown(rl.KEY_W)) {
-            platform_velocity.y = PLATFORM_VELOCITY;
-        }
-        if (rl.IsKeyDown(rl.KEY_S)) {
-            platform_velocity.y = -PLATFORM_VELOCITY;
-        }
-
-        b2.b2Body_SetLinearVelocity(platform_body_id, platform_velocity);
-
+        platform.update(PLATFORM_VELOCITY);
         arc.update();
         rect_chain.update();
 
@@ -177,8 +154,8 @@ pub fn main() anyerror!void {
         rl.BeginMode2D(camera);
 
         b2.b2World_Step(world_id, dt, sub_steps);
-        const platform_position = Vector2.from_b2(b2.b2Body_GetPosition(platform_body_id));
-        rl.DrawRectangleV(platform_position.add(&Vector2{ .x = -50.0, .y = 10.0 }).to_rl_as_pos(), PLATFORM_SIZE, PLATFORM_COLOR);
+
+        platform.draw();
         ball.draw();
         arc.draw();
         rect_chain.draw();
