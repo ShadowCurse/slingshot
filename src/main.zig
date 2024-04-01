@@ -6,6 +6,7 @@ const shapes = @import("shapes.zig");
 const WIDTH = 800;
 const HEIGHT = 450;
 const TARGET_FPS = 80;
+const CAMERA_OFFSET = rl.Vector2{ .x = WIDTH / 2, .y = HEIGHT / 2 };
 const BACKGROUND_COLOR = rl.BLACK;
 const BALL_COLOR = rl.GREEN;
 
@@ -23,6 +24,20 @@ pub const Vector2 = struct {
         .x = 0.0,
         .y = 0.0,
     };
+
+    pub fn from_rl(vec: rl.Vector2) Self {
+        return Self{
+            .x = vec.x,
+            .y = vec.y,
+        };
+    }
+
+    pub fn from_rl_pos(vec: rl.Vector2) Self {
+        return Self{
+            .x = vec.x,
+            .y = -vec.y,
+        };
+    }
 
     pub fn from_b2(vec: b2.b2Vec2) Self {
         return Self{
@@ -110,6 +125,10 @@ pub const Vector2 = struct {
     }
 };
 
+pub fn mouse_position() Vector2 {
+    return Vector2.from_rl_pos(rl.GetMousePosition()).sub(&Vector2.from_rl_pos(CAMERA_OFFSET));
+}
+
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -144,7 +163,7 @@ pub fn main() anyerror!void {
     defer platform.deinit();
     const ball = shapes.Ball.new(
         world_id,
-        Vector2{ .x = 40.0, .y = 100.0 },
+        Vector2{ .x = 240.0, .y = 100.0 },
         10.0,
         BALL_COLOR,
     );
@@ -173,6 +192,13 @@ pub fn main() anyerror!void {
         rl.ORANGE,
     );
     defer rect_chain.deinit(allocator);
+    var anchor = shapes.Anchor.new(
+        world_id,
+        Vector2{ .x = 240.0, .y = 0.0 },
+        5.0,
+        rl.LIME,
+    );
+    defer anchor.deinit();
 
     const sub_steps: i32 = 4;
     while (!rl.WindowShouldClose()) {
@@ -180,6 +206,7 @@ pub fn main() anyerror!void {
 
         platform.update(PLATFORM_VELOCITY);
         rect_chain.update();
+        anchor.update(world_id, &ball);
 
         rl.BeginDrawing();
         rl.ClearBackground(BACKGROUND_COLOR);
@@ -191,6 +218,10 @@ pub fn main() anyerror!void {
         ball.draw();
         arc.draw();
         rect_chain.draw();
+        anchor.draw();
+
+        const mouse_pos = mouse_position();
+        rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
 
         rl.EndMode2D();
         rl.EndDrawing();

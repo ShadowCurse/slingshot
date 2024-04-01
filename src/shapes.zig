@@ -2,7 +2,9 @@ const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Vector2 = @import("root").Vector2;
+const root = @import("root");
+const Vector2 = root.Vector2;
+const mouse_position = root.mouse_position;
 
 pub const Ball = struct {
     body_def: b2.b2BodyDef,
@@ -54,6 +56,114 @@ pub const Ball = struct {
     pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.color);
+    }
+};
+
+pub const Anchor = struct {
+    body_def: b2.b2BodyDef,
+    body_id: b2.b2BodyId,
+    length_joint_id: ?b2.b2JointId,
+    mouse_joint_id: ?b2.b2JointId,
+    attached_body_id: ?b2.b2BodyId,
+    radius: f32,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn new(
+        world_id: b2.b2WorldId,
+        position: Vector2,
+        radius: f32,
+        color: rl.Color,
+    ) Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_staticBody;
+        body_def.position = position.to_b2();
+        const body_id = b2.b2CreateBody(world_id, &body_def);
+
+        return Self{
+            .body_def = body_def,
+            .body_id = body_id,
+            .length_joint_id = null,
+            .mouse_joint_id = null,
+            .attached_body_id = null,
+            .radius = radius,
+            .color = color,
+        };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        if (self.length_joint_id) |id| {
+            b2.b2DestroyJoint(id);
+        }
+        if (self.mouse_joint_id) |id| {
+            b2.b2DestroyJoint(id);
+        }
+        b2.b2DestroyBody(self.body_id);
+    }
+
+    pub fn update(self: *Self, world_id: b2.b2WorldId, ball: *const Ball) void {
+        const self_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
+
+        if (self.length_joint_id == null) {
+            if (self_position.sub(&ball_position).length() < self.radius) {
+                var joint_def = b2.b2DefaultDistanceJointDef();
+                joint_def.bodyIdA = self.body_id;
+                joint_def.bodyIdB = ball.body_id;
+                joint_def.length = 0.0;
+                joint_def.minLength = 0.0;
+                joint_def.maxLength = 100.0;
+                joint_def.dampingRatio = 0.5;
+                joint_def.hertz = 1.0;
+
+                const joint_id = b2.b2CreateDistanceJoint(world_id, &joint_def);
+                self.length_joint_id = joint_id;
+                self.attached_body_id = ball.body_id;
+            }
+        } else {
+            if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
+                const mouse_pos = mouse_position();
+                if (self.mouse_joint_id) |id| {
+                    b2.b2MouseJoint_SetTarget(id, mouse_pos.to_b2());
+                } else {
+                    var joint_def = b2.b2DefaultMouseJointDef();
+                    joint_def.bodyIdA = self.body_id;
+                    joint_def.bodyIdB = ball.body_id;
+                    joint_def.target = mouse_pos.to_b2();
+                    joint_def.dampingRatio = 10.0;
+                    joint_def.hertz = 30.0;
+
+                    const joint_id = b2.b2CreateMouseJoint(world_id, &joint_def);
+                    self.mouse_joint_id = joint_id;
+                }
+            }
+
+            if (rl.IsMouseButtonReleased(rl.MOUSE_BUTTON_LEFT)) {
+                if (self.mouse_joint_id) |id| {
+                    b2.b2DestroyJoint(id);
+                    self.mouse_joint_id = null;
+                }
+            }
+
+            if (rl.IsKeyDown(rl.KEY_SPACE)) {
+                if (self.length_joint_id) |id| {
+                    b2.b2DestroyJoint(id);
+                    self.length_joint_id = null;
+                    self.attached_body_id = null;
+                }
+            }
+        }
+    }
+
+    pub fn draw(self: *const Self) void {
+        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        rl.DrawCircleV(position.to_rl_as_pos(), self.radius, self.color);
+
+        if (self.attached_body_id) |id| {
+            const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
+            rl.DrawLineV(position.to_rl_as_pos(), attached_body_position.to_rl_as_pos(), self.color);
+        }
     }
 };
 
