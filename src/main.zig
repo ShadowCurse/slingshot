@@ -144,14 +144,15 @@ pub fn main() anyerror!void {
     defer platform.deinit();
     const ball = shapes.Ball.new(
         world_id,
-        Vector2{ .x = 0.0, .y = 40.0 },
+        Vector2{ .x = 40.0, .y = 100.0 },
         10.0,
         BALL_COLOR,
     );
     defer ball.deinit();
     const arc = shapes.Arc.new(
         world_id,
-        Vector2{ .x = 0.0, .y = -40.0 },
+        b2.b2_staticBody,
+        Vector2{ .x = -150.0, .y = -80.0 },
         30.0,
         rl.GOLD,
     );
@@ -159,13 +160,13 @@ pub fn main() anyerror!void {
     const rect_chain = try shapes.RectangleChain.new(
         allocator,
         world_id,
-        Vector2{ .x = 0.0, .y = -100.0 },
+        Vector2{ .x = 0.0, .y = 0.0 },
         &.{
-            Vector2{ .x = -100.0, .y = 20.0 },
-            Vector2{ .x = -80.0, .y = -20.0 },
+            Vector2{ .x = -100.0, .y = -60.0 },
+            Vector2{ .x = -80.0, .y = -10.0 },
             Vector2{ .x = 0.0, .y = 20.0 },
-            Vector2{ .x = 80.0, .y = -20.0 },
-            Vector2{ .x = 100.0, .y = 20.0 },
+            Vector2{ .x = 80.0, .y = -10.0 },
+            Vector2{ .x = 100.0, .y = -60.0 },
         },
         10.0,
         0.0,
@@ -178,7 +179,6 @@ pub fn main() anyerror!void {
         const dt = rl.GetFrameTime();
 
         platform.update(PLATFORM_VELOCITY);
-        arc.update();
         rect_chain.update();
 
         rl.BeginDrawing();

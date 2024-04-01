@@ -75,6 +75,7 @@ pub const Arc = struct {
 
     pub fn new(
         world_id: b2.b2WorldId,
+        shape_type: b2.b2BodyType,
         position: Vector2,
         radius: f32,
         color: rl.Color,
@@ -83,7 +84,7 @@ pub const Arc = struct {
         const sub_circle_radius = radius / SUBCIRCLE_RADIUS_DIVISOR;
 
         var body_def = b2.b2DefaultBodyDef();
-        body_def.type = b2.b2_kinematicBody;
+        body_def.type = shape_type;
         body_def.position = position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
@@ -122,11 +123,6 @@ pub const Arc = struct {
             b2.b2DestroyShape(sub_circle.shape_id);
         }
         b2.b2DestroyBody(self.body_id);
-    }
-
-    pub fn update(self: *const Self) void {
-        b2.b2Body_SetLinearVelocity(self.body_id, (Vector2{ .x = 0.0, .y = 5.0 }).to_b2());
-        b2.b2Body_SetAngularVelocity(self.body_id, 0.2);
     }
 
     pub fn draw(self: *const Self) void {
