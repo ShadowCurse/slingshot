@@ -6,6 +6,22 @@ const Allocator = std.mem.Allocator;
 const root = @import("root");
 const mouse_position = root.mouse_position;
 
+pub const ObjectTags = enum {
+    Arc,
+    Ball,
+    Anchor,
+    Rectangle,
+    RectangleChain,
+};
+
+pub const Object = union(ObjectTags) {
+    Arc: Arc,
+    Ball: Ball,
+    Anchor: Anchor,
+    Rectangle: Rectangle,
+    RectangleChain: RectangleChain,
+};
+
 pub const Ball = struct {
     body_def: b2.b2BodyDef,
     body_id: b2.b2BodyId,
@@ -185,7 +201,6 @@ pub const Arc = struct {
 
     pub fn new(
         world_id: b2.b2WorldId,
-        shape_type: b2.b2BodyType,
         position: Vector2,
         radius: f32,
         color: rl.Color,
@@ -194,7 +209,7 @@ pub const Arc = struct {
         const sub_circle_radius = radius / SUBCIRCLE_RADIUS_DIVISOR;
 
         var body_def = b2.b2DefaultBodyDef();
-        body_def.type = shape_type;
+        body_def.type = b2.b2_staticBody;
         body_def.position = position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
@@ -350,7 +365,7 @@ pub const Rectangle = struct {
         color: rl.Color,
     ) Self {
         var body_def = b2.b2DefaultBodyDef();
-        body_def.type = b2.b2_kinematicBody;
+        body_def.type = b2.b2_staticBody;
         body_def.position = position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
@@ -374,23 +389,6 @@ pub const Rectangle = struct {
     pub fn deinit(self: *const Self) void {
         b2.b2DestroyShape(self.rectangle.shape_id);
         b2.b2DestroyBody(self.body_id);
-    }
-
-    pub fn update(self: *const Self, velocity: f32) void {
-        var platform_velocity = b2.b2Vec2{ .x = 0, .y = 0 };
-        if (rl.IsKeyDown(rl.KEY_A)) {
-            platform_velocity.x = -velocity;
-        }
-        if (rl.IsKeyDown(rl.KEY_D)) {
-            platform_velocity.x = velocity;
-        }
-        if (rl.IsKeyDown(rl.KEY_W)) {
-            platform_velocity.y = velocity;
-        }
-        if (rl.IsKeyDown(rl.KEY_S)) {
-            platform_velocity.y = -velocity;
-        }
-        b2.b2Body_SetLinearVelocity(self.body_id, platform_velocity);
     }
 
     pub fn draw(self: *const Self) void {
@@ -425,7 +423,7 @@ pub const RectangleChain = struct {
         color: rl.Color,
     ) !Self {
         var body_def = b2.b2DefaultBodyDef();
-        body_def.type = b2.b2_kinematicBody;
+        body_def.type = b2.b2_staticBody;
         body_def.position = position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
@@ -459,10 +457,6 @@ pub const RectangleChain = struct {
         }
         b2.b2DestroyBody(self.body_id);
         allocator.free(self.rectangles);
-    }
-
-    pub fn update(self: *const Self) void {
-        b2.b2Body_SetAngularVelocity(self.body_id, -0.02);
     }
 
     pub fn draw(self: *const Self) void {
