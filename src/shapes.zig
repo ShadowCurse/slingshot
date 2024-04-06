@@ -1,9 +1,9 @@
+const std = @import("std");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
-const std = @import("std");
+const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 const root = @import("root");
-const Vector2 = root.Vector2;
 const mouse_position = root.mouse_position;
 
 pub const Ball = struct {
