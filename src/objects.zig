@@ -3,8 +3,6 @@ const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
-const root = @import("root");
-const mouse_position = root.mouse_position;
 
 pub const ObjectTags = enum {
     Arc,
@@ -118,7 +116,12 @@ pub const Anchor = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
-    pub fn update(self: *Self, world_id: b2.b2WorldId, ball: *const Ball) void {
+    pub fn update(
+        self: *Self,
+        world_id: b2.b2WorldId,
+        mouse_position: Vector2,
+        ball: *const Ball,
+    ) void {
         const self_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
 
@@ -139,14 +142,13 @@ pub const Anchor = struct {
             }
         } else {
             if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
-                const mouse_pos = mouse_position();
                 if (self.mouse_joint_id) |id| {
-                    b2.b2MouseJoint_SetTarget(id, mouse_pos.to_b2());
+                    b2.b2MouseJoint_SetTarget(id, mouse_position.to_b2());
                 } else {
                     var joint_def = b2.b2DefaultMouseJointDef();
                     joint_def.bodyIdA = self.body_id;
                     joint_def.bodyIdB = ball.body_id;
-                    joint_def.target = mouse_pos.to_b2();
+                    joint_def.target = mouse_position.to_b2();
                     joint_def.dampingRatio = 10.0;
                     joint_def.hertz = 30.0;
 
