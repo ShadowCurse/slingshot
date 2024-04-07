@@ -20,6 +20,13 @@ pub const Game = struct {
     objects: std.ArrayList(objects.Object),
     allocator: Allocator,
 
+    state: GameState,
+
+    const GameState = enum {
+        Running,
+        Paused,
+    };
+
     const BALL_COLOR = rl.GREEN;
     const PLATFORM_SIZE = rl.Vector2{ .x = 100.0, .y = 20.0 };
     const PLATFORM_VELOCITY: f32 = 100.0;
@@ -53,6 +60,8 @@ pub const Game = struct {
             .ball = ball,
             .objects = std.ArrayList(Object).init(allocator),
             .allocator = allocator,
+
+            .state = .Running,
         };
 
         const platform = objects.Rectangle.new(
@@ -127,20 +136,31 @@ pub const Game = struct {
     }
 
     pub fn update(self: *Self, dt: f32) void {
-        b2.b2World_Step(self.world_id, dt, 4);
-
-        for (self.objects.items) |*object| {
-            switch (object.*) {
-                .Arc => |_| {},
-                .Ball => |_| {},
-                .Anchor => |*anchor| anchor.update(
-                    self.world_id,
-                    self.mouse_position(),
-                    &self.ball,
-                ),
-                .Rectangle => |_| {},
-                .RectangleChain => |_| {},
+        if (rl.IsKeyPressed(rl.KEY_P)) {
+            switch (self.state) {
+                .Running => self.state = .Paused,
+                .Paused => self.state = .Running,
             }
+        }
+
+        switch (self.state) {
+            .Running => {
+                b2.b2World_Step(self.world_id, dt, 4);
+                for (self.objects.items) |*object| {
+                    switch (object.*) {
+                        .Arc => |_| {},
+                        .Ball => |_| {},
+                        .Anchor => |*anchor| anchor.update(
+                            self.world_id,
+                            self.mouse_position(),
+                            &self.ball,
+                        ),
+                        .Rectangle => |_| {},
+                        .RectangleChain => |_| {},
+                    }
+                }
+            },
+            .Paused => {},
         }
     }
 
