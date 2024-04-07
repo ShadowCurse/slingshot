@@ -12,6 +12,16 @@ pub const ZERO = Self{
     .y = 0.0,
 };
 
+pub const MAX = Self{
+    .x = std.math.inf(f32),
+    .y = std.math.inf(f32),
+};
+
+pub const MIN = Self{
+    .x = -std.math.inf(f32),
+    .y = -std.math.inf(f32),
+};
+
 pub fn from_rl(vec: rl.Vector2) Self {
     return Self{
         .x = vec.x,

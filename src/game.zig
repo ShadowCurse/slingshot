@@ -170,19 +170,24 @@ pub const Game = struct {
     }
 
     pub fn draw(self: *const Self) void {
+        const draw_aabb = switch (self.state) {
+            .Running => false,
+            .Paused => true,
+        };
+
         rl.BeginMode2D(self.camera);
         defer rl.EndMode2D();
 
         for (self.objects.items) |object| {
             switch (object) {
-                .Arc => |arc| arc.draw(),
-                .Ball => |ball| ball.draw(),
-                .Anchor => |anchor| anchor.draw(),
-                .Rectangle => |rectangle| rectangle.draw(),
-                .RectangleChain => |rectangle_chain| rectangle_chain.draw(),
+                .Arc => |arc| arc.draw(draw_aabb),
+                .Ball => |ball| ball.draw(draw_aabb),
+                .Anchor => |anchor| anchor.draw(draw_aabb),
+                .Rectangle => |rectangle| rectangle.draw(draw_aabb),
+                .RectangleChain => |rectangle_chain| rectangle_chain.draw(draw_aabb),
             }
         }
-        self.ball.draw();
+        self.ball.draw(draw_aabb);
 
         const mouse_pos = self.mouse_position();
         rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);

@@ -4,6 +4,9 @@ const b2 = @import("box2d.zig");
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
+const AABB_LINE_COLOR = rl.SKYBLUE;
+const AABB_LINE_THICKNESS = 1.5;
+
 pub const ObjectTags = enum {
     Arc,
     Ball,
@@ -18,6 +21,54 @@ pub const Object = union(ObjectTags) {
     Anchor: Anchor,
     Rectangle: Rectangle,
     RectangleChain: RectangleChain,
+};
+
+pub const AABB = struct {
+    aabb: b2.b2AABB,
+
+    const Self = @This();
+
+    pub fn new() Self {
+        return Self{
+            .aabb = b2.b2AABB{
+                .lowerBound = Vector2.MAX.to_b2(),
+                .upperBound = Vector2.MIN.to_b2(),
+            },
+        };
+    }
+
+    pub fn from_b2(aabb: b2.b2AABB) Self {
+        return Self{
+            .aabb = aabb,
+        };
+    }
+
+    pub fn to_rl_rect(self: *const Self, position: Vector2) rl.Rectangle {
+        const rl_position = position.add(&self.center().sub(&position)).to_rl_as_pos();
+        return rl.Rectangle{
+            .x = rl_position.x - (self.aabb.upperBound.x - self.aabb.lowerBound.x) / 2.0,
+            .y = rl_position.y - (self.aabb.upperBound.y - self.aabb.lowerBound.y) / 2.0,
+            .width = self.aabb.upperBound.x - self.aabb.lowerBound.x,
+            .height = self.aabb.upperBound.y - self.aabb.lowerBound.y,
+        };
+    }
+
+    pub fn center(self: *const Self) Vector2 {
+        return Vector2.from_b2(b2.b2AABB_Center(self.aabb));
+    }
+
+    pub fn contains(self: *const Self, position: Vector2, point: Vector2) bool {
+        return self.aabb.lowerBound.x + position.x < point.x and
+            self.aabb.upperBound.x + position.x > point.x and
+            self.aabb.lowerBound.y + position.y < point.y and
+            self.aabb.upperBound.y + position.y > point.y;
+    }
+
+    pub fn union_with(self: *const Self, other: *const Self) Self {
+        return Self{
+            .aabb = b2.b2AABB_Union(self.aabb, other.aabb),
+        };
+    }
 };
 
 pub const Ball = struct {
@@ -46,7 +97,6 @@ pub const Ball = struct {
         shape_def.friction = 0.5;
 
         const circle = b2.b2Circle{
-            // center of mass
             .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
             .radius = radius,
         };
@@ -67,9 +117,19 @@ pub const Ball = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
-    pub fn draw(self: *const Self) void {
+    pub fn draw(self: *const Self, draw_aabb: bool) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.color);
+
+        if (draw_aabb) {
+            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.shape_id));
+            const rl_aabb_rect = aabb.to_rl_rect(position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_LINE_COLOR,
+            );
+        }
     }
 };
 
@@ -174,13 +234,33 @@ pub const Anchor = struct {
         }
     }
 
-    pub fn draw(self: *const Self) void {
+    pub fn draw(self: *const Self, draw_aabb: bool) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.radius, self.color);
 
         if (self.attached_body_id) |id| {
             const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
             rl.DrawLineV(position.to_rl_as_pos(), attached_body_position.to_rl_as_pos(), self.color);
+        }
+
+        if (draw_aabb) {
+            const aabb = AABB.from_b2(b2.b2AABB{
+                .lowerBound = (Vector2{
+                    .x = -self.radius / 2.0,
+                    .y = -self.radius / 2.0,
+                }).add(&position).to_b2(),
+                .upperBound = (Vector2{
+                    .x = self.radius / 2.0,
+                    .y = self.radius / 2.0,
+                }).add(&position).to_b2(),
+            });
+
+            const rl_aabb_rect = aabb.to_rl_rect(position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_LINE_COLOR,
+            );
         }
     }
 };
@@ -195,6 +275,7 @@ pub const Arc = struct {
     const SubCircle = struct {
         offset: Vector2,
         shape_id: b2.b2ShapeId,
+        aabb: AABB,
     };
 
     const Self = @This();
@@ -221,7 +302,7 @@ pub const Arc = struct {
             const angle: f32 = initial_angle - angle_step * @as(f32, @floatFromInt(i));
             const sin = std.math.sin(angle);
             const cos = std.math.cos(angle);
-            const offset = Vector2{ .x = cos * radius, .y = sin * radius };
+            const offset = (Vector2{ .x = cos, .y = sin }).mul(radius);
 
             const circle = b2.b2Circle{
                 .point = offset.to_b2(),
@@ -231,9 +312,12 @@ pub const Arc = struct {
             const shape_def = b2.b2DefaultShapeDef();
             const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
 
+            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
+
             sub_circles[i] = SubCircle{
                 .offset = offset,
                 .shape_id = shape_id,
+                .aabb = aabb,
             };
         }
 
@@ -252,13 +336,36 @@ pub const Arc = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
-    pub fn draw(self: *const Self) void {
+    pub fn draw(self: *const Self, draw_aabb: bool) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const angle = b2.b2Body_GetAngle(self.body_id);
         for (&self.sub_circles) |*sub_circle| {
             const rotated_offset = sub_circle.offset.rotate(angle);
-            const p = body_position.add(&rotated_offset).to_rl_as_pos();
-            rl.DrawCircleV(p, self.sub_circle_radius, self.color);
+            const position = body_position.add(&rotated_offset);
+            const rl_position = position.to_rl_as_pos();
+            rl.DrawCircleV(rl_position, self.sub_circle_radius, self.color);
+
+            if (draw_aabb) {
+                const rl_aabb_rect = sub_circle.aabb.to_rl_rect(position);
+                rl.DrawRectangleLinesEx(
+                    rl_aabb_rect,
+                    AABB_LINE_THICKNESS,
+                    AABB_LINE_COLOR,
+                );
+            }
+        }
+        if (draw_aabb) {
+            var aabb = AABB.new();
+            for (&self.sub_circles) |*sub_circle| {
+                aabb = aabb.union_with(&sub_circle.aabb);
+            }
+
+            const rl_aabb_rect = aabb.to_rl_rect(body_position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_LINE_COLOR,
+            );
         }
     }
 };
@@ -393,7 +500,7 @@ pub const Rectangle = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
-    pub fn draw(self: *const Self) void {
+    pub fn draw(self: *const Self, draw_aabb: bool) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
         const rl_rect = self.rectangle.rl_rect(body_position, body_angle);
@@ -405,6 +512,15 @@ pub const Rectangle = struct {
             .x = 0.0,
             .y = 0.0,
         }, rl_angle, self.color);
+        if (draw_aabb) {
+            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.rectangle.shape_id));
+            const rl_aabb_rect = aabb.to_rl_rect(body_position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_LINE_COLOR,
+            );
+        }
     }
 };
 
@@ -461,7 +577,7 @@ pub const RectangleChain = struct {
         allocator.free(self.rectangles);
     }
 
-    pub fn draw(self: *const Self) void {
+    pub fn draw(self: *const Self, draw_aabb: bool) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
         for (self.rectangles) |*rectangle| {
@@ -474,6 +590,20 @@ pub const RectangleChain = struct {
                 .x = 0.0,
                 .y = 0.0,
             }, rl_angle, self.color);
+        }
+        if (draw_aabb) {
+            var aabb = AABB.new();
+            for (self.rectangles) |*rectangle| {
+                const rectangle_aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.shape_id));
+                aabb = aabb.union_with(&rectangle_aabb);
+            }
+
+            const rl_aabb_rect = aabb.to_rl_rect(body_position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_LINE_COLOR,
+            );
         }
     }
 };
