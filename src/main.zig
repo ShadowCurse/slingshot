@@ -24,7 +24,7 @@ pub fn main() anyerror!void {
     while (!rl.WindowShouldClose()) {
         const dt = rl.GetFrameTime();
 
-        game.update(dt);
+        try game.update(dt);
 
         rl.BeginDrawing();
         rl.ClearBackground(BACKGROUND_COLOR);

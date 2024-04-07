@@ -112,7 +112,6 @@ pub const Game = struct {
     }
 
     pub fn deinit(self: *const Self) void {
-        self.ball.deinit();
         for (self.objects.items) |object| {
             switch (object) {
                 .Arc => |arc| arc.deinit(),
@@ -123,7 +122,8 @@ pub const Game = struct {
             }
         }
         self.objects.deinit();
-        defer b2.b2DestroyWorld(self.world_id);
+        self.ball.deinit();
+        b2.b2DestroyWorld(self.world_id);
     }
 
     pub fn mouse_position(self: *const Self) Vector2 {
@@ -135,7 +135,12 @@ pub const Game = struct {
         try self.objects.append(object);
     }
 
-    pub fn update(self: *Self, dt: f32) void {
+    pub fn update(self: *Self, dt: f32) !void {
+        if (rl.IsKeyPressed(rl.KEY_R)) {
+            self.deinit();
+            self.* = try Self.new(self.allocator, self.camera.offset.x * 2.0, self.camera.offset.y * 2.0);
+        }
+
         if (rl.IsKeyPressed(rl.KEY_P)) {
             switch (self.state) {
                 .Running => self.state = .Paused,
