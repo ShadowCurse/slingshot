@@ -3,6 +3,7 @@ const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const objects = @import("objects.zig");
 const Object = objects.Object;
+const DebugDraw = objects.DebugDraw;
 const Arc = objects.Arc;
 const Ball = objects.Ball;
 const Anchor = objects.Anchor;
@@ -21,6 +22,7 @@ pub const Game = struct {
     allocator: Allocator,
 
     state: GameState,
+    selected_object: ?*Object,
 
     const GameState = enum {
         Running,
@@ -62,6 +64,7 @@ pub const Game = struct {
             .allocator = allocator,
 
             .state = .Running,
+            .selected_object = null,
         };
 
         const platform = objects.Rectangle.new(
@@ -165,14 +168,38 @@ pub const Game = struct {
                     }
                 }
             },
-            .Paused => {},
+            .Paused => {
+                if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT)) {
+                    const mp = self.mouse_position();
+                    self.selected_object = null;
+                    for (self.objects.items) |*object| {
+                        switch (object.*) {
+                            .Arc => |arc| if (arc.aabb_contains(mp)) {
+                                self.selected_object = object;
+                            },
+                            .Ball => |ball| if (ball.aabb_contains(mp)) {
+                                self.selected_object = object;
+                            },
+                            .Anchor => |anchor| if (anchor.aabb_contains(mp)) {
+                                self.selected_object = object;
+                            },
+                            .Rectangle => |rect| if (rect.aabb_contains(mp)) {
+                                self.selected_object = object;
+                            },
+                            .RectangleChain => |rc| if (rc.aabb_contains(mp)) {
+                                self.selected_object = object;
+                            },
+                        }
+                    }
+                }
+            },
         }
     }
 
     pub fn draw(self: *const Self) void {
-        const draw_aabb = switch (self.state) {
-            .Running => false,
-            .Paused => true,
+        const debug_draw = switch (self.state) {
+            .Running => DebugDraw.NoDebugDraw,
+            .Paused => DebugDraw{ .DebugOutline = rl.SKYBLUE },
         };
 
         rl.BeginMode2D(self.camera);
@@ -180,14 +207,27 @@ pub const Game = struct {
 
         for (self.objects.items) |object| {
             switch (object) {
-                .Arc => |arc| arc.draw(draw_aabb),
-                .Ball => |ball| ball.draw(draw_aabb),
-                .Anchor => |anchor| anchor.draw(draw_aabb),
-                .Rectangle => |rectangle| rectangle.draw(draw_aabb),
-                .RectangleChain => |rectangle_chain| rectangle_chain.draw(draw_aabb),
+                .Arc => |arc| arc.draw(debug_draw),
+                .Ball => |ball| ball.draw(debug_draw),
+                .Anchor => |anchor| anchor.draw(debug_draw),
+                .Rectangle => |rectangle| rectangle.draw(debug_draw),
+                .RectangleChain => |rectangle_chain| rectangle_chain.draw(debug_draw),
             }
         }
-        self.ball.draw(draw_aabb);
+        self.ball.draw(debug_draw);
+
+        if (self.state == .Paused) {
+            const selected_debug_draw = .{ .DebugOutline = rl.ORANGE };
+            if (self.selected_object) |so| {
+                switch (so.*) {
+                    .Arc => |arc| arc.draw(selected_debug_draw),
+                    .Ball => |ball| ball.draw(selected_debug_draw),
+                    .Anchor => |anchor| anchor.draw(selected_debug_draw),
+                    .Rectangle => |rectangle| rectangle.draw(selected_debug_draw),
+                    .RectangleChain => |rectangle_chain| rectangle_chain.draw(selected_debug_draw),
+                }
+            }
+        }
 
         const mouse_pos = self.mouse_position();
         rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
