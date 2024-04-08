@@ -192,6 +192,18 @@ pub const Game = struct {
                         }
                     }
                 }
+                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
+                    if (self.selected_object) |so| {
+                        const mouse_pos = self.mouse_position();
+                        switch (so.*) {
+                            .Arc => |arc| arc.set_position(mouse_pos),
+                            .Ball => |ball| ball.set_position(mouse_pos),
+                            .Anchor => |anchor| anchor.set_position(mouse_pos),
+                            .Rectangle => |rectangle| rectangle.set_position(mouse_pos),
+                            .RectangleChain => |rectangle_chain| rectangle_chain.set_position(mouse_pos),
+                        }
+                    }
+                }
             },
         }
     }

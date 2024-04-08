@@ -139,6 +139,11 @@ pub const Ball = struct {
         return aabb.contains(position, point);
     }
 
+    pub fn set_position(self: *const Self, position: Vector2) void {
+        const angle = b2.b2Body_GetAngle(self.body_id);
+        b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
+    }
+
     pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.color);
@@ -210,6 +215,11 @@ pub const Anchor = struct {
             }).add(&position).to_b2(),
         });
         return aabb.contains(position, point);
+    }
+
+    pub fn set_position(self: *const Self, position: Vector2) void {
+        const angle = b2.b2Body_GetAngle(self.body_id);
+        b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
     pub fn update(
@@ -389,6 +399,11 @@ pub const Arc = struct {
         return local_aabb.contains(position, point);
     }
 
+    pub fn set_position(self: *const Self, position: Vector2) void {
+        const angle = b2.b2Body_GetAngle(self.body_id);
+        b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
+    }
+
     pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const angle = b2.b2Body_GetAngle(self.body_id);
@@ -549,6 +564,11 @@ pub const Rectangle = struct {
         return aabb.contains(position, point);
     }
 
+    pub fn set_position(self: *const Self, position: Vector2) void {
+        const angle = b2.b2Body_GetAngle(self.body_id);
+        b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
+    }
+
     pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
@@ -643,6 +663,11 @@ pub const RectangleChain = struct {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const local_aabb = self.aabb();
         return local_aabb.contains(position, point);
+    }
+
+    pub fn set_position(self: *const Self, position: Vector2) void {
+        const angle = b2.b2Body_GetAngle(self.body_id);
+        b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
     pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
