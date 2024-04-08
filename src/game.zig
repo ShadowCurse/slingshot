@@ -204,6 +204,11 @@ pub const Game = struct {
                         }
                     }
                 }
+                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
+                    const delta = rl.GetMouseDelta();
+                    self.camera.offset.x += delta.x;
+                    self.camera.offset.y += delta.y;
+                }
             },
         }
     }
