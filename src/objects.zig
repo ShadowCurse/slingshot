@@ -324,7 +324,6 @@ pub const Arc = struct {
     const SubCircle = struct {
         offset: Vector2,
         shape_id: b2.b2ShapeId,
-        aabb: AABB,
     };
 
     const Self = @This();
@@ -361,12 +360,9 @@ pub const Arc = struct {
             const shape_def = b2.b2DefaultShapeDef();
             const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
 
-            const circle_aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
-
             sub_circles[i] = SubCircle{
                 .offset = offset,
                 .shape_id = shape_id,
-                .aabb = circle_aabb,
             };
         }
 
@@ -388,7 +384,8 @@ pub const Arc = struct {
     pub fn aabb(self: *const Self) AABB {
         var local_aabb = AABB.new();
         for (&self.sub_circles) |*sub_circle| {
-            local_aabb = local_aabb.union_with(&sub_circle.aabb);
+            const sub_circle_aabb = AABB.from_b2(b2.b2Shape_GetAABB(sub_circle.shape_id));
+            local_aabb = local_aabb.union_with(&sub_circle_aabb);
         }
         return local_aabb;
     }
