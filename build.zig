@@ -28,7 +28,7 @@ pub fn build(b: *std.Build) void {
     exe.addLibraryPath(.{ .path = "box2c/build/src" });
 
     exe.addCSourceFile(CSourceFile{
-        .file = .{ .path = "raygui/src/raygui.c" },
+        .file = .{ .path = "raygui/raygui.c" },
         .flags = &.{ "-g", "-O3" },
     });
 
