@@ -1,4 +1,5 @@
 const std = @import("std");
+const CSourceFile = std.build.Step.Compile.CSourceFile;
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -23,8 +24,14 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    exe.addIncludePath(.{ .path = "box2c/include" });
+    exe.addIncludePath(.{ .path = "." });
     exe.addLibraryPath(.{ .path = "box2c/build/src" });
+
+    exe.addCSourceFile(CSourceFile{
+        .file = .{ .path = "raygui/src/raygui.c" },
+        .flags = &.{ "-g", "-O3" },
+    });
+
     exe.linkSystemLibrary("raylib");
     exe.linkSystemLibrary("box2d");
     exe.linkLibC();

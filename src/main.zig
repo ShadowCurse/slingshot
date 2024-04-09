@@ -16,6 +16,8 @@ pub fn main() anyerror!void {
     rl.InitWindow(WIDTH, HEIGHT, "Breakout");
     defer rl.CloseWindow();
 
+    rl.GuiLoadStyleDefault();
+
     rl.SetTargetFPS(TARGET_FPS);
 
     var game = try Game.new(allocator, WIDTH, HEIGHT);
