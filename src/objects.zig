@@ -4,7 +4,6 @@ const b2 = @import("box2d.zig");
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
-const AABB_LINE_COLOR = rl.SKYBLUE;
 const AABB_LINE_THICKNESS = 1.5;
 
 pub const DebugDrawTag = enum {
@@ -15,22 +14,6 @@ pub const DebugDrawTag = enum {
 pub const DebugDraw = union(DebugDrawTag) {
     NoDebugDraw: void,
     DebugOutline: rl.Color,
-};
-
-pub const ObjectTags = enum {
-    Arc,
-    Ball,
-    Anchor,
-    Rectangle,
-    RectangleChain,
-};
-
-pub const Object = union(ObjectTags) {
-    Arc: Arc,
-    Ball: Ball,
-    Anchor: Anchor,
-    Rectangle: Rectangle,
-    RectangleChain: RectangleChain,
 };
 
 pub const AABB = struct {
@@ -84,6 +67,26 @@ pub const AABB = struct {
         return Self{
             .aabb = b2.b2AABB_Union(self.aabb, other.aabb),
         };
+    }
+};
+
+pub const BallParams = struct {
+    position: Vector2,
+    radius: f32,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn to_object(
+        self: *const Self,
+        world_id: b2.b2WorldId,
+    ) Ball {
+        return Ball.new(
+            world_id,
+            self.position,
+            self.radius,
+            self.color,
+        );
     }
 };
 
@@ -156,6 +159,26 @@ pub const Ball = struct {
                 rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
             },
         }
+    }
+};
+
+pub const AnchorParams = struct {
+    position: Vector2,
+    radius: f32,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn to_object(
+        self: *const Self,
+        world_id: b2.b2WorldId,
+    ) Anchor {
+        return Anchor.new(
+            world_id,
+            self.position,
+            self.radius,
+            self.color,
+        );
     }
 };
 
@@ -311,6 +334,26 @@ pub const Anchor = struct {
                 );
             },
         }
+    }
+};
+
+pub const ArcParams = struct {
+    position: Vector2,
+    radius: f32,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn to_object(
+        self: *const Self,
+        world_id: b2.b2WorldId,
+    ) Arc {
+        return Arc.new(
+            world_id,
+            self.position,
+            self.radius,
+            self.color,
+        );
     }
 };
 
@@ -512,6 +555,32 @@ pub const RectangleShape = struct {
     }
 };
 
+pub const RectangleParams = struct {
+    position: Vector2,
+    point_1: Vector2,
+    point_2: Vector2,
+    width: f32,
+    height_offset: f32,
+    color: rl.Color,
+
+    const Self = @This();
+
+    pub fn to_object(
+        self: *const Self,
+        world_id: b2.b2WorldId,
+    ) Rectangle {
+        return Rectangle.new(
+            world_id,
+            self.position,
+            self.point_1,
+            self.point_2,
+            self.width,
+            self.height_offset,
+            self.color,
+        );
+    }
+};
+
 pub const Rectangle = struct {
     body_id: b2.b2BodyId,
     rectangle: RectangleShape,
@@ -594,16 +663,48 @@ pub const Rectangle = struct {
     }
 };
 
-pub const RectangleChain = struct {
-    body_id: b2.b2BodyId,
-    rectangles: []RectangleShape,
+pub const RectangleChainParams = struct {
+    position: Vector2,
+    points: std.ArrayList(Vector2),
+    width: f32,
+    height_offset: f32,
     color: rl.Color,
 
     const Self = @This();
 
-    pub fn new(
-        allocator: Allocator,
+    pub fn deinit(self: *const Self) void {
+        self.points.deinit();
+    }
+
+    pub fn to_object(
+        self: *const Self,
         world_id: b2.b2WorldId,
+        allocator: Allocator,
+    ) !RectangleChain {
+        return try RectangleChain.new(
+            world_id,
+            allocator,
+            self.position,
+            self.points.items,
+            self.width,
+            self.height_offset,
+            self.color,
+        );
+    }
+};
+
+pub const RectangleChain = struct {
+    body_id: b2.b2BodyId,
+    color: rl.Color,
+
+    rectangles: []RectangleShape,
+    allocator: Allocator,
+
+    const Self = @This();
+
+    pub fn new(
+        world_id: b2.b2WorldId,
+        allocator: Allocator,
         position: Vector2,
         points: []const Vector2,
         width: f32,
@@ -634,17 +735,19 @@ pub const RectangleChain = struct {
 
         return Self{
             .body_id = body_id,
-            .rectangles = rectangles,
             .color = color,
+
+            .rectangles = rectangles,
+            .allocator = allocator,
         };
     }
 
-    pub fn deinit(self: *const Self, allocator: Allocator) void {
+    pub fn deinit(self: *const Self) void {
         for (self.rectangles) |*rectangle| {
             b2.b2DestroyShape(rectangle.shape_id);
         }
         b2.b2DestroyBody(self.body_id);
-        allocator.free(self.rectangles);
+        self.allocator.free(self.rectangles);
     }
 
     pub fn aabb(self: *const Self) AABB {
@@ -694,4 +797,28 @@ pub const RectangleChain = struct {
             },
         }
     }
+};
+
+pub const ObjectTags = enum {
+    Arc,
+    Ball,
+    Anchor,
+    Rectangle,
+    RectangleChain,
+};
+
+pub const ObjectParams = union(ObjectTags) {
+    Arc: ArcParams,
+    Ball: BallParams,
+    Anchor: AnchorParams,
+    Rectangle: RectangleParams,
+    RectangleChain: RectangleChainParams,
+};
+
+pub const Object = union(ObjectTags) {
+    Arc: Arc,
+    Ball: Ball,
+    Anchor: Anchor,
+    Rectangle: Rectangle,
+    RectangleChain: RectangleChain,
 };
