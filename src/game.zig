@@ -126,7 +126,7 @@ pub const GameRuntimeState = struct {
             .sub(&Vector2.from_rl_pos(self.camera.offset));
     }
 
-    pub fn update(self: *Self, dt: f32) !?RuntimeCommand {
+    pub fn handle_interactions(self: *Self) !?RuntimeCommand {
         if (rl.IsKeyPressed(rl.KEY_R)) {
             return RuntimeCommand.Reload;
         }
@@ -139,22 +139,7 @@ pub const GameRuntimeState = struct {
         }
 
         switch (self.state) {
-            .Running => {
-                b2.b2World_Step(self.world_id, dt, 4);
-                for (self.objects.items) |*object| {
-                    switch (object.*) {
-                        .Arc => |_| {},
-                        .Ball => |_| {},
-                        .Anchor => |*anchor| anchor.update(
-                            self.world_id,
-                            self.mouse_position(),
-                            &self.ball,
-                        ),
-                        .Rectangle => |_| {},
-                        .RectangleChain => |_| {},
-                    }
-                }
-            },
+            .Running => {},
             .Paused => {
                 if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT)) {
                     const mp = self.mouse_position();
@@ -199,6 +184,28 @@ pub const GameRuntimeState = struct {
             },
         }
         return null;
+    }
+
+    pub fn update(self: *Self, dt: f32) void {
+        switch (self.state) {
+            .Running => {
+                b2.b2World_Step(self.world_id, dt, 4);
+                for (self.objects.items) |*object| {
+                    switch (object.*) {
+                        .Arc => |_| {},
+                        .Ball => |_| {},
+                        .Anchor => |*anchor| anchor.update(
+                            self.world_id,
+                            self.mouse_position(),
+                            &self.ball,
+                        ),
+                        .Rectangle => |_| {},
+                        .RectangleChain => |_| {},
+                    }
+                }
+            },
+            .Paused => {},
+        }
     }
 
     pub fn draw(self: *const Self) void {
@@ -342,7 +349,8 @@ pub const Game = struct {
     }
 
     pub fn update(self: *Self, dt: f32) !void {
-        if (try self.runtime_state.update(dt)) |command| {
+        self.runtime_state.update(dt);
+        if (try self.runtime_state.handle_interactions()) |command| {
             switch (command) {
                 .Reload => try self.recreate(),
                 .Add => |_| {},
