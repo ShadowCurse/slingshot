@@ -263,11 +263,6 @@ pub const Game = struct {
     }
 
     pub fn draw(self: *const Self) void {
-        const debug_draw = switch (self.state) {
-            .Running => DebugDraw.NoDebugDraw,
-            .Paused => DebugDraw{ .DebugOutline = rl.SKYBLUE },
-        };
-
         const camera = switch (self.state) {
             .Running => &self.camera,
             .Paused => &self.editor_camera,
@@ -278,24 +273,24 @@ pub const Game = struct {
 
         for (self.objects.items) |object| {
             switch (object) {
-                .Arc => |arc| arc.draw(debug_draw),
-                .Ball => |ball| ball.draw(debug_draw),
-                .Anchor => |anchor| anchor.draw(debug_draw),
-                .Rectangle => |rectangle| rectangle.draw(debug_draw),
-                .RectangleChain => |rectangle_chain| rectangle_chain.draw(debug_draw),
+                .Arc => |arc| arc.draw(),
+                .Ball => |ball| ball.draw(),
+                .Anchor => |anchor| anchor.draw(),
+                .Rectangle => |rectangle| rectangle.draw(),
+                .RectangleChain => |rectangle_chain| rectangle_chain.draw(),
             }
         }
-        self.ball.draw(debug_draw);
+        self.ball.draw();
 
         if (self.state == .Paused) {
-            const selected_debug_draw = .{ .DebugOutline = rl.ORANGE };
+            const debug_color = rl.ORANGE;
             if (self.editor_selected_object) |so| {
                 switch (so.*) {
-                    .Arc => |arc| arc.draw(selected_debug_draw),
-                    .Ball => |ball| ball.draw(selected_debug_draw),
-                    .Anchor => |anchor| anchor.draw(selected_debug_draw),
-                    .Rectangle => |rectangle| rectangle.draw(selected_debug_draw),
-                    .RectangleChain => |rectangle_chain| rectangle_chain.draw(selected_debug_draw),
+                    .Arc => |arc| arc.draw_aabb(debug_color),
+                    .Ball => |ball| ball.draw_aabb(debug_color),
+                    .Anchor => |anchor| anchor.draw_aabb(debug_color),
+                    .Rectangle => |rectangle| rectangle.draw_aabb(debug_color),
+                    .RectangleChain => |rectangle_chain| rectangle_chain.draw_aabb(debug_color),
                 }
             }
         }

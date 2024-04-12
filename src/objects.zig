@@ -6,16 +6,6 @@ const Allocator = std.mem.Allocator;
 
 const AABB_LINE_THICKNESS = 1.5;
 
-pub const DebugDrawTag = enum {
-    NoDebugDraw,
-    DebugOutline,
-};
-
-pub const DebugDraw = union(DebugDrawTag) {
-    NoDebugDraw: void,
-    DebugOutline: rl.Color,
-};
-
 pub const AABB = struct {
     aabb: b2.b2AABB,
 
@@ -147,18 +137,16 @@ pub const Ball = struct {
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
-    pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
+    pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.color);
+    }
 
-        switch (debug_draw) {
-            .NoDebugDraw => {},
-            .DebugOutline => |color| {
-                const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.shape_id));
-                const rl_aabb_rect = aabb.to_rl_rect(position);
-                rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
-            },
-        }
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.shape_id));
+        const rl_aabb_rect = aabb.to_rl_rect(position);
+        rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
     }
 };
 
@@ -303,7 +291,7 @@ pub const Anchor = struct {
         }
     }
 
-    pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
+    pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         rl.DrawCircleV(position.to_rl_as_pos(), self.radius, self.color);
 
@@ -311,29 +299,27 @@ pub const Anchor = struct {
             const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
             rl.DrawLineV(position.to_rl_as_pos(), attached_body_position.to_rl_as_pos(), self.color);
         }
+    }
 
-        switch (debug_draw) {
-            .NoDebugDraw => {},
-            .DebugOutline => |color| {
-                const aabb = AABB.from_b2(b2.b2AABB{
-                    .lowerBound = (Vector2{
-                        .x = -self.radius / 2.0,
-                        .y = -self.radius / 2.0,
-                    }).add(&position).to_b2(),
-                    .upperBound = (Vector2{
-                        .x = self.radius / 2.0,
-                        .y = self.radius / 2.0,
-                    }).add(&position).to_b2(),
-                });
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const aabb = AABB.from_b2(b2.b2AABB{
+            .lowerBound = (Vector2{
+                .x = -self.radius / 2.0,
+                .y = -self.radius / 2.0,
+            }).add(&position).to_b2(),
+            .upperBound = (Vector2{
+                .x = self.radius / 2.0,
+                .y = self.radius / 2.0,
+            }).add(&position).to_b2(),
+        });
 
-                const rl_aabb_rect = aabb.to_rl_rect(position);
-                rl.DrawRectangleLinesEx(
-                    rl_aabb_rect,
-                    AABB_LINE_THICKNESS,
-                    color,
-                );
-            },
-        }
+        const rl_aabb_rect = aabb.to_rl_rect(position);
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
     }
 };
 
@@ -444,7 +430,7 @@ pub const Arc = struct {
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
-    pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
+    pub fn draw(self: *const Self) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const angle = b2.b2Body_GetAngle(self.body_id);
         for (&self.sub_circles) |*sub_circle| {
@@ -453,18 +439,17 @@ pub const Arc = struct {
             const rl_position = position.to_rl_as_pos();
             rl.DrawCircleV(rl_position, self.sub_circle_radius, self.color);
         }
-        switch (debug_draw) {
-            .NoDebugDraw => {},
-            .DebugOutline => |color| {
-                const local_aabb = self.aabb();
-                const rl_aabb_rect = local_aabb.to_rl_rect(body_position);
-                rl.DrawRectangleLinesEx(
-                    rl_aabb_rect,
-                    AABB_LINE_THICKNESS,
-                    color,
-                );
-            },
-        }
+    }
+
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const local_aabb = self.aabb();
+        const rl_aabb_rect = local_aabb.to_rl_rect(body_position);
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
     }
 };
 
@@ -635,7 +620,7 @@ pub const Rectangle = struct {
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
-    pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
+    pub fn draw(self: *const Self) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
         const rl_rect = self.rectangle.rl_rect(body_position, body_angle);
@@ -647,19 +632,17 @@ pub const Rectangle = struct {
             .x = 0.0,
             .y = 0.0,
         }, rl_angle, self.color);
+    }
 
-        switch (debug_draw) {
-            .NoDebugDraw => {},
-            .DebugOutline => |color| {
-                const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.rectangle.shape_id));
-                const rl_aabb_rect = aabb.to_rl_rect(body_position);
-                rl.DrawRectangleLinesEx(
-                    rl_aabb_rect,
-                    AABB_LINE_THICKNESS,
-                    color,
-                );
-            },
-        }
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.rectangle.shape_id));
+        const rl_aabb_rect = aabb.to_rl_rect(body_position);
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
     }
 };
 
@@ -770,7 +753,7 @@ pub const RectangleChain = struct {
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
-    pub fn draw(self: *const Self, debug_draw: DebugDraw) void {
+    pub fn draw(self: *const Self) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
         for (self.rectangles) |*rectangle| {
@@ -784,18 +767,17 @@ pub const RectangleChain = struct {
                 .y = 0.0,
             }, rl_angle, self.color);
         }
-        switch (debug_draw) {
-            .NoDebugDraw => {},
-            .DebugOutline => |color| {
-                const local_aabb = self.aabb();
-                const rl_aabb_rect = local_aabb.to_rl_rect(body_position);
-                rl.DrawRectangleLinesEx(
-                    rl_aabb_rect,
-                    AABB_LINE_THICKNESS,
-                    color,
-                );
-            },
-        }
+    }
+
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+        const local_aabb = self.aabb();
+        const rl_aabb_rect = local_aabb.to_rl_rect(body_position);
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
     }
 };
 
