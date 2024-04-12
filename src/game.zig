@@ -283,14 +283,26 @@ pub const Game = struct {
         self.ball.draw();
 
         if (self.state == .Paused) {
-            const debug_color = rl.ORANGE;
+            const aabb_color = rl.SKYBLUE;
+            for (self.objects.items) |object| {
+                switch (object) {
+                    .Arc => |arc| arc.draw_aabb(aabb_color),
+                    .Ball => |ball| ball.draw_aabb(aabb_color),
+                    .Anchor => |anchor| anchor.draw_aabb(aabb_color),
+                    .Rectangle => |rectangle| rectangle.draw_aabb(aabb_color),
+                    .RectangleChain => |rectangle_chain| rectangle_chain.draw_aabb(aabb_color),
+                }
+            }
+            self.ball.draw_aabb(aabb_color);
+
+            const selected_color = rl.ORANGE;
             if (self.editor_selected_object) |so| {
                 switch (so.*) {
-                    .Arc => |arc| arc.draw_aabb(debug_color),
-                    .Ball => |ball| ball.draw_aabb(debug_color),
-                    .Anchor => |anchor| anchor.draw_aabb(debug_color),
-                    .Rectangle => |rectangle| rectangle.draw_aabb(debug_color),
-                    .RectangleChain => |rectangle_chain| rectangle_chain.draw_aabb(debug_color),
+                    .Arc => |arc| arc.draw_aabb(selected_color),
+                    .Ball => |ball| ball.draw_aabb(selected_color),
+                    .Anchor => |anchor| anchor.draw_aabb(selected_color),
+                    .Rectangle => |rectangle| rectangle.draw_aabb(selected_color),
+                    .RectangleChain => |rectangle_chain| rectangle_chain.draw_aabb(selected_color),
                 }
             }
         }
