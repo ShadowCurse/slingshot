@@ -3,8 +3,8 @@ const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const Game = @import("game.zig").Game;
 
-const WIDTH = 800;
-const HEIGHT = 450;
+const WIDTH = 1280;
+const HEIGHT = 720;
 const TARGET_FPS = 80;
 const BACKGROUND_COLOR = rl.BLACK;
 

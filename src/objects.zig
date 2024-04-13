@@ -1,7 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
-const editor = @import("editor.zig");
+const ParamEditor = @import("editor.zig").ParamEditor;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
@@ -75,6 +75,7 @@ pub const Ball = struct {
     circle: b2.b2Circle,
 
     params: BallParams,
+    params_editor: ParamEditor(BallParams),
 
     const Self = @This();
 
@@ -104,6 +105,7 @@ pub const Ball = struct {
             .shape_id = shape_id,
             .circle = circle,
             .params = params,
+            .params_editor = ParamEditor(BallParams).new(&params),
         };
     }
 
@@ -123,7 +125,10 @@ pub const Ball = struct {
         return aabb.contains(position, point);
     }
 
-    pub fn set_position(self: *const Self, position: Vector2) void {
+    pub fn set_position(self: *Self, position: Vector2) void {
+        self.params.position = position;
+        self.params_editor = ParamEditor(BallParams).new(&self.params);
+
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
@@ -138,6 +143,13 @@ pub const Ball = struct {
         const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.shape_id));
         const rl_aabb_rect = aabb.to_rl_rect(position);
         rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
+    }
+
+    pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
+        if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
+            self.deinit();
+            self.* = Self.new(world_id, new_params);
+        }
     }
 };
 
@@ -155,6 +167,7 @@ pub const Anchor = struct {
     attached_body_id: ?b2.b2BodyId,
 
     params: AnchorParams,
+    params_editor: ParamEditor(AnchorParams),
 
     const Self = @This();
 
@@ -174,6 +187,7 @@ pub const Anchor = struct {
             .mouse_joint_id = null,
             .attached_body_id = null,
             .params = params,
+            .params_editor = ParamEditor(AnchorParams).new(&params),
         };
     }
 
@@ -207,7 +221,10 @@ pub const Anchor = struct {
         return aabb.contains(position, point);
     }
 
-    pub fn set_position(self: *const Self, position: Vector2) void {
+    pub fn set_position(self: *Self, position: Vector2) void {
+        self.params.position = position;
+        self.params_editor = ParamEditor(AnchorParams).new(&self.params);
+
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
@@ -304,6 +321,13 @@ pub const Anchor = struct {
             color,
         );
     }
+
+    pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
+        if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
+            self.deinit();
+            self.* = Self.new(world_id, new_params);
+        }
+    }
 };
 
 pub const ArcParams = struct {
@@ -319,6 +343,7 @@ pub const Arc = struct {
     sub_circle_radius: f32,
 
     params: ArcParams,
+    params_editor: ParamEditor(ArcParams),
 
     const SubCircle = struct {
         offset: Vector2,
@@ -365,6 +390,7 @@ pub const Arc = struct {
             .sub_circles = sub_circles,
             .sub_circle_radius = sub_circle_radius,
             .params = params,
+            .params_editor = ParamEditor(ArcParams).new(&params),
         };
     }
 
@@ -395,7 +421,10 @@ pub const Arc = struct {
         return local_aabb.contains(position, point);
     }
 
-    pub fn set_position(self: *const Self, position: Vector2) void {
+    pub fn set_position(self: *Self, position: Vector2) void {
+        self.params.position = position;
+        self.params_editor = ParamEditor(ArcParams).new(&self.params);
+
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
@@ -420,6 +449,13 @@ pub const Arc = struct {
             AABB_LINE_THICKNESS,
             color,
         );
+    }
+
+    pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
+        if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
+            self.deinit();
+            self.* = Self.new(world_id, new_params);
+        }
     }
 };
 
@@ -531,6 +567,7 @@ pub const Rectangle = struct {
     rectangle: RectangleShape,
 
     params: RectangleParams,
+    params_editor: ParamEditor(RectangleParams),
 
     const Self = @This();
 
@@ -558,6 +595,7 @@ pub const Rectangle = struct {
             .body_id = body_id,
             .rectangle = rectangle,
             .params = params,
+            .params_editor = ParamEditor(RectangleParams).new(&params),
         };
     }
 
@@ -577,7 +615,10 @@ pub const Rectangle = struct {
         return aabb.contains(position, point);
     }
 
-    pub fn set_position(self: *const Self, position: Vector2) void {
+    pub fn set_position(self: *Self, position: Vector2) void {
+        self.params.position = position;
+        self.params_editor = ParamEditor(RectangleParams).new(&self.params);
+
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
@@ -605,6 +646,13 @@ pub const Rectangle = struct {
             AABB_LINE_THICKNESS,
             color,
         );
+    }
+
+    pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
+        if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
+            self.deinit();
+            self.* = Self.new(world_id, new_params);
+        }
     }
 };
 
@@ -634,9 +682,12 @@ pub const RectangleChainParams = struct {
 };
 
 pub const RectangleChain = struct {
+    allocator: Allocator,
+
     body_id: b2.b2BodyId,
     rectangles: std.ArrayList(RectangleShape),
     params: RectangleChainParams,
+    params_editor: ParamEditor(RectangleChainParams),
 
     const Self = @This();
 
@@ -669,9 +720,11 @@ pub const RectangleChain = struct {
         }
 
         return Self{
+            .allocator = allocator,
             .body_id = body_id,
             .rectangles = rectangles,
             .params = params,
+            .params_editor = ParamEditor(RectangleChainParams).new_with_alloc(&params, allocator),
         };
     }
 
@@ -682,12 +735,13 @@ pub const RectangleChain = struct {
         b2.b2DestroyBody(self.body_id);
         self.rectangles.deinit();
         self.params.deinit();
+        self.params_editor.deinit();
     }
 
-    pub fn recreate(self: *Self, world_id: b2.b2WorldId, allocator: Allocator) !void {
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
         const params = try self.params.clone();
         self.deinit();
-        self.* = try Self.new(world_id, allocator, params);
+        self.* = try Self.new(world_id, self.allocator, params);
     }
 
     pub fn aabb(self: *const Self) AABB {
@@ -705,7 +759,11 @@ pub const RectangleChain = struct {
         return local_aabb.contains(position, point);
     }
 
-    pub fn set_position(self: *const Self, position: Vector2) void {
+    pub fn set_position(self: *Self, position: Vector2) void {
+        self.params.position = position;
+        self.params_editor.deinit();
+        self.params_editor = ParamEditor(RectangleChainParams).new_with_alloc(&self.params, self.allocator);
+
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
@@ -735,6 +793,13 @@ pub const RectangleChain = struct {
             AABB_LINE_THICKNESS,
             color,
         );
+    }
+
+    pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) !void {
+        if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
+            self.deinit();
+            self.* = try Self.new(world_id, self.allocator, new_params);
+        }
     }
 };
 

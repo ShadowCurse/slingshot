@@ -64,6 +64,13 @@ pub const Game = struct {
         var objects_params = std.ArrayList(ObjectParams).init(allocator);
         defer objects_params.deinit();
 
+        const ball_params = objects.BallParams{
+            .position = Vector2{ .x = 100.0, .y = 100.0 },
+            .radius = 10.0,
+            .color = BALL_COLOR,
+        };
+        try objects_params.append(.{ .Ball = ball_params });
+
         const rectangle_params = objects.RectangleParams{
             .position = Vector2{ .x = 0.0, .y = -100.0 },
             .point_1 = Vector2{ .x = -10.0, .y = 0.0 },
@@ -164,7 +171,6 @@ pub const Game = struct {
                 .Rectangle => |*rectangle| rectangle.recreate(self.world_id),
                 .RectangleChain => |*rectangle_chain| try rectangle_chain.recreate(
                     self.world_id,
-                    self.allocator,
                 ),
             }
         }
@@ -227,7 +233,7 @@ pub const Game = struct {
                 }
             },
             .Paused => {
-                if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT)) {
+                if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
                     const mp = self.mouse_position();
                     self.editor_selected_object = null;
                     for (self.objects.items) |*object| {
@@ -250,15 +256,15 @@ pub const Game = struct {
                         }
                     }
                 }
-                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
+                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_RIGHT)) {
+                    const mouse_pos = self.mouse_position();
                     if (self.editor_selected_object) |so| {
-                        const mouse_pos = self.mouse_position();
                         switch (so.*) {
-                            .Arc => |arc| arc.set_position(mouse_pos),
-                            .Ball => |ball| ball.set_position(mouse_pos),
-                            .Anchor => |anchor| anchor.set_position(mouse_pos),
-                            .Rectangle => |rectangle| rectangle.set_position(mouse_pos),
-                            .RectangleChain => |rectangle_chain| rectangle_chain.set_position(mouse_pos),
+                            .Arc => |*arc| arc.set_position(mouse_pos),
+                            .Ball => |*ball| ball.set_position(mouse_pos),
+                            .Anchor => |*anchor| anchor.set_position(mouse_pos),
+                            .Rectangle => |*rectangle| rectangle.set_position(mouse_pos),
+                            .RectangleChain => |*rectangle_chain| rectangle_chain.set_position(mouse_pos),
                         }
                     }
                 }
@@ -266,6 +272,16 @@ pub const Game = struct {
                     const delta = rl.GetMouseDelta();
                     self.editor_camera.offset.x += delta.x;
                     self.editor_camera.offset.y += delta.y;
+                }
+
+                if (self.editor_selected_object) |so| {
+                    switch (so.*) {
+                        .Arc => |*arc| arc.draw_editor(self.world_id),
+                        .Ball => |*ball| ball.draw_editor(self.world_id),
+                        .Anchor => |*anchor| anchor.draw_editor(self.world_id),
+                        .Rectangle => |*rectangle| rectangle.draw_editor(self.world_id),
+                        .RectangleChain => |*rectangle_chain| try rectangle_chain.draw_editor(self.world_id),
+                    }
                 }
             },
         }
