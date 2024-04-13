@@ -430,6 +430,8 @@ pub const RectangleShape = struct {
     height: f32,
     angle: f32,
 
+    const Self = @This();
+
     /// Creates rectangle shape that passes though 2 points in the middle of it.
     ///       width
     /// 3-----------------2
@@ -489,6 +491,10 @@ pub const RectangleShape = struct {
             .height = height,
             .angle = angle,
         };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        b2.b2DestroyShape(self.shape_id);
     }
 
     /// Creates a vertical raylib rectangle with origin in vextex[3] corner
@@ -556,7 +562,7 @@ pub const Rectangle = struct {
     }
 
     pub fn deinit(self: *const Self) void {
-        b2.b2DestroyShape(self.rectangle.shape_id);
+        self.rectangle.deinit();
         b2.b2DestroyBody(self.body_id);
     }
 
@@ -671,7 +677,7 @@ pub const RectangleChain = struct {
 
     pub fn deinit(self: *const Self) void {
         for (self.rectangles.items) |*rectangle| {
-            b2.b2DestroyShape(rectangle.shape_id);
+            rectangle.deinit();
         }
         b2.b2DestroyBody(self.body_id);
         self.rectangles.deinit();
