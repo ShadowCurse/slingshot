@@ -153,10 +153,23 @@ pub const Game = struct {
         };
     }
 
-    pub fn restart(self: *Self) void {
+    pub fn restart(self: *Self) !void {
         self.camera = self.initial_camera;
 
-        self.ball.deinit();
+        for (self.objects.items) |*object| {
+            switch (object.*) {
+                .Arc => |*arc| arc.recreate(self.world_id),
+                .Ball => |*ball| ball.recreate(self.world_id),
+                .Anchor => |*anchor| anchor.recreate(self.world_id),
+                .Rectangle => |*rectangle| rectangle.recreate(self.world_id),
+                .RectangleChain => |*rectangle_chain| try rectangle_chain.recreate(
+                    self.world_id,
+                    self.allocator,
+                ),
+            }
+        }
+
+        self.ball.recreate(self.world_id);
         self.ball = Ball.new(self.world_id, self.initial_ball_params);
     }
 
@@ -186,7 +199,7 @@ pub const Game = struct {
 
     pub fn update(self: *Self, dt: f32) !void {
         if (rl.IsKeyPressed(rl.KEY_R)) {
-            self.restart();
+            try self.restart();
         }
 
         if (rl.IsKeyPressed(rl.KEY_P)) {

@@ -112,6 +112,11 @@ pub const Ball = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
+        self.deinit();
+        self.* = Self.new(world_id, self.params);
+    }
+
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.shape_id));
@@ -180,6 +185,11 @@ pub const Anchor = struct {
             b2.b2DestroyJoint(id);
         }
         b2.b2DestroyBody(self.body_id);
+    }
+
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
+        self.deinit();
+        self.* = Self.new(world_id, self.params);
     }
 
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
@@ -365,6 +375,11 @@ pub const Arc = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
+        self.deinit();
+        self.* = Self.new(world_id, self.params);
+    }
+
     pub fn aabb(self: *const Self) AABB {
         var local_aabb = AABB.new();
         for (&self.sub_circles) |*sub_circle| {
@@ -545,6 +560,11 @@ pub const Rectangle = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
+        self.deinit();
+        self.* = Self.new(world_id, self.params);
+    }
+
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.rectangle.shape_id));
@@ -593,6 +613,17 @@ pub const RectangleChainParams = struct {
 
     pub fn deinit(self: *const Self) void {
         self.points.deinit();
+    }
+
+    pub fn clone(self: *const Self) !Self {
+        const points_clone = try self.points.clone();
+        return Self{
+            .position = self.position,
+            .points = points_clone,
+            .width = self.width,
+            .height_offset = self.height_offset,
+            .color = self.color,
+        };
     }
 };
 
@@ -645,6 +676,12 @@ pub const RectangleChain = struct {
         b2.b2DestroyBody(self.body_id);
         self.rectangles.deinit();
         self.params.deinit();
+    }
+
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId, allocator: Allocator) !void {
+        const params = try self.params.clone();
+        self.deinit();
+        self.* = try Self.new(world_id, allocator, params);
     }
 
     pub fn aabb(self: *const Self) AABB {
