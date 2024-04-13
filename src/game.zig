@@ -59,7 +59,7 @@ pub const Game = struct {
             .radius = 10.0,
             .color = BALL_COLOR,
         };
-        const game_ball = initial_ball_params.to_object(world_id);
+        const game_ball = Ball.new(world_id, initial_ball_params);
 
         var objects_params = std.ArrayList(ObjectParams).init(allocator);
         defer objects_params.deinit();
@@ -82,7 +82,6 @@ pub const Game = struct {
         try objects_params.append(.{ .Arc = arc_params });
 
         var points = std.ArrayList(Vector2).init(allocator);
-        defer points.deinit();
         try points.appendSlice(
             &.{
                 Vector2{ .x = -100.0, .y = -60.0 },
@@ -112,26 +111,23 @@ pub const Game = struct {
         for (objects_params.items) |*params| {
             switch (params.*) {
                 .Arc => |p| {
-                    const arc = p.to_object(world_id);
+                    const arc = Arc.new(world_id, p);
                     try game_objects.append(.{ .Arc = arc });
                 },
                 .Ball => |p| {
-                    const ball = p.to_object(world_id);
+                    const ball = Ball.new(world_id, p);
                     try game_objects.append(.{ .Ball = ball });
                 },
                 .Anchor => |p| {
-                    const anchor = p.to_object(world_id);
+                    const anchor = Anchor.new(world_id, p);
                     try game_objects.append(.{ .Anchor = anchor });
                 },
                 .Rectangle => |p| {
-                    const rectangle = p.to_object(world_id);
+                    const rectangle = Rectangle.new(world_id, p);
                     try game_objects.append(.{ .Rectangle = rectangle });
                 },
                 .RectangleChain => |p| {
-                    const rectangle_chain = try p.to_object(
-                        world_id,
-                        allocator,
-                    );
+                    const rectangle_chain = try RectangleChain.new(world_id, allocator, p);
                     try game_objects.append(.{ .RectangleChain = rectangle_chain });
                 },
             }
@@ -161,7 +157,7 @@ pub const Game = struct {
         self.camera = self.initial_camera;
 
         self.ball.deinit();
-        self.ball = self.initial_ball_params.to_object(self.world_id);
+        self.ball = Ball.new(self.world_id, self.initial_ball_params);
     }
 
     pub fn deinit(self: *const Self) void {

@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
+const editor = @import("editor.zig");
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
@@ -64,20 +65,6 @@ pub const BallParams = struct {
     position: Vector2,
     radius: f32,
     color: rl.Color,
-
-    const Self = @This();
-
-    pub fn to_object(
-        self: *const Self,
-        world_id: b2.b2WorldId,
-    ) Ball {
-        return Ball.new(
-            world_id,
-            self.position,
-            self.radius,
-            self.color,
-        );
-    }
 };
 
 pub const Ball = struct {
@@ -86,19 +73,18 @@ pub const Ball = struct {
     shape_def: b2.b2ShapeDef,
     shape_id: b2.b2ShapeId,
     circle: b2.b2Circle,
-    color: rl.Color,
+
+    params: BallParams,
 
     const Self = @This();
 
     pub fn new(
         world_id: b2.b2WorldId,
-        position: Vector2,
-        radius: f32,
-        color: rl.Color,
+        params: BallParams,
     ) Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_dynamicBody;
-        body_def.position = position.to_b2();
+        body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
         var shape_def = b2.b2DefaultShapeDef();
@@ -107,7 +93,7 @@ pub const Ball = struct {
 
         const circle = b2.b2Circle{
             .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
-            .radius = radius,
+            .radius = params.radius,
         };
         const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
 
@@ -117,7 +103,7 @@ pub const Ball = struct {
             .shape_def = shape_def,
             .shape_id = shape_id,
             .circle = circle,
-            .color = color,
+            .params = params,
         };
     }
 
@@ -139,7 +125,7 @@ pub const Ball = struct {
 
     pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.color);
+        rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.params.color);
     }
 
     pub fn draw_aabb(self: *const Self, color: rl.Color) void {
@@ -154,20 +140,6 @@ pub const AnchorParams = struct {
     position: Vector2,
     radius: f32,
     color: rl.Color,
-
-    const Self = @This();
-
-    pub fn to_object(
-        self: *const Self,
-        world_id: b2.b2WorldId,
-    ) Anchor {
-        return Anchor.new(
-            world_id,
-            self.position,
-            self.radius,
-            self.color,
-        );
-    }
 };
 
 pub const Anchor = struct {
@@ -176,20 +148,18 @@ pub const Anchor = struct {
     length_joint_id: ?b2.b2JointId,
     mouse_joint_id: ?b2.b2JointId,
     attached_body_id: ?b2.b2BodyId,
-    radius: f32,
-    color: rl.Color,
+
+    params: AnchorParams,
 
     const Self = @This();
 
     pub fn new(
         world_id: b2.b2WorldId,
-        position: Vector2,
-        radius: f32,
-        color: rl.Color,
+        params: AnchorParams,
     ) Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_staticBody;
-        body_def.position = position.to_b2();
+        body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
         return Self{
@@ -198,8 +168,7 @@ pub const Anchor = struct {
             .length_joint_id = null,
             .mouse_joint_id = null,
             .attached_body_id = null,
-            .radius = radius,
-            .color = color,
+            .params = params,
         };
     }
 
@@ -217,12 +186,12 @@ pub const Anchor = struct {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2AABB{
             .lowerBound = (Vector2{
-                .x = -self.radius / 2.0,
-                .y = -self.radius / 2.0,
+                .x = -self.params.radius / 2.0,
+                .y = -self.params.radius / 2.0,
             }).add(&position).to_b2(),
             .upperBound = (Vector2{
-                .x = self.radius / 2.0,
-                .y = self.radius / 2.0,
+                .x = self.params.radius / 2.0,
+                .y = self.params.radius / 2.0,
             }).add(&position).to_b2(),
         });
         return aabb.contains(position, point);
@@ -243,7 +212,7 @@ pub const Anchor = struct {
         const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
 
         if (self.length_joint_id == null) {
-            if (self_position.sub(&ball_position).length() < self.radius) {
+            if (self_position.sub(&ball_position).length() < self.params.radius) {
                 var joint_def = b2.b2DefaultDistanceJointDef();
                 joint_def.bodyIdA = self.body_id;
                 joint_def.bodyIdB = ball.body_id;
@@ -293,11 +262,15 @@ pub const Anchor = struct {
 
     pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        rl.DrawCircleV(position.to_rl_as_pos(), self.radius, self.color);
+        rl.DrawCircleV(position.to_rl_as_pos(), self.params.radius, self.params.color);
 
         if (self.attached_body_id) |id| {
             const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
-            rl.DrawLineV(position.to_rl_as_pos(), attached_body_position.to_rl_as_pos(), self.color);
+            rl.DrawLineV(
+                position.to_rl_as_pos(),
+                attached_body_position.to_rl_as_pos(),
+                self.params.color,
+            );
         }
     }
 
@@ -305,12 +278,12 @@ pub const Anchor = struct {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2AABB{
             .lowerBound = (Vector2{
-                .x = -self.radius / 2.0,
-                .y = -self.radius / 2.0,
+                .x = -self.params.radius / 2.0,
+                .y = -self.params.radius / 2.0,
             }).add(&position).to_b2(),
             .upperBound = (Vector2{
-                .x = self.radius / 2.0,
-                .y = self.radius / 2.0,
+                .x = self.params.radius / 2.0,
+                .y = self.params.radius / 2.0,
             }).add(&position).to_b2(),
         });
 
@@ -327,20 +300,6 @@ pub const ArcParams = struct {
     position: Vector2,
     radius: f32,
     color: rl.Color,
-
-    const Self = @This();
-
-    pub fn to_object(
-        self: *const Self,
-        world_id: b2.b2WorldId,
-    ) Arc {
-        return Arc.new(
-            world_id,
-            self.position,
-            self.radius,
-            self.color,
-        );
-    }
 };
 
 pub const Arc = struct {
@@ -348,7 +307,8 @@ pub const Arc = struct {
 
     sub_circles: [SUBCIRCLES_NUM]SubCircle,
     sub_circle_radius: f32,
-    color: rl.Color,
+
+    params: ArcParams,
 
     const SubCircle = struct {
         offset: Vector2,
@@ -359,18 +319,13 @@ pub const Arc = struct {
     const SUBCIRCLES_NUM: usize = 8;
     const SUBCIRCLE_RADIUS_DIVISOR: f32 = 4.0;
 
-    pub fn new(
-        world_id: b2.b2WorldId,
-        position: Vector2,
-        radius: f32,
-        color: rl.Color,
-    ) Self {
+    pub fn new(world_id: b2.b2WorldId, params: ArcParams) Self {
         var sub_circles: [SUBCIRCLES_NUM]SubCircle = undefined;
-        const sub_circle_radius = radius / SUBCIRCLE_RADIUS_DIVISOR;
+        const sub_circle_radius = params.radius / SUBCIRCLE_RADIUS_DIVISOR;
 
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_staticBody;
-        body_def.position = position.to_b2();
+        body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
         const initial_angle = 0.0;
@@ -379,7 +334,7 @@ pub const Arc = struct {
             const angle: f32 = initial_angle - angle_step * @as(f32, @floatFromInt(i));
             const sin = std.math.sin(angle);
             const cos = std.math.cos(angle);
-            const offset = (Vector2{ .x = cos, .y = sin }).mul(radius);
+            const offset = (Vector2{ .x = cos, .y = sin }).mul(params.radius);
 
             const circle = b2.b2Circle{
                 .point = offset.to_b2(),
@@ -399,7 +354,7 @@ pub const Arc = struct {
             .body_id = body_id,
             .sub_circles = sub_circles,
             .sub_circle_radius = sub_circle_radius,
-            .color = color,
+            .params = params,
         };
     }
 
@@ -437,7 +392,7 @@ pub const Arc = struct {
             const rotated_offset = sub_circle.offset.rotate(angle);
             const position = body_position.add(&rotated_offset);
             const rl_position = position.to_rl_as_pos();
-            rl.DrawCircleV(rl_position, self.sub_circle_radius, self.color);
+            rl.DrawCircleV(rl_position, self.sub_circle_radius, self.params.color);
         }
     }
 
@@ -547,60 +502,41 @@ pub const RectangleParams = struct {
     width: f32,
     height_offset: f32,
     color: rl.Color,
-
-    const Self = @This();
-
-    pub fn to_object(
-        self: *const Self,
-        world_id: b2.b2WorldId,
-    ) Rectangle {
-        return Rectangle.new(
-            world_id,
-            self.position,
-            self.point_1,
-            self.point_2,
-            self.width,
-            self.height_offset,
-            self.color,
-        );
-    }
 };
 
 pub const Rectangle = struct {
+    world_id: b2.b2WorldId,
     body_id: b2.b2BodyId,
     rectangle: RectangleShape,
-    color: rl.Color,
+
+    params: RectangleParams,
 
     const Self = @This();
 
     pub fn new(
         world_id: b2.b2WorldId,
-        position: Vector2,
-        point_1: Vector2,
-        point_2: Vector2,
-        width: f32,
-        height_offset: f32,
-        color: rl.Color,
+        params: RectangleParams,
     ) Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_staticBody;
-        body_def.position = position.to_b2();
+        body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
         const shape_def = b2.b2DefaultShapeDef();
         const rectangle = RectangleShape.new(
             body_id,
             &shape_def,
-            point_1,
-            point_2,
-            width,
-            height_offset,
+            params.point_1,
+            params.point_2,
+            params.width,
+            params.height_offset,
         );
 
         return Self{
+            .world_id = world_id,
             .body_id = body_id,
             .rectangle = rectangle,
-            .color = color,
+            .params = params,
         };
     }
 
@@ -631,7 +567,7 @@ pub const Rectangle = struct {
         rl.DrawRectanglePro(rl_rect, rl.Vector2{
             .x = 0.0,
             .y = 0.0,
-        }, rl_angle, self.color);
+        }, rl_angle, self.params.color);
     }
 
     pub fn draw_aabb(self: *const Self, color: rl.Color) void {
@@ -658,51 +594,30 @@ pub const RectangleChainParams = struct {
     pub fn deinit(self: *const Self) void {
         self.points.deinit();
     }
-
-    pub fn to_object(
-        self: *const Self,
-        world_id: b2.b2WorldId,
-        allocator: Allocator,
-    ) !RectangleChain {
-        return try RectangleChain.new(
-            world_id,
-            allocator,
-            self.position,
-            self.points.items,
-            self.width,
-            self.height_offset,
-            self.color,
-        );
-    }
 };
 
 pub const RectangleChain = struct {
     body_id: b2.b2BodyId,
-    color: rl.Color,
-
-    rectangles: []RectangleShape,
-    allocator: Allocator,
+    rectangles: std.ArrayList(RectangleShape),
+    params: RectangleChainParams,
 
     const Self = @This();
 
     pub fn new(
         world_id: b2.b2WorldId,
         allocator: Allocator,
-        position: Vector2,
-        points: []const Vector2,
-        width: f32,
-        height_offset: f32,
-        color: rl.Color,
+        params: RectangleChainParams,
     ) !Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_staticBody;
-        body_def.position = position.to_b2();
+        body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
-        var rectangles = try allocator.alloc(RectangleShape, points.len - 1);
-        for (0..points.len - 1) |i| {
-            const p_1 = points[i];
-            const p_2 = points[i + 1];
+        var rectangles = std.ArrayList(RectangleShape).init(allocator);
+        try rectangles.resize(params.points.items.len - 1);
+        for (0..params.points.items.len - 1) |i| {
+            const p_1 = params.points.items[i];
+            const p_2 = params.points.items[i + 1];
 
             const shape_def = b2.b2DefaultShapeDef();
             const rect = RectangleShape.new(
@@ -710,32 +625,31 @@ pub const RectangleChain = struct {
                 &shape_def,
                 p_1,
                 p_2,
-                width,
-                height_offset,
+                params.width,
+                params.height_offset,
             );
-            rectangles[i] = rect;
+            rectangles.items[i] = rect;
         }
 
         return Self{
             .body_id = body_id,
-            .color = color,
-
             .rectangles = rectangles,
-            .allocator = allocator,
+            .params = params,
         };
     }
 
     pub fn deinit(self: *const Self) void {
-        for (self.rectangles) |*rectangle| {
+        for (self.rectangles.items) |*rectangle| {
             b2.b2DestroyShape(rectangle.shape_id);
         }
         b2.b2DestroyBody(self.body_id);
-        self.allocator.free(self.rectangles);
+        self.rectangles.deinit();
+        self.params.deinit();
     }
 
     pub fn aabb(self: *const Self) AABB {
         var local_aabb = AABB.new();
-        for (self.rectangles) |*rectangle| {
+        for (self.rectangles.items) |*rectangle| {
             const rectangle_aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.shape_id));
             local_aabb = local_aabb.union_with(&rectangle_aabb);
         }
@@ -756,7 +670,7 @@ pub const RectangleChain = struct {
     pub fn draw(self: *const Self) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
-        for (self.rectangles) |*rectangle| {
+        for (self.rectangles.items) |*rectangle| {
             const rl_rect = rectangle.rl_rect(body_position, body_angle);
             const angle = rectangle.angle + body_angle;
             // raylib rotates in clock wise order
@@ -765,7 +679,7 @@ pub const RectangleChain = struct {
             rl.DrawRectanglePro(rl_rect, rl.Vector2{
                 .x = 0.0,
                 .y = 0.0,
-            }, rl_angle, self.color);
+            }, rl_angle, self.params.color);
         }
     }
 
