@@ -256,7 +256,7 @@ pub const Game = struct {
                         }
                     }
                 }
-                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_RIGHT)) {
+                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
                     const mouse_pos = self.mouse_position();
                     if (self.editor_selected_object) |so| {
                         switch (so.*) {
