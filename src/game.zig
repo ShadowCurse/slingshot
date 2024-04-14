@@ -93,16 +93,16 @@ pub const Game = struct {
         };
         try objects_params.append(.{ .Arc = arc_params });
 
-        var points = std.ArrayList(Vector2).init(allocator);
-        try points.appendSlice(
-            &.{
-                Vector2{ .x = -100.0, .y = -60.0 },
-                Vector2{ .x = -80.0, .y = -10.0 },
-                Vector2{ .x = 0.0, .y = 20.0 },
-                Vector2{ .x = 80.0, .y = -10.0 },
-                Vector2{ .x = 100.0, .y = -60.0 },
-            },
-        );
+        const rc_points = [_]Vector2{
+            Vector2{ .x = -100.0, .y = -60.0 },
+            Vector2{ .x = -80.0, .y = -10.0 },
+            Vector2{ .x = 0.0, .y = 20.0 },
+            Vector2{ .x = 80.0, .y = -10.0 },
+            Vector2{ .x = 100.0, .y = -60.0 },
+        };
+        const points = try allocator.alloc(Vector2, rc_points.len);
+        @memcpy(points, &rc_points);
+
         const rect_chain_params = objects.RectangleChainParams{
             .position = Vector2{ .x = 0.0, .y = 0.0 },
             .points = points,
@@ -272,7 +272,7 @@ pub const Game = struct {
                             .Ball => |*ball| ball.set_position(mouse_pos),
                             .Anchor => |*anchor| anchor.set_position(mouse_pos),
                             .Rectangle => |*rectangle| rectangle.set_position(mouse_pos),
-                            .RectangleChain => |*rectangle_chain| rectangle_chain.set_position(mouse_pos),
+                            .RectangleChain => |*rectangle_chain| try rectangle_chain.set_position(mouse_pos),
                         }
                     }
                 }
@@ -346,13 +346,13 @@ pub const Game = struct {
                     "Add rect chain",
                 );
                 if (add_rect_chain != 0) {
-                    var points = std.ArrayList(Vector2).init(self.allocator);
-                    try points.appendSlice(
-                        &.{
-                            Vector2.X,
-                            Vector2.NEG_X,
-                        },
-                    );
+                    const rc_points = [_]Vector2{
+                        Vector2.X,
+                        Vector2.NEG_X,
+                    };
+                    const points = try self.allocator.alloc(Vector2, rc_points.len);
+                    @memcpy(points, &rc_points);
+
                     const rect_chain_params = objects.RectangleChainParams{
                         .points = points,
                     };

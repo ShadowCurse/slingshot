@@ -105,30 +105,27 @@ pub const EditorVector2 = struct {
 };
 
 pub const EditorArrayOfVectors = struct {
-    allocator: Allocator,
-    points_editors: std.ArrayList(EditorVector2),
+    points_editors: []EditorVector2,
 
     const Self = @This();
     const HEIGHT: f32 = EDITOR_HEIGHT * 4.0;
     const WIDTH: f32 = LABEL_WIDTH + COLOR_PICKER_WIDTH;
 
-    pub fn new(points: *const std.ArrayList(Vector2), allocator: Allocator) Self {
-        var points_editors = std.ArrayList(EditorVector2).init(allocator);
-        points_editors.resize(points.items.len) catch unreachable;
-        for (points.items, points_editors.items) |*point, *point_editor| {
+    pub fn new(points: []Vector2, allocator: Allocator) !Self {
+        var points_editors = try allocator.alloc(EditorVector2, points.len);
+        for (points, points_editors) |*point, *point_editor| {
             point_editor.* = EditorVector2.new(point);
         }
         return Self{
-            .allocator = allocator,
             .points_editors = points_editors,
         };
     }
 
-    pub fn deinit(self: *const Self) void {
-        self.points_editors.deinit();
+    pub fn deinit(self: *const Self, allocator: Allocator) void {
+        allocator.free(self.points_editors);
     }
 
-    pub fn draw(self: *Self, label: [:0]const u8, position: Vector2, mouse_position: Vector2) bool {
+    pub fn draw(self: *Self, allocator: Allocator, label: [:0]const u8, position: Vector2, mouse_position: Vector2) !bool {
         const rl_position = position.to_rl_as_pos();
         _ = rl.GuiLabel(
             rl.Rectangle{
@@ -140,7 +137,7 @@ pub const EditorArrayOfVectors = struct {
             label.ptr,
         );
         var interacted = false;
-        for (self.points_editors.items, 0..) |*ve, i| {
+        for (self.points_editors, 0..) |*ve, i| {
             interacted = interacted or ve.draw(
                 "",
                 position.add(&Vector2{
@@ -161,17 +158,20 @@ pub const EditorArrayOfVectors = struct {
         );
         if (add_point != 0) {
             const v = Vector2.ZERO;
-            self.points_editors.append(EditorVector2.new(&v)) catch unreachable;
+            self.points_editors = try allocator.realloc(
+                self.points_editors,
+                self.points_editors.len + 1,
+            );
+            self.points_editors[self.points_editors.len - 1] = EditorVector2.new(&v);
         }
         return interacted;
     }
 
-    pub fn get_value(self: *const Self) ?std.ArrayList(Vector2) {
-        var points = std.ArrayList(Vector2).init(self.allocator);
-        points.resize(self.points_editors.items.len) catch unreachable;
-        for (self.points_editors.items, points.items) |*e, *p| {
+    pub fn get_value(self: *const Self, allocator: Allocator) !?[]Vector2 {
+        var points = try allocator.alloc(Vector2, self.points_editors.len);
+        for (self.points_editors, points) |*e, *p| {
             p.* = e.get_value() orelse {
-                points.deinit();
+                allocator.free(points);
                 return null;
             };
         }
@@ -246,25 +246,13 @@ pub fn ParamEditor(comptime T: type) type {
             return Self{ .inner = inner };
         }
 
-        pub fn deinit(self: *const Self) void {
-            const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
-            inline for (type_fields) |field| {
-                switch (field.type) {
-                    EditorArrayOfVectors => {
-                        @field(self.inner, field.name).deinit();
-                    },
-                    else => {},
-                }
-            }
-        }
-
-        pub fn new_with_alloc(value: *const T, allocator: Allocator) Self {
+        pub fn new_with_alloc(value: *const T, allocator: Allocator) !Self {
             const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
             var inner: ParamEditorInner(T) = undefined;
             inline for (type_fields) |field| {
                 switch (field.type) {
                     EditorArrayOfVectors => {
-                        @field(inner, field.name) = field.type.new(&@field(value, field.name), allocator);
+                        @field(inner, field.name) = try field.type.new(@field(value, field.name), allocator);
                     },
                     else => {
                         @field(inner, field.name) = field.type.new(&@field(value, field.name));
@@ -272,6 +260,18 @@ pub fn ParamEditor(comptime T: type) type {
                 }
             }
             return Self{ .inner = inner };
+        }
+
+        pub fn deinit(self: *const Self, allocator: Allocator) void {
+            const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
+            inline for (type_fields) |field| {
+                switch (field.type) {
+                    EditorArrayOfVectors => {
+                        @field(self.inner, field.name).deinit(allocator);
+                    },
+                    else => {},
+                }
+            }
         }
 
         pub fn draw(self: *Self, position: Vector2) ?T {
@@ -292,11 +292,54 @@ pub fn ParamEditor(comptime T: type) type {
             }
         }
 
+        pub fn draw_alloc(self: *Self, allocator: Allocator, position: Vector2) !?T {
+            const mouse_position = Vector2.from_rl_pos(rl.GetMousePosition());
+            const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
+            var p = position;
+            var interacted = false;
+            inline for (type_fields) |field| {
+                // converts []const u8 that @typeInfo contains to [:0]const u8 for raylib
+                const field_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{field.name});
+
+                switch (field.type) {
+                    EditorArrayOfVectors => {
+                        interacted = interacted or try field.type.draw(&@field(self.inner, field.name), allocator, field_name, p, mouse_position);
+                    },
+                    else => {
+                        interacted = interacted or field.type.draw(&@field(self.inner, field.name), field_name, p, mouse_position);
+                    },
+                }
+
+                p.y -= field.type.HEIGHT;
+            }
+            if (interacted) {
+                return self.get_value_alloc(allocator);
+            } else {
+                return null;
+            }
+        }
+
         pub fn get_value(self: *const Self) ?T {
             const type_fields = comptime @typeInfo(T).Struct.fields;
             var value: T = undefined;
             inline for (type_fields) |field| {
                 @field(value, field.name) = @field(self.inner, field.name).get_value() orelse return null;
+            }
+            return value;
+        }
+
+        pub fn get_value_alloc(self: *const Self, allocator: Allocator) !?T {
+            const type_fields = comptime @typeInfo(T).Struct.fields;
+            var value: T = undefined;
+            inline for (type_fields) |field| {
+                switch (field.type) {
+                    []Vector2 => {
+                        @field(value, field.name) = try @field(self.inner, field.name).get_value(allocator) orelse return null;
+                    },
+                    else => {
+                        @field(value, field.name) = @field(self.inner, field.name).get_value() orelse return null;
+                    },
+                }
             }
             return value;
         }
@@ -335,7 +378,7 @@ fn ParamEditorInner(comptime T: type) type {
                     .alignment = @alignOf(EditorColor),
                 };
             },
-            std.ArrayList(Vector2) => {
+            []Vector2 => {
                 new_fields[i] = .{
                     .name = field.name,
                     .type = EditorArrayOfVectors,

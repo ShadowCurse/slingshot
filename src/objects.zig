@@ -658,19 +658,19 @@ pub const Rectangle = struct {
 
 pub const RectangleChainParams = struct {
     position: Vector2 = Vector2.ZERO,
-    points: std.ArrayList(Vector2),
+    points: []Vector2,
     width: f32 = 10.0,
     height_offset: f32 = 10.0,
     color: rl.Color = rl.WHITE,
 
     const Self = @This();
 
-    pub fn deinit(self: *const Self) void {
-        self.points.deinit();
+    pub fn deinit(self: *const Self, allocator: Allocator) void {
+        allocator.free(self.points);
     }
 
-    pub fn clone(self: *const Self) !Self {
-        const points_clone = try self.points.clone();
+    pub fn clone(self: *const Self, allocator: Allocator) !Self {
+        const points_clone = try allocator.dupe(Vector2, self.points);
         return Self{
             .position = self.position,
             .points = points_clone,
@@ -702,10 +702,10 @@ pub const RectangleChain = struct {
         const body_id = b2.b2CreateBody(world_id, &body_def);
 
         var rectangles = std.ArrayList(RectangleShape).init(allocator);
-        try rectangles.resize(params.points.items.len - 1);
-        for (0..params.points.items.len - 1) |i| {
-            const p_1 = params.points.items[i];
-            const p_2 = params.points.items[i + 1];
+        try rectangles.resize(params.points.len - 1);
+        for (0..params.points.len - 1) |i| {
+            const p_1 = params.points[i];
+            const p_2 = params.points[i + 1];
 
             const shape_def = b2.b2DefaultShapeDef();
             const rect = RectangleShape.new(
@@ -718,13 +718,14 @@ pub const RectangleChain = struct {
             );
             rectangles.items[i] = rect;
         }
+        const params_editor = try ParamEditor(RectangleChainParams).new_with_alloc(&params, allocator);
 
         return Self{
             .allocator = allocator,
             .body_id = body_id,
             .rectangles = rectangles,
             .params = params,
-            .params_editor = ParamEditor(RectangleChainParams).new_with_alloc(&params, allocator),
+            .params_editor = params_editor,
         };
     }
 
@@ -734,12 +735,12 @@ pub const RectangleChain = struct {
         }
         b2.b2DestroyBody(self.body_id);
         self.rectangles.deinit();
-        self.params.deinit();
-        self.params_editor.deinit();
+        self.params.deinit(self.allocator);
+        self.params_editor.deinit(self.allocator);
     }
 
     pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
-        const params = try self.params.clone();
+        const params = try self.params.clone(self.allocator);
         self.deinit();
         self.* = try Self.new(world_id, self.allocator, params);
     }
@@ -759,10 +760,13 @@ pub const RectangleChain = struct {
         return local_aabb.contains(position, point);
     }
 
-    pub fn set_position(self: *Self, position: Vector2) void {
+    pub fn set_position(self: *Self, position: Vector2) !void {
         self.params.position = position;
-        self.params_editor.deinit();
-        self.params_editor = ParamEditor(RectangleChainParams).new_with_alloc(&self.params, self.allocator);
+        self.params_editor.deinit(self.allocator);
+        self.params_editor = try ParamEditor(RectangleChainParams).new_with_alloc(
+            &self.params,
+            self.allocator,
+        );
 
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
@@ -796,7 +800,10 @@ pub const RectangleChain = struct {
     }
 
     pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) !void {
-        if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
+        if (try self.params_editor.draw_alloc(
+            self.allocator,
+            Vector2{ .x = 0.0, .y = 0.0 },
+        )) |new_params| {
             self.deinit();
             self.* = try Self.new(world_id, self.allocator, new_params);
         }
