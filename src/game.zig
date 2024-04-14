@@ -21,6 +21,8 @@ pub const GameState = enum {
 
 pub const Game = struct {
     allocator: Allocator,
+    screen_width: u32,
+    screen_height: u32,
 
     world_id: b2.b2WorldId,
 
@@ -43,13 +45,16 @@ pub const Game = struct {
 
     const Self = @This();
 
-    pub fn new(allocator: Allocator, screen_width: f32, screen_height: f32) !Self {
+    pub fn new(allocator: Allocator, screen_width: u32, screen_height: u32) !Self {
         var world_def = b2.b2DefaultWorldDef();
         world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
         const world_id = b2.b2CreateWorld(&world_def);
 
         const camera = rl.Camera2D{
-            .offset = rl.Vector2{ .x = screen_width / 2.0, .y = screen_height / 2.0 },
+            .offset = rl.Vector2{
+                .x = @as(f32, @floatFromInt(screen_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(screen_height)) / 2.0,
+            },
             .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
             .rotation = 0.0,
             .zoom = 1.0,
@@ -142,6 +147,8 @@ pub const Game = struct {
 
         return Self{
             .allocator = allocator,
+            .screen_width = screen_width,
+            .screen_height = screen_height,
 
             .world_id = world_id,
 
@@ -284,6 +291,73 @@ pub const Game = struct {
                         .Rectangle => |*rectangle| rectangle.draw_editor(self.world_id),
                         .RectangleChain => |*rectangle_chain| try rectangle_chain.draw_editor(self.world_id),
                     }
+                }
+
+                const button_width = 50.0;
+                const button_height = 20.0;
+                var button_rect = rl.Rectangle{
+                    .x = 0.0,
+                    .y = @as(f32, @floatFromInt(self.screen_height)) - button_height,
+                    .width = button_width,
+                    .height = button_height,
+                };
+                const add_ball = rl.GuiButton(
+                    button_rect,
+                    "Add ball",
+                );
+                if (add_ball != 0) {
+                    const ball = Ball.new(self.world_id, .{});
+                    try self.objects.append(.{ .Ball = ball });
+                }
+
+                button_rect.x += button_width;
+                const add_arc = rl.GuiButton(
+                    button_rect,
+                    "Add arc",
+                );
+                if (add_arc != 0) {
+                    const arc = Arc.new(self.world_id, .{});
+                    try self.objects.append(.{ .Arc = arc });
+                }
+
+                button_rect.x += button_width;
+                const add_anchor = rl.GuiButton(
+                    button_rect,
+                    "Add anchor",
+                );
+                if (add_anchor != 0) {
+                    const anchor = Anchor.new(self.world_id, .{});
+                    try self.objects.append(.{ .Anchor = anchor });
+                }
+
+                button_rect.x += button_width;
+                const add_rect = rl.GuiButton(
+                    button_rect,
+                    "Add rect",
+                );
+                if (add_rect != 0) {
+                    const rect = Rectangle.new(self.world_id, .{});
+                    try self.objects.append(.{ .Rectangle = rect });
+                }
+
+                button_rect.x += button_width;
+                const add_rect_chain = rl.GuiButton(
+                    button_rect,
+                    "Add rect chain",
+                );
+                if (add_rect_chain != 0) {
+                    var points = std.ArrayList(Vector2).init(self.allocator);
+                    try points.appendSlice(
+                        &.{
+                            Vector2.X,
+                            Vector2.NEG_X,
+                        },
+                    );
+                    const rect_chain_params = objects.RectangleChainParams{
+                        .points = points,
+                    };
+                    const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
+                    try self.objects.append(.{ .RectangleChain = rect_chain });
                 }
             },
         }

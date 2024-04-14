@@ -62,9 +62,9 @@ pub const AABB = struct {
 };
 
 pub const BallParams = struct {
-    position: Vector2,
-    radius: f32,
-    color: rl.Color,
+    position: Vector2 = Vector2.ZERO,
+    radius: f32 = 10.0,
+    color: rl.Color = rl.WHITE,
 };
 
 pub const Ball = struct {
@@ -154,9 +154,9 @@ pub const Ball = struct {
 };
 
 pub const AnchorParams = struct {
-    position: Vector2,
-    radius: f32,
-    color: rl.Color,
+    position: Vector2 = Vector2.ZERO,
+    radius: f32 = 10.0,
+    color: rl.Color = rl.WHITE,
 };
 
 pub const Anchor = struct {
@@ -331,9 +331,9 @@ pub const Anchor = struct {
 };
 
 pub const ArcParams = struct {
-    position: Vector2,
-    radius: f32,
-    color: rl.Color,
+    position: Vector2 = Vector2.ZERO,
+    radius: f32 = 10.0,
+    color: rl.Color = rl.WHITE,
 };
 
 pub const Arc = struct {
@@ -553,12 +553,12 @@ pub const RectangleShape = struct {
 };
 
 pub const RectangleParams = struct {
-    position: Vector2,
-    point_1: Vector2,
-    point_2: Vector2,
-    width: f32,
-    height_offset: f32,
-    color: rl.Color,
+    position: Vector2 = Vector2.ZERO,
+    point_1: Vector2 = Vector2.X,
+    point_2: Vector2 = Vector2.NEG_X,
+    width: f32 = 10.0,
+    height_offset: f32 = 10.0,
+    color: rl.Color = rl.WHITE,
 };
 
 pub const Rectangle = struct {
@@ -657,11 +657,11 @@ pub const Rectangle = struct {
 };
 
 pub const RectangleChainParams = struct {
-    position: Vector2,
+    position: Vector2 = Vector2.ZERO,
     points: std.ArrayList(Vector2),
-    width: f32,
-    height_offset: f32,
-    color: rl.Color,
+    width: f32 = 10.0,
+    height_offset: f32 = 10.0,
+    color: rl.Color = rl.WHITE,
 
     const Self = @This();
 

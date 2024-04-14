@@ -12,6 +12,26 @@ pub const ZERO = Self{
     .y = 0.0,
 };
 
+pub const X = Self{
+    .x = 1.0,
+    .y = 0.0,
+};
+
+pub const NEG_X = Self{
+    .x = -1.0,
+    .y = 0.0,
+};
+
+pub const Y = Self{
+    .x = 0.0,
+    .y = 1.0,
+};
+
+pub const NEG_Y = Self{
+    .x = 0.0,
+    .y = -1.0,
+};
+
 pub const MAX = Self{
     .x = std.math.inf(f32),
     .y = std.math.inf(f32),
