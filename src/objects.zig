@@ -832,4 +832,88 @@ pub const Object = union(ObjectTags) {
     Anchor: Anchor,
     Rectangle: Rectangle,
     RectangleChain: RectangleChain,
+
+    const Self = @This();
+
+    pub fn deinit(self: *const Self) void {
+        switch (self.*) {
+            .Arc => |*arc| arc.deinit(),
+            .Ball => |*ball| ball.deinit(),
+            .Anchor => |*anchor| anchor.deinit(),
+            .Rectangle => |*rectangle| rectangle.deinit(),
+            .RectangleChain => |*rectangle_chain| rectangle_chain.deinit(),
+        }
+    }
+
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
+        switch (self.*) {
+            .Arc => |*arc| arc.recreate(world_id),
+            .Ball => |*ball| ball.recreate(world_id),
+            .Anchor => |*anchor| anchor.recreate(world_id),
+            .Rectangle => |*rectangle| rectangle.recreate(world_id),
+            .RectangleChain => |*rectangle_chain| try rectangle_chain.recreate(
+                world_id,
+            ),
+        }
+    }
+
+    pub fn draw(self: *const Self) void {
+        switch (self.*) {
+            .Arc => |*arc| arc.draw(),
+            .Ball => |*ball| ball.draw(),
+            .Anchor => |*anchor| anchor.draw(),
+            .Rectangle => |*rectangle| rectangle.draw(),
+            .RectangleChain => |*rectangle_chain| rectangle_chain.draw(),
+        }
+    }
+
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        switch (self.*) {
+            .Arc => |*arc| arc.draw_aabb(color),
+            .Ball => |*ball| ball.draw_aabb(color),
+            .Anchor => |*anchor| anchor.draw_aabb(color),
+            .Rectangle => |*rectangle| rectangle.draw_aabb(color),
+            .RectangleChain => |*rectangle_chain| rectangle_chain.draw_aabb(color),
+        }
+    }
+
+    pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) !void {
+        switch (self.*) {
+            .Arc => |*arc| arc.draw_editor(world_id),
+            .Ball => |*ball| ball.draw_editor(world_id),
+            .Anchor => |*anchor| anchor.draw_editor(world_id),
+            .Rectangle => |*rectangle| rectangle.draw_editor(world_id),
+            .RectangleChain => |*rectangle_chain| try rectangle_chain.draw_editor(world_id),
+        }
+    }
+
+    pub fn set_position(self: *Self, position: Vector2) !void {
+        switch (self.*) {
+            .Arc => |*arc| arc.set_position(position),
+            .Ball => |*ball| ball.set_position(position),
+            .Anchor => |*anchor| anchor.set_position(position),
+            .Rectangle => |*rectangle| rectangle.set_position(position),
+            .RectangleChain => |*rectangle_chain| try rectangle_chain.set_position(position),
+        }
+    }
+
+    pub fn aabb_contains(self: *Self, position: Vector2) bool {
+        return switch (self.*) {
+            .Arc => |*arc| arc.aabb_contains(position),
+            .Ball => |*ball| ball.aabb_contains(position),
+            .Anchor => |*anchor| anchor.aabb_contains(position),
+            .Rectangle => |*rectangle| rectangle.aabb_contains(position),
+            .RectangleChain => |*rectangle_chain| rectangle_chain.aabb_contains(position),
+        };
+    }
+
+    pub fn params(self: *const Self, allocator: Allocator) !ObjectParams {
+        return switch (self.*) {
+            .Arc => |*arc| .{ .Arc = arc.params },
+            .Ball => |*ball| .{ .Ball = ball.params },
+            .Anchor => |*anchor| .{ .Anchor = anchor.params },
+            .Rectangle => |*rectangle| .{ .Rectangle = rectangle.params },
+            .RectangleChain => |*rectangle_chain| .{ .RectangleChain = try rectangle_chain.params.clone(allocator) },
+        };
+    }
 };

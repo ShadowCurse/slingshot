@@ -241,15 +241,7 @@ pub const Game = struct {
         self.camera = self.initial_camera;
 
         for (self.objects.items) |*object| {
-            switch (object.*) {
-                .Arc => |*arc| arc.recreate(self.world_id),
-                .Ball => |*ball| ball.recreate(self.world_id),
-                .Anchor => |*anchor| anchor.recreate(self.world_id),
-                .Rectangle => |*rectangle| rectangle.recreate(self.world_id),
-                .RectangleChain => |*rectangle_chain| try rectangle_chain.recreate(
-                    self.world_id,
-                ),
-            }
+            try object.recreate(self.world_id);
         }
 
         self.ball.recreate(self.world_id);
@@ -258,13 +250,7 @@ pub const Game = struct {
 
     pub fn deinit(self: *const Self) void {
         for (self.objects.items) |object| {
-            switch (object) {
-                .Arc => |arc| arc.deinit(),
-                .Ball => |ball| ball.deinit(),
-                .Anchor => |anchor| anchor.deinit(),
-                .Rectangle => |rectangle| rectangle.deinit(),
-                .RectangleChain => |rectangle_chain| rectangle_chain.deinit(),
-            }
+            object.deinit();
         }
         self.objects.deinit();
         self.ball.deinit();
@@ -314,36 +300,16 @@ pub const Game = struct {
                     const mp = self.mouse_position();
                     self.editor_selected_object_index = null;
                     for (self.objects.items, 0..) |*object, i| {
-                        switch (object.*) {
-                            .Arc => |arc| if (arc.aabb_contains(mp)) {
-                                self.editor_selected_object_index = i;
-                            },
-                            .Ball => |ball| if (ball.aabb_contains(mp)) {
-                                self.editor_selected_object_index = i;
-                            },
-                            .Anchor => |anchor| if (anchor.aabb_contains(mp)) {
-                                self.editor_selected_object_index = i;
-                            },
-                            .Rectangle => |rect| if (rect.aabb_contains(mp)) {
-                                self.editor_selected_object_index = i;
-                            },
-                            .RectangleChain => |rc| if (rc.aabb_contains(mp)) {
-                                self.editor_selected_object_index = i;
-                            },
+                        if (object.aabb_contains(mp)) {
+                            self.editor_selected_object_index = i;
+                            break;
                         }
                     }
                 }
                 if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
                     const mouse_pos = self.mouse_position();
                     if (self.editor_selected_object_index) |i| {
-                        const so = &self.objects.items[i];
-                        switch (so.*) {
-                            .Arc => |*arc| arc.set_position(mouse_pos),
-                            .Ball => |*ball| ball.set_position(mouse_pos),
-                            .Anchor => |*anchor| anchor.set_position(mouse_pos),
-                            .Rectangle => |*rectangle| rectangle.set_position(mouse_pos),
-                            .RectangleChain => |*rectangle_chain| try rectangle_chain.set_position(mouse_pos),
-                        }
+                        try self.objects.items[i].set_position(mouse_pos);
                     }
                 }
                 if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
@@ -353,14 +319,7 @@ pub const Game = struct {
                 }
 
                 if (self.editor_selected_object_index) |i| {
-                    const so = &self.objects.items[i];
-                    switch (so.*) {
-                        .Arc => |*arc| arc.draw_editor(self.world_id),
-                        .Ball => |*ball| ball.draw_editor(self.world_id),
-                        .Anchor => |*anchor| anchor.draw_editor(self.world_id),
-                        .Rectangle => |*rectangle| rectangle.draw_editor(self.world_id),
-                        .RectangleChain => |*rectangle_chain| try rectangle_chain.draw_editor(self.world_id),
-                    }
+                    try self.objects.items[i].draw_editor(self.world_id);
                 }
 
                 var save_button_rect = rl.Rectangle{
@@ -465,39 +424,20 @@ pub const Game = struct {
         defer rl.EndMode2D();
 
         for (self.objects.items) |object| {
-            switch (object) {
-                .Arc => |arc| arc.draw(),
-                .Ball => |ball| ball.draw(),
-                .Anchor => |anchor| anchor.draw(),
-                .Rectangle => |rectangle| rectangle.draw(),
-                .RectangleChain => |rectangle_chain| rectangle_chain.draw(),
-            }
+            object.draw();
         }
         self.ball.draw();
 
         if (self.state == .Paused) {
             const aabb_color = rl.SKYBLUE;
             for (self.objects.items) |object| {
-                switch (object) {
-                    .Arc => |arc| arc.draw_aabb(aabb_color),
-                    .Ball => |ball| ball.draw_aabb(aabb_color),
-                    .Anchor => |anchor| anchor.draw_aabb(aabb_color),
-                    .Rectangle => |rectangle| rectangle.draw_aabb(aabb_color),
-                    .RectangleChain => |rectangle_chain| rectangle_chain.draw_aabb(aabb_color),
-                }
+                object.draw_aabb(aabb_color);
             }
             self.ball.draw_aabb(aabb_color);
 
             const selected_color = rl.ORANGE;
             if (self.editor_selected_object_index) |i| {
-                const so = &self.objects.items[i];
-                switch (so.*) {
-                    .Arc => |*arc| arc.draw_aabb(selected_color),
-                    .Ball => |*ball| ball.draw_aabb(selected_color),
-                    .Anchor => |*anchor| anchor.draw_aabb(selected_color),
-                    .Rectangle => |*rectangle| rectangle.draw_aabb(selected_color),
-                    .RectangleChain => |*rectangle_chain| rectangle_chain.draw_aabb(selected_color),
-                }
+                self.objects.items[i].draw_aabb(selected_color);
             }
         }
 
@@ -511,13 +451,7 @@ pub const Game = struct {
 
         var objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
         for (self.objects.items, objects_params) |*item, *param| {
-            switch (item.*) {
-                .Arc => |*arc| param.* = .{ .Arc = arc.params },
-                .Ball => |*ball| param.* = .{ .Ball = ball.params },
-                .Anchor => |*anchor| param.* = .{ .Anchor = anchor.params },
-                .Rectangle => |*rectangle| param.* = .{ .Rectangle = rectangle.params },
-                .RectangleChain => |*rectangle_chain| param.* = .{ .RectangleChain = try rectangle_chain.params.clone(self.allocator) },
-            }
+            param.* = try item.params(self.allocator);
         }
         defer {
             for (objects_params) |*p| {
