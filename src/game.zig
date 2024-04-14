@@ -14,6 +14,19 @@ const RectangleChain = objects.RectangleChain;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
+pub const GameSaveState = struct {
+    camera: rl.Camera2D,
+    initial_camera: rl.Camera2D,
+
+    ball: objects.BallParams,
+    initial_ball_params: objects.BallParams,
+
+    objects: []ObjectParams,
+    state: GameState,
+
+    editor_camera: rl.Camera2D,
+};
+
 pub const GameState = enum {
     Running,
     Paused,
@@ -167,6 +180,63 @@ pub const Game = struct {
         };
     }
 
+    pub fn from_state(allocator: Allocator, screen_width: u32, screen_height: u32, state: *const GameSaveState) !Self {
+        var world_def = b2.b2DefaultWorldDef();
+        world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
+        const world_id = b2.b2CreateWorld(&world_def);
+
+        const game_ball = Ball.new(world_id, state.initial_ball_params);
+
+        var game_objects = std.ArrayList(objects.Object).init(allocator);
+        for (state.objects) |*params| {
+            switch (params.*) {
+                .Arc => |p| {
+                    const arc = Arc.new(world_id, p);
+                    try game_objects.append(.{ .Arc = arc });
+                },
+                .Ball => |p| {
+                    const ball = Ball.new(world_id, p);
+                    try game_objects.append(.{ .Ball = ball });
+                },
+                .Anchor => |p| {
+                    const anchor = Anchor.new(world_id, p);
+                    try game_objects.append(.{ .Anchor = anchor });
+                },
+                .Rectangle => |p| {
+                    const rectangle = Rectangle.new(world_id, p);
+                    try game_objects.append(.{ .Rectangle = rectangle });
+                },
+                .RectangleChain => |p| {
+                    // state will be deallocated, so need to clone params
+                    const p_clone = try p.clone(allocator);
+                    const rectangle_chain = try RectangleChain.new(world_id, allocator, p_clone);
+                    try game_objects.append(.{ .RectangleChain = rectangle_chain });
+                },
+            }
+        }
+
+        return Self{
+            .allocator = allocator,
+            .screen_width = screen_width,
+            .screen_height = screen_height,
+
+            .world_id = world_id,
+
+            .camera = state.camera,
+            .initial_camera = state.camera,
+
+            .ball = game_ball,
+            .initial_ball_params = state.initial_ball_params,
+
+            .objects = game_objects,
+
+            .state = GameState.Running,
+
+            .editor_camera = state.editor_camera,
+            .editor_selected_object_index = null,
+        };
+    }
+
     pub fn restart(self: *Self) !void {
         self.camera = self.initial_camera;
 
@@ -293,6 +363,28 @@ pub const Game = struct {
                     }
                 }
 
+                var save_button_rect = rl.Rectangle{
+                    .x = @as(f32, @floatFromInt(self.screen_width)) - 50.0,
+                    .y = 0.0,
+                    .width = 50.0,
+                    .height = 50.0,
+                };
+                const s = rl.GuiButton(
+                    save_button_rect,
+                    "Save",
+                );
+                if (s != 0) {
+                    try self.save();
+                }
+                save_button_rect.y += 50.0;
+                const l = rl.GuiButton(
+                    save_button_rect,
+                    "Load",
+                );
+                if (l != 0) {
+                    try self.load();
+                }
+
                 const button_width = 50.0;
                 const button_height = 20.0;
                 var button_rect = rl.Rectangle{
@@ -411,5 +503,63 @@ pub const Game = struct {
 
         const mouse_pos = self.mouse_position();
         rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
+    }
+
+    pub fn save(self: *const Self) !void {
+        var file = try std.fs.cwd().createFile("save.json", .{});
+        defer file.close();
+
+        var objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
+        for (self.objects.items, objects_params) |*item, *param| {
+            switch (item.*) {
+                .Arc => |*arc| param.* = .{ .Arc = arc.params },
+                .Ball => |*ball| param.* = .{ .Ball = ball.params },
+                .Anchor => |*anchor| param.* = .{ .Anchor = anchor.params },
+                .Rectangle => |*rectangle| param.* = .{ .Rectangle = rectangle.params },
+                .RectangleChain => |*rectangle_chain| param.* = .{ .RectangleChain = try rectangle_chain.params.clone(self.allocator) },
+            }
+        }
+        defer {
+            for (objects_params) |*p| {
+                switch (p.*) {
+                    .RectangleChain => |*rc| rc.deinit(self.allocator),
+                    else => {},
+                }
+            }
+            self.allocator.free(objects_params);
+        }
+
+        const save_state = GameSaveState{
+            .camera = self.camera,
+            .initial_camera = self.initial_camera,
+            .ball = self.ball.params,
+            .initial_ball_params = self.initial_ball_params,
+            .objects = objects_params,
+            .state = self.state,
+            .editor_camera = self.editor_camera,
+        };
+
+        const options = std.json.StringifyOptions{
+            .whitespace = .indent_4,
+        };
+
+        try std.json.stringify(save_state, options, file.writer());
+    }
+
+    pub fn load(self: *Self) !void {
+        var file = try std.fs.cwd().openFile("save.json", .{});
+        defer file.close();
+
+        const file_data = try file.readToEndAlloc(self.allocator, 1024 * 1024 * 1024);
+        defer self.allocator.free(file_data);
+
+        const save_state = try std.json.parseFromSlice(GameSaveState, self.allocator, file_data, .{});
+        defer save_state.deinit();
+
+        const allocator = self.allocator;
+        const screen_width = self.screen_width;
+        const screen_height = self.screen_height;
+        self.deinit();
+        self.* = try Game.from_state(allocator, screen_width, screen_height, &save_state.value);
     }
 };
