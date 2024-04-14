@@ -34,7 +34,7 @@ pub const Game = struct {
     state: GameState,
 
     editor_camera: rl.Camera2D,
-    editor_selected_object: ?*Object,
+    editor_selected_object_index: ?usize,
 
     const BALL_COLOR = rl.GREEN;
     const PLATFORM_SIZE = rl.Vector2{ .x = 100.0, .y = 20.0 };
@@ -156,7 +156,7 @@ pub const Game = struct {
             .state = GameState.Running,
 
             .editor_camera = camera,
-            .editor_selected_object = null,
+            .editor_selected_object_index = null,
         };
     }
 
@@ -235,30 +235,31 @@ pub const Game = struct {
             .Paused => {
                 if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
                     const mp = self.mouse_position();
-                    self.editor_selected_object = null;
-                    for (self.objects.items) |*object| {
+                    self.editor_selected_object_index = null;
+                    for (self.objects.items, 0..) |*object, i| {
                         switch (object.*) {
                             .Arc => |arc| if (arc.aabb_contains(mp)) {
-                                self.editor_selected_object = object;
+                                self.editor_selected_object_index = i;
                             },
                             .Ball => |ball| if (ball.aabb_contains(mp)) {
-                                self.editor_selected_object = object;
+                                self.editor_selected_object_index = i;
                             },
                             .Anchor => |anchor| if (anchor.aabb_contains(mp)) {
-                                self.editor_selected_object = object;
+                                self.editor_selected_object_index = i;
                             },
                             .Rectangle => |rect| if (rect.aabb_contains(mp)) {
-                                self.editor_selected_object = object;
+                                self.editor_selected_object_index = i;
                             },
                             .RectangleChain => |rc| if (rc.aabb_contains(mp)) {
-                                self.editor_selected_object = object;
+                                self.editor_selected_object_index = i;
                             },
                         }
                     }
                 }
                 if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
                     const mouse_pos = self.mouse_position();
-                    if (self.editor_selected_object) |so| {
+                    if (self.editor_selected_object_index) |i| {
+                        const so = &self.objects.items[i];
                         switch (so.*) {
                             .Arc => |*arc| arc.set_position(mouse_pos),
                             .Ball => |*ball| ball.set_position(mouse_pos),
@@ -274,7 +275,8 @@ pub const Game = struct {
                     self.editor_camera.offset.y += delta.y;
                 }
 
-                if (self.editor_selected_object) |so| {
+                if (self.editor_selected_object_index) |i| {
+                    const so = &self.objects.items[i];
                     switch (so.*) {
                         .Arc => |*arc| arc.draw_editor(self.world_id),
                         .Ball => |*ball| ball.draw_editor(self.world_id),
@@ -321,13 +323,14 @@ pub const Game = struct {
             self.ball.draw_aabb(aabb_color);
 
             const selected_color = rl.ORANGE;
-            if (self.editor_selected_object) |so| {
+            if (self.editor_selected_object_index) |i| {
+                const so = &self.objects.items[i];
                 switch (so.*) {
-                    .Arc => |arc| arc.draw_aabb(selected_color),
-                    .Ball => |ball| ball.draw_aabb(selected_color),
-                    .Anchor => |anchor| anchor.draw_aabb(selected_color),
-                    .Rectangle => |rectangle| rectangle.draw_aabb(selected_color),
-                    .RectangleChain => |rectangle_chain| rectangle_chain.draw_aabb(selected_color),
+                    .Arc => |*arc| arc.draw_aabb(selected_color),
+                    .Ball => |*ball| ball.draw_aabb(selected_color),
+                    .Anchor => |*anchor| anchor.draw_aabb(selected_color),
+                    .Rectangle => |*rectangle| rectangle.draw_aabb(selected_color),
+                    .RectangleChain => |*rectangle_chain| rectangle_chain.draw_aabb(selected_color),
                 }
             }
         }
