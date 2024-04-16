@@ -73,7 +73,7 @@ pub const Game = struct {
             .zoom = 1.0,
         };
         const initial_ball_params = objects.BallParams{
-            .position = Vector2{ .x = 240.0, .y = 100.0 },
+            .position = Vector2{ .x = 0.0, .y = 100.0 },
             .radius = 10.0,
             .color = BALL_COLOR,
         };
@@ -81,82 +81,16 @@ pub const Game = struct {
 
         var objects_params = std.ArrayList(ObjectParams).init(allocator);
         defer objects_params.deinit();
-
-        const ball_params = objects.BallParams{
-            .position = Vector2{ .x = 100.0, .y = 100.0 },
-            .radius = 10.0,
-            .color = BALL_COLOR,
-        };
-        try objects_params.append(.{ .Ball = ball_params });
-
-        const rectangle_params = objects.RectangleParams{
-            .position = Vector2{ .x = 0.0, .y = -100.0 },
-            .point_1 = Vector2{ .x = -10.0, .y = 0.0 },
-            .point_2 = Vector2{ .x = 10.0, .y = 0.0 },
-            .width = 10.0,
-            .height_offset = 1.0,
-            .color = PLATFORM_COLOR,
-        };
-        try objects_params.append(.{ .Rectangle = rectangle_params });
-
-        const arc_params = objects.ArcParams{
-            .position = Vector2{ .x = -150.0, .y = -80.0 },
-            .radius = 30.0,
-            .color = rl.GOLD,
-        };
-        try objects_params.append(.{ .Arc = arc_params });
-
-        const rc_points = [_]Vector2{
-            Vector2{ .x = -100.0, .y = -60.0 },
-            Vector2{ .x = -80.0, .y = -10.0 },
-            Vector2{ .x = 0.0, .y = 20.0 },
-            Vector2{ .x = 80.0, .y = -10.0 },
-            Vector2{ .x = 100.0, .y = -60.0 },
-        };
-        const points = try allocator.alloc(Vector2, rc_points.len);
-        @memcpy(points, &rc_points);
-
-        const rect_chain_params = objects.RectangleChainParams{
-            .position = Vector2{ .x = 0.0, .y = 0.0 },
-            .points = points,
-            .width = 10.0,
-            .height_offset = 0.0,
-            .color = rl.ORANGE,
-        };
-        try objects_params.append(.{ .RectangleChain = rect_chain_params });
-
         const anchor_params = objects.AnchorParams{
-            .position = Vector2{ .x = 240.0, .y = 0.0 },
+            .position = Vector2{ .x = 0.0, .y = 0.0 },
             .radius = 5.0,
             .color = rl.LIME,
         };
         try objects_params.append(.{ .Anchor = anchor_params });
 
         var game_objects = std.ArrayList(objects.Object).init(allocator);
-        for (objects_params.items) |*params| {
-            switch (params.*) {
-                .Arc => |p| {
-                    const arc = Arc.new(world_id, p);
-                    try game_objects.append(.{ .Arc = arc });
-                },
-                .Ball => |p| {
-                    const ball = Ball.new(world_id, p);
-                    try game_objects.append(.{ .Ball = ball });
-                },
-                .Anchor => |p| {
-                    const anchor = Anchor.new(world_id, p);
-                    try game_objects.append(.{ .Anchor = anchor });
-                },
-                .Rectangle => |p| {
-                    const rectangle = Rectangle.new(world_id, p);
-                    try game_objects.append(.{ .Rectangle = rectangle });
-                },
-                .RectangleChain => |p| {
-                    const rectangle_chain = try RectangleChain.new(world_id, allocator, p);
-                    try game_objects.append(.{ .RectangleChain = rectangle_chain });
-                },
-            }
-        }
+        const anchor = Anchor.new(world_id, anchor_params);
+        try game_objects.append(.{ .Anchor = anchor });
 
         return Self{
             .allocator = allocator,
