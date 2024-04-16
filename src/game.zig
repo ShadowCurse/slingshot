@@ -51,11 +51,6 @@ pub const Game = struct {
     editor_camera: rl.Camera2D,
     editor_selected_object_index: ?usize,
 
-    const BALL_COLOR = rl.GREEN;
-    const PLATFORM_SIZE = rl.Vector2{ .x = 100.0, .y = 20.0 };
-    const PLATFORM_VELOCITY: f32 = 100.0;
-    const PLATFORM_COLOR = rl.RED;
-
     const Self = @This();
 
     pub fn new(allocator: Allocator, screen_width: u32, screen_height: u32) !Self {
@@ -75,7 +70,7 @@ pub const Game = struct {
         const initial_ball_params = objects.BallParams{
             .position = Vector2{ .x = 0.0, .y = 100.0 },
             .radius = 10.0,
-            .color = BALL_COLOR,
+            .color = rl.GREEN,
         };
         const game_ball = Ball.new(world_id, initial_ball_params);
 
