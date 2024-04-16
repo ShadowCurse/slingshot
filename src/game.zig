@@ -192,7 +192,8 @@ pub const Game = struct {
             .Paused => &self.editor_camera,
         };
         return Vector2.from_rl_pos(rl.GetMousePosition())
-            .sub(&Vector2.from_rl_pos(camera.offset));
+            .sub(&Vector2.from_rl_pos(camera.offset))
+            .add(&Vector2.from_rl_pos(camera.target));
     }
 
     pub fn update(self: *Self, dt: f32) !void {
@@ -233,8 +234,8 @@ pub const Game = struct {
                 }
                 if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
                     const delta = rl.GetMouseDelta();
-                    self.editor_camera.offset.x += delta.x;
-                    self.editor_camera.offset.y += delta.y;
+                    self.editor_camera.target.x -= delta.x;
+                    self.editor_camera.target.y -= delta.y;
                 }
 
                 if (self.editor_selected_object_index) |i| {
