@@ -272,7 +272,7 @@ pub const Game = struct {
                     try self.load();
                 }
 
-                const button_width = 50.0;
+                const button_width = 100.0;
                 const button_height = 20.0;
                 var button_rect = rl.Rectangle{
                     .x = 0.0,
@@ -280,6 +280,19 @@ pub const Game = struct {
                     .width = button_width,
                     .height = button_height,
                 };
+                const remove = rl.GuiButton(
+                    button_rect,
+                    "Remove",
+                );
+                if (remove != 0) {
+                    if (self.editor_selected_object_index) |i| {
+                        const object = self.objects.swapRemove(i);
+                        object.deinit();
+                        self.editor_selected_object_index = null;
+                    }
+                }
+
+                button_rect.x += button_width;
                 const add_ball = rl.GuiButton(
                     button_rect,
                     "Add ball",
