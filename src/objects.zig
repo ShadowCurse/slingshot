@@ -126,6 +126,10 @@ pub const Ball = struct {
         return aabb.contains(position, point);
     }
 
+    pub fn get_position(self: *const Self) Vector2 {
+        return Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
+    }
+
     pub fn set_position(self: *Self, position: Vector2) void {
         self.params.position = position;
         self.params_editor = ParamEditor(BallParams).new(&self.params);

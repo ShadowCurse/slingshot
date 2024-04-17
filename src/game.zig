@@ -196,6 +196,13 @@ pub const Game = struct {
             .add(&Vector2.from_rl_pos(camera.target));
     }
 
+    pub fn update_camera(self: *Self, dt: f32) void {
+        const ball_pos = self.ball.get_position();
+        const camera_pos = Vector2.from_rl_pos(self.camera.target);
+        const p = ball_pos.lerp(&camera_pos, dt);
+        self.camera.target.y = p.to_rl_as_pos().y;
+    }
+
     pub fn update(self: *Self, dt: f32) !void {
         if (rl.IsKeyPressed(rl.KEY_R)) {
             try self.restart();
@@ -211,6 +218,7 @@ pub const Game = struct {
         switch (self.state) {
             .Running => {
                 b2.b2World_Step(self.world_id, dt, 4);
+                self.update_camera(dt);
                 for (self.objects.items) |*object| {
                     object.update(self);
                 }

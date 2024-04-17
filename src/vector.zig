@@ -140,3 +140,10 @@ pub fn rotate(self: *const Self, rad: f32) Self {
         .y = sin * self.x + cos * self.y,
     };
 }
+
+pub fn lerp(self: *const Self, other: *const Self, t: f32) Self {
+    return Self{
+        .x = std.math.lerp(self.x, other.x, t),
+        .y = std.math.lerp(self.y, other.y, t),
+    };
+}
