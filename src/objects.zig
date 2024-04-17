@@ -2,6 +2,7 @@ const std = @import("std");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const ParamEditor = @import("editor.zig").ParamEditor;
+const Game = @import("game.zig").Game;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
@@ -231,18 +232,20 @@ pub const Anchor = struct {
 
     pub fn update(
         self: *Self,
-        world_id: b2.b2WorldId,
-        mouse_position: Vector2,
-        ball: *const Ball,
+        game: *const Game,
     ) void {
+        const world_id = game.world_id;
+        const ball_body_id = game.ball.body_id;
+        const mouse_position = game.mouse_position();
+
         const self_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
+        const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball_body_id));
 
         if (self.length_joint_id == null) {
             if (self_position.sub(&ball_position).length() < self.params.radius) {
                 var joint_def = b2.b2DefaultDistanceJointDef();
                 joint_def.bodyIdA = self.body_id;
-                joint_def.bodyIdB = ball.body_id;
+                joint_def.bodyIdB = ball_body_id;
                 joint_def.length = 0.0;
                 joint_def.minLength = 0.0;
                 joint_def.maxLength = 100.0;
@@ -251,7 +254,7 @@ pub const Anchor = struct {
 
                 const joint_id = b2.b2CreateDistanceJoint(world_id, &joint_def);
                 self.length_joint_id = joint_id;
-                self.attached_body_id = ball.body_id;
+                self.attached_body_id = ball_body_id;
             }
         } else {
             if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
@@ -260,7 +263,7 @@ pub const Anchor = struct {
                 } else {
                     var joint_def = b2.b2DefaultMouseJointDef();
                     joint_def.bodyIdA = self.body_id;
-                    joint_def.bodyIdB = ball.body_id;
+                    joint_def.bodyIdB = ball_body_id;
                     joint_def.target = mouse_position.to_b2();
                     joint_def.dampingRatio = 10.0;
                     joint_def.hertz = 30.0;
@@ -915,5 +918,15 @@ pub const Object = union(ObjectTags) {
             .Rectangle => |*rectangle| .{ .Rectangle = rectangle.params },
             .RectangleChain => |*rectangle_chain| .{ .RectangleChain = try rectangle_chain.params.clone(allocator) },
         };
+    }
+
+    pub fn update(self: *Self, game: *const Game) void {
+        switch (self.*) {
+            .Arc => |_| {},
+            .Ball => |_| {},
+            .Anchor => |*anchor| anchor.update(game),
+            .Rectangle => |_| {},
+            .RectangleChain => |_| {},
+        }
     }
 };

@@ -211,17 +211,7 @@ pub const Game = struct {
             .Running => {
                 b2.b2World_Step(self.world_id, dt, 4);
                 for (self.objects.items) |*object| {
-                    switch (object.*) {
-                        .Arc => |_| {},
-                        .Ball => |_| {},
-                        .Anchor => |*anchor| anchor.update(
-                            self.world_id,
-                            self.mouse_position(),
-                            &self.ball,
-                        ),
-                        .Rectangle => |_| {},
-                        .RectangleChain => |_| {},
-                    }
+                    object.update(self);
                 }
             },
             .Paused => {
