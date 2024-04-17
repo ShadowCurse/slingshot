@@ -84,6 +84,10 @@ pub fn to_b2(self: *const Self) b2.b2Vec2 {
     };
 }
 
+pub fn eq(self: *const Self, other: *const Self) bool {
+    return self.x == other.x and self.y == other.y;
+}
+
 pub fn add(self: *const Self, other: *const Self) Self {
     return Self{
         .x = self.x + other.x,

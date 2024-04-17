@@ -473,6 +473,8 @@ pub const RectangleShape = struct {
     height: f32,
     angle: f32,
 
+    pub const E = error{SamePoints};
+
     const Self = @This();
 
     /// Creates rectangle shape that passes though 2 points in the middle of it.
@@ -497,7 +499,10 @@ pub const RectangleShape = struct {
         point_2: Vector2,
         width: f32,
         height_offset: f32,
-    ) RectangleShape {
+    ) !RectangleShape {
+        if (point_1.eq(&point_2)) {
+            return E.SamePoints;
+        }
         const v = point_1.sub(&point_2);
         const v_len = v.length();
         const v_norm = v.div(v_len);
@@ -581,14 +586,15 @@ pub const Rectangle = struct {
     pub fn new(
         world_id: b2.b2WorldId,
         params: RectangleParams,
-    ) Self {
+    ) !Self {
         var body_def = b2.b2DefaultBodyDef();
         body_def.type = b2.b2_staticBody;
         body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
+        errdefer b2.b2DestroyBody(body_id);
 
         const shape_def = b2.b2DefaultShapeDef();
-        const rectangle = RectangleShape.new(
+        const rectangle = try RectangleShape.new(
             body_id,
             &shape_def,
             params.point_1,
@@ -611,9 +617,9 @@ pub const Rectangle = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
-    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
         self.deinit();
-        self.* = Self.new(world_id, self.params);
+        self.* = try Self.new(world_id, self.params);
     }
 
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
@@ -657,8 +663,12 @@ pub const Rectangle = struct {
 
     pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
         if (self.params_editor.draw(Vector2{ .x = 0.0, .y = 0.0 })) |new_params| {
-            self.deinit();
-            self.* = Self.new(world_id, new_params);
+            if (Self.new(world_id, new_params)) |new_self| {
+                self.deinit();
+                self.* = new_self;
+            } else |e| {
+                std.log.err("Error recreating {any}: {}", .{ Self, e });
+            }
         }
     }
 };
@@ -707,15 +717,19 @@ pub const RectangleChain = struct {
         body_def.type = b2.b2_staticBody;
         body_def.position = params.position.to_b2();
         const body_id = b2.b2CreateBody(world_id, &body_def);
+        errdefer b2.b2DestroyBody(body_id);
 
         var rectangles = std.ArrayList(RectangleShape).init(allocator);
+        errdefer rectangles.deinit();
+
         try rectangles.resize(params.points.len - 1);
+
         for (0..params.points.len - 1) |i| {
             const p_1 = params.points[i];
             const p_2 = params.points[i + 1];
 
             const shape_def = b2.b2DefaultShapeDef();
-            const rect = RectangleShape.new(
+            const rect = try RectangleShape.new(
                 body_id,
                 &shape_def,
                 p_1,
@@ -811,8 +825,12 @@ pub const RectangleChain = struct {
             self.allocator,
             Vector2{ .x = 0.0, .y = 0.0 },
         )) |new_params| {
-            self.deinit();
-            self.* = try Self.new(world_id, self.allocator, new_params);
+            if (Self.new(world_id, self.allocator, new_params)) |new_self| {
+                self.deinit();
+                self.* = new_self;
+            } else |e| {
+                std.log.err("Error recreating {any}: {}", .{ Self, e });
+            }
         }
     }
 };
@@ -857,7 +875,7 @@ pub const Object = union(ObjectTags) {
             .Arc => |*arc| arc.recreate(world_id),
             .Ball => |*ball| ball.recreate(world_id),
             .Anchor => |*anchor| anchor.recreate(world_id),
-            .Rectangle => |*rectangle| rectangle.recreate(world_id),
+            .Rectangle => |*rectangle| try rectangle.recreate(world_id),
             .RectangleChain => |*rectangle_chain| try rectangle_chain.recreate(
                 world_id,
             ),

@@ -132,7 +132,7 @@ pub const Game = struct {
                     try game_objects.append(.{ .Anchor = anchor });
                 },
                 .Rectangle => |p| {
-                    const rectangle = Rectangle.new(world_id, p);
+                    const rectangle = try Rectangle.new(world_id, p);
                     try game_objects.append(.{ .Rectangle = rectangle });
                 },
                 .RectangleChain => |p| {
@@ -328,7 +328,7 @@ pub const Game = struct {
                     "Add rect",
                 );
                 if (add_rect != 0) {
-                    const rect = Rectangle.new(self.world_id, .{});
+                    const rect = try Rectangle.new(self.world_id, .{});
                     try self.objects.append(.{ .Rectangle = rect });
                 }
 
