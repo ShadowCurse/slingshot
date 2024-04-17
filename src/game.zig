@@ -191,9 +191,12 @@ pub const Game = struct {
             .Running => &self.camera,
             .Paused => &self.editor_camera,
         };
-        return Vector2.from_rl_pos(rl.GetMousePosition())
-            .sub(&Vector2.from_rl_pos(camera.offset))
-            .add(&Vector2.from_rl_pos(camera.target));
+        return Vector2.from_rl_pos(
+            rl.GetScreenToWorld2D(
+                rl.GetMousePosition(),
+                camera.*,
+            ),
+        );
     }
 
     pub fn update_camera(self: *Self, dt: f32) void {
@@ -245,6 +248,9 @@ pub const Game = struct {
                     self.editor_camera.target.x -= delta.x;
                     self.editor_camera.target.y -= delta.y;
                 }
+
+                const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
+                self.editor_camera.zoom += mouse_wheel_move;
 
                 if (self.editor_selected_object_index) |i| {
                     try self.objects.items[i].draw_editor(self.world_id);
