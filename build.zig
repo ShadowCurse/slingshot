@@ -16,15 +16,6 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "slingshot",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
     const raylib_build = @import("raylib/src/build.zig");
     const raylib = raylib_build.addRaylib(
         b,
@@ -35,13 +26,6 @@ pub fn build(b: *std.Build) void {
             .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
-    exe.linkLibrary(raylib);
-    exe.addIncludePath(.{ .path = "raylib/src" });
-    exe.addIncludePath(.{ .path = "raygui/src" });
-
-    exe.addIncludePath(.{ .path = "box2c/include" });
-    exe.addLibraryPath(.{ .path = "box2c/build/src" });
-    // exe.linkSystemLibrary("box2d");
 
     const box2c = b.addStaticLibrary(.{
         .name = "box2c",
@@ -94,6 +78,21 @@ pub fn build(b: *std.Build) void {
         &.{},
     );
     box2c.linkLibC();
+
+    const exe = b.addExecutable(.{
+        .name = "slingshot",
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    exe.addIncludePath(.{ .path = "raylib/src" });
+    exe.addIncludePath(.{ .path = "raygui/src" });
+    exe.linkLibrary(raylib);
+
+    exe.addIncludePath(.{ .path = "box2c/include" });
     exe.linkLibrary(box2c);
 
     exe.linkLibC();
