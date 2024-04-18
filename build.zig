@@ -41,7 +41,60 @@ pub fn build(b: *std.Build) void {
 
     exe.addIncludePath(.{ .path = "box2c/include" });
     exe.addLibraryPath(.{ .path = "box2c/build/src" });
-    exe.linkSystemLibrary("box2d");
+    // exe.linkSystemLibrary("box2d");
+
+    const box2c = b.addStaticLibrary(.{
+        .name = "box2c",
+        .target = target,
+        .optimize = optimize,
+    });
+    box2c.addIncludePath(.{ .path = "box2c/extern/glad/include" });
+    box2c.addIncludePath(.{ .path = "box2c/extern/jsmn" });
+    box2c.addIncludePath(.{ .path = "box2c/extern/simde" });
+    box2c.addIncludePath(.{ .path = "box2c/include" });
+    box2c.addIncludePath(.{ .path = "box2c/src" });
+    box2c.addCSourceFiles(
+        &.{
+            "box2c/src/aabb.c",
+            "box2c/src/allocate.c",
+            "box2c/src/array.c",
+            "box2c/src/bitset.c",
+            "box2c/src/block_allocator.c",
+            "box2c/src/body.c",
+            "box2c/src/broad_phase.c",
+            "box2c/src/constraint_graph.c",
+            "box2c/src/contact.c",
+            "box2c/src/contact_solver.c",
+            "box2c/src/core.c",
+            "box2c/src/distance.c",
+            "box2c/src/distance_joint.c",
+            "box2c/src/dynamic_tree.c",
+            "box2c/src/geometry.c",
+            "box2c/src/hull.c",
+            "box2c/src/implementation.c",
+            "box2c/src/island.c",
+            "box2c/src/joint.c",
+            "box2c/src/manifold.c",
+            "box2c/src/math.c",
+            "box2c/src/motor_joint.c",
+            "box2c/src/mouse_joint.c",
+            "box2c/src/pool.c",
+            "box2c/src/prismatic_joint.c",
+            "box2c/src/revolute_joint.c",
+            "box2c/src/shape.c",
+            "box2c/src/solver.c",
+            "box2c/src/stack_allocator.c",
+            "box2c/src/table.c",
+            "box2c/src/timer.c",
+            "box2c/src/types.c",
+            "box2c/src/weld_joint.c",
+            "box2c/src/wheel_joint.c",
+            "box2c/src/world.c",
+        },
+        &.{},
+    );
+    box2c.linkLibC();
+    exe.linkLibrary(box2c);
 
     exe.linkLibC();
 
