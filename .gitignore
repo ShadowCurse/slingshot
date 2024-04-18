@@ -6,6 +6,7 @@ zig-out/
 /build-*/
 /docgen_tmp/
 raylib/
+raygui/
 box2c/
 .envrc
 .direnv

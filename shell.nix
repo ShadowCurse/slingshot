@@ -2,11 +2,13 @@
 pkgs.mkShell {
   shellHook = ''
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${pkgs.lib.makeLibraryPath [
-    pkgs.raylib
+    pkgs.libxkbcommon
   ]}"
   '';
   buildInputs = with pkgs; [
-    raylib
+    libGL
+    wayland
+    libxkbcommon
     pkg-config
   ];
 }

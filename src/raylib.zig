@@ -1,6 +1,6 @@
 const raylib = @cImport({
     @cInclude("raylib.h");
-    @cInclude("raygui/raygui.h");
+    @cInclude("raygui.h");
 });
 
 pub usingnamespace raylib;

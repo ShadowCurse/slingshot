@@ -17,23 +17,33 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "slingshot_zig",
+        .name = "slingshot",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
-    exe.addIncludePath(.{ .path = "." });
+
+    const raylib_build = @import("raylib/src/build.zig");
+    const raylib = raylib_build.addRaylib(
+        b,
+        target,
+        optimize,
+        .{
+            .raygui = true,
+            .shared = true,
+            .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
+        },
+    ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
+    exe.linkLibrary(raylib);
+    exe.addIncludePath(.{ .path = "raylib/src" });
+    exe.addIncludePath(.{ .path = "raygui/src" });
+
+    exe.addIncludePath(.{ .path = "box2c/include" });
     exe.addLibraryPath(.{ .path = "box2c/build/src" });
-
-    exe.addCSourceFile(CSourceFile{
-        .file = .{ .path = "raygui/raygui.c" },
-        .flags = &.{ "-g", "-O3" },
-    });
-
-    exe.linkSystemLibrary("raylib");
     exe.linkSystemLibrary("box2d");
+
     exe.linkLibC();
 
     // This declares intent for the executable to be installed into the

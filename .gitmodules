@@ -1,3 +1,9 @@
 [submodule "box2c"]
 	path = box2c
 	url = https://github.com/erincatto/box2c
+[submodule "raylib"]
+	path = raylib
+	url = https://github.com/raysan5/raylib
+[submodule "raygui"]
+	path = raygui
+	url = https://github.com/raysan5/raygui
