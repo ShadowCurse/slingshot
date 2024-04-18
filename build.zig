@@ -32,7 +32,6 @@ pub fn build(b: *std.Build) void {
         optimize,
         .{
             .raygui = true,
-            .shared = true,
             .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
