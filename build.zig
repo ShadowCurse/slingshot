@@ -77,35 +77,59 @@ pub fn build(b: *std.Build) void {
         },
         &.{},
     );
-    box2c.linkLibC();
 
-    const exe = b.addExecutable(.{
-        .name = "slingshot",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
+    const artifact = if (target.getOsTag() == .emscripten) blk: {
+        const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
+        defer b.allocator.free(cache_include);
+        box2c.addIncludePath(.{ .path = cache_include });
 
-    exe.addIncludePath(.{ .path = "raylib/src" });
-    exe.addIncludePath(.{ .path = "raygui/src" });
-    exe.linkLibrary(raylib);
+        const lib = b.addStaticLibrary(.{
+            .name = "box2c",
+            .root_source_file = .{ .path = "src/main.zig" },
+            .target = target,
+            .optimize = optimize,
+        });
+        lib.addIncludePath(.{ .path = cache_include });
 
-    exe.addIncludePath(.{ .path = "box2c/include" });
-    exe.linkLibrary(box2c);
+        lib.addIncludePath(.{ .path = "raylib/src" });
+        lib.addIncludePath(.{ .path = "raygui/src" });
+        lib.linkLibrary(raylib);
 
-    exe.linkLibC();
+        lib.addIncludePath(.{ .path = "box2c/include" });
+        lib.linkLibrary(box2c);
+
+        break :blk lib;
+    } else blk: {
+        box2c.linkLibC();
+
+        const exe = b.addExecutable(.{
+            .name = "slingshot",
+            .root_source_file = .{ .path = "src/main.zig" },
+            .target = target,
+            .optimize = optimize,
+        });
+
+        exe.addIncludePath(.{ .path = "raylib/src" });
+        exe.addIncludePath(.{ .path = "raygui/src" });
+        exe.linkLibrary(raylib);
+
+        exe.addIncludePath(.{ .path = "box2c/include" });
+        exe.linkLibrary(box2c);
+
+        exe.linkLibC();
+
+        break :blk exe;
+    };
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
-    b.installArtifact(exe);
+    b.installArtifact(artifact);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(artifact);
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
