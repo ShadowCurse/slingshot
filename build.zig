@@ -16,10 +16,20 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    // If compiled for wasm32-wasi chagne raylib and box2c
+    // to be compiled for wasm32-emscripten
+    const c_libs_target = if (target.getOsTag() == .wasi) blk: {
+        break :blk std.zig.CrossTarget.parse(.{
+            .arch_os_abi = "wasm32-emscripten",
+        }) catch unreachable;
+    } else blk: {
+        break :blk target;
+    };
+
     const raylib_build = @import("raylib/src/build.zig");
     const raylib = raylib_build.addRaylib(
         b,
-        target,
+        c_libs_target,
         optimize,
         .{
             .raygui = true,
@@ -29,7 +39,7 @@ pub fn build(b: *std.Build) void {
 
     const box2c = b.addStaticLibrary(.{
         .name = "box2c",
-        .target = target,
+        .target = c_libs_target,
         .optimize = optimize,
     });
     box2c.addIncludePath(.{ .path = "box2c/extern/glad/include" });
@@ -37,6 +47,19 @@ pub fn build(b: *std.Build) void {
     box2c.addIncludePath(.{ .path = "box2c/extern/simde" });
     box2c.addIncludePath(.{ .path = "box2c/include" });
     box2c.addIncludePath(.{ .path = "box2c/src" });
+
+    var box2d_flags = std.ArrayList([]const u8).init(std.heap.page_allocator);
+    defer box2d_flags.deinit();
+
+    // Special flags for box2c needed only for wasi builds
+    if (target.getOsTag() == .wasi) {
+        box2d_flags.appendSlice(&[_][]const u8{
+            "-fno-stack-protector",
+            "-D_GNU_SOURCE",
+            "-fno-sanitize=undefined",
+            "-D__EMSCRIPTEN__",
+        }) catch unreachable;
+    }
     box2c.addCSourceFiles(
         &.{
             "box2c/src/aabb.c",
@@ -75,16 +98,18 @@ pub fn build(b: *std.Build) void {
             "box2c/src/wheel_joint.c",
             "box2c/src/world.c",
         },
-        &.{},
+        box2d_flags.items,
     );
+    box2c.linkLibC();
 
-    const artifact = if (target.getOsTag() == .emscripten) blk: {
+    // If compiled for wasm32-wasi, compile project as a static lib
+    const artifact = if (target.getOsTag() == .wasi) blk: {
         const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
         box2c.addIncludePath(.{ .path = cache_include });
 
         const lib = b.addStaticLibrary(.{
-            .name = "box2c",
+            .name = "slingshot",
             .root_source_file = .{ .path = "src/main.zig" },
             .target = target,
             .optimize = optimize,
@@ -98,10 +123,10 @@ pub fn build(b: *std.Build) void {
         lib.addIncludePath(.{ .path = "box2c/include" });
         lib.linkLibrary(box2c);
 
+        lib.linkLibC();
+
         break :blk lib;
     } else blk: {
-        box2c.linkLibC();
-
         const exe = b.addExecutable(.{
             .name = "slingshot",
             .root_source_file = .{ .path = "src/main.zig" },
