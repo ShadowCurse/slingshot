@@ -162,6 +162,12 @@ pub const AnchorParams = struct {
     position: Vector2 = Vector2.ZERO,
     radius: f32 = 10.0,
     color: rl.Color = rl.WHITE,
+
+    min_length: f32 = 0.0,
+    max_length: f32 = 100.0,
+    damping_ratio: f32 = 0.5,
+    hertz: f32 = 1.0,
+    pull_force: f32 = 200.0,
 };
 
 pub const Anchor = struct {
@@ -246,10 +252,10 @@ pub const Anchor = struct {
                 joint_def.bodyIdA = self.body_id;
                 joint_def.bodyIdB = ball_body_id;
                 joint_def.length = 0.0;
-                joint_def.minLength = 0.0;
-                joint_def.maxLength = 100.0;
-                joint_def.dampingRatio = 0.5;
-                joint_def.hertz = 1.0;
+                joint_def.minLength = self.params.min_length;
+                joint_def.maxLength = self.params.max_length;
+                joint_def.dampingRatio = self.params.damping_ratio;
+                joint_def.hertz = self.params.hertz;
 
                 const joint_id = b2.b2CreateDistanceJoint(world_id, &joint_def);
                 self.length_joint_id = joint_id;
@@ -257,7 +263,10 @@ pub const Anchor = struct {
             }
         } else {
             if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
-                const to_mouse = mouse_position.sub(&self_position).normalized().mul(200.0);
+                const to_mouse = mouse_position
+                    .sub(&self_position)
+                    .normalized()
+                    .mul(self.params.pull_force);
                 b2.b2Body_SetLinearVelocity(ball_body_id, to_mouse.to_b2());
             }
 
