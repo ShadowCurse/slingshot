@@ -298,12 +298,12 @@ pub const Anchor = struct {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2AABB{
             .lowerBound = (Vector2{
-                .x = -self.params.radius / 2.0,
-                .y = -self.params.radius / 2.0,
+                .x = -self.params.radius,
+                .y = -self.params.radius,
             }).add(&position).to_b2(),
             .upperBound = (Vector2{
-                .x = self.params.radius / 2.0,
-                .y = self.params.radius / 2.0,
+                .x = self.params.radius,
+                .y = self.params.radius,
             }).add(&position).to_b2(),
         });
 
