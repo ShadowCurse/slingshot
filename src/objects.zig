@@ -168,7 +168,6 @@ pub const Anchor = struct {
     body_def: b2.b2BodyDef,
     body_id: b2.b2BodyId,
     length_joint_id: ?b2.b2JointId,
-    mouse_joint_id: ?b2.b2JointId,
     attached_body_id: ?b2.b2BodyId,
 
     params: AnchorParams,
@@ -189,7 +188,6 @@ pub const Anchor = struct {
             .body_def = body_def,
             .body_id = body_id,
             .length_joint_id = null,
-            .mouse_joint_id = null,
             .attached_body_id = null,
             .params = params,
             .params_editor = ParamEditor(AnchorParams).new(&params),
@@ -198,9 +196,6 @@ pub const Anchor = struct {
 
     pub fn deinit(self: *const Self) void {
         if (self.length_joint_id) |id| {
-            b2.b2DestroyJoint(id);
-        }
-        if (self.mouse_joint_id) |id| {
             b2.b2DestroyJoint(id);
         }
         b2.b2DestroyBody(self.body_id);
@@ -262,26 +257,8 @@ pub const Anchor = struct {
             }
         } else {
             if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
-                if (self.mouse_joint_id) |id| {
-                    b2.b2MouseJoint_SetTarget(id, mouse_position.to_b2());
-                } else {
-                    var joint_def = b2.b2DefaultMouseJointDef();
-                    joint_def.bodyIdA = self.body_id;
-                    joint_def.bodyIdB = ball_body_id;
-                    joint_def.target = mouse_position.to_b2();
-                    joint_def.dampingRatio = 10.0;
-                    joint_def.hertz = 30.0;
-
-                    const joint_id = b2.b2CreateMouseJoint(world_id, &joint_def);
-                    self.mouse_joint_id = joint_id;
-                }
-            }
-
-            if (rl.IsMouseButtonReleased(rl.MOUSE_BUTTON_LEFT)) {
-                if (self.mouse_joint_id) |id| {
-                    b2.b2DestroyJoint(id);
-                    self.mouse_joint_id = null;
-                }
+                const to_mouse = mouse_position.sub(&self_position).normalized().mul(200.0);
+                b2.b2Body_SetLinearVelocity(ball_body_id, to_mouse.to_b2());
             }
 
             if (rl.IsKeyDown(rl.KEY_SPACE)) {
