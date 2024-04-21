@@ -304,7 +304,9 @@ pub const Game = struct {
                     "Add ball",
                 );
                 if (add_ball != 0) {
-                    const ball = Ball.new(self.world_id, .{});
+                    const ball = Ball.new(self.world_id, .{
+                        .position = Vector2.from_rl_pos(self.editor_camera.target),
+                    });
                     try self.objects.append(.{ .Ball = ball });
                 }
 
@@ -314,7 +316,9 @@ pub const Game = struct {
                     "Add arc",
                 );
                 if (add_arc != 0) {
-                    const arc = Arc.new(self.world_id, .{});
+                    const arc = Arc.new(self.world_id, .{
+                        .position = Vector2.from_rl_pos(self.editor_camera.target),
+                    });
                     try self.objects.append(.{ .Arc = arc });
                 }
 
@@ -324,7 +328,9 @@ pub const Game = struct {
                     "Add anchor",
                 );
                 if (add_anchor != 0) {
-                    const anchor = Anchor.new(self.world_id, .{});
+                    const anchor = Anchor.new(self.world_id, .{
+                        .position = Vector2.from_rl_pos(self.editor_camera.target),
+                    });
                     try self.objects.append(.{ .Anchor = anchor });
                 }
 
@@ -334,7 +340,9 @@ pub const Game = struct {
                     "Add rect",
                 );
                 if (add_rect != 0) {
-                    const rect = try Rectangle.new(self.world_id, .{});
+                    const rect = try Rectangle.new(self.world_id, .{
+                        .position = Vector2.from_rl_pos(self.editor_camera.target),
+                    });
                     try self.objects.append(.{ .Rectangle = rect });
                 }
 
@@ -352,6 +360,7 @@ pub const Game = struct {
                     @memcpy(points, &rc_points);
 
                     const rect_chain_params = objects.RectangleChainParams{
+                        .position = Vector2.from_rl_pos(self.editor_camera.target),
                         .points = points,
                     };
                     const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
