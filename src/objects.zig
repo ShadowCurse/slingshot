@@ -92,6 +92,7 @@ pub const Ball = struct {
         var shape_def = b2.b2DefaultShapeDef();
         shape_def.density = 100.0;
         shape_def.friction = 0.5;
+        shape_def.restitution = 0.3;
 
         const circle = b2.b2Circle{
             .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
