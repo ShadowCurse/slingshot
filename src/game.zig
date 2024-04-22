@@ -259,19 +259,19 @@ pub const Game = struct {
                     .width = 50.0,
                     .height = 50.0,
                 };
-                const s = rl.GuiButton(
+                const b_save = rl.GuiButton(
                     save_button_rect,
                     "Save",
                 );
-                if (s != 0) {
+                if (b_save != 0) {
                     try self.save();
                 }
                 save_button_rect.y += 50.0;
-                const l = rl.GuiButton(
+                const b_load = rl.GuiButton(
                     save_button_rect,
                     "Load",
                 );
-                if (l != 0) {
+                if (b_load != 0) {
                     try self.load();
                 }
 
