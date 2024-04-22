@@ -70,7 +70,6 @@ pub const Game = struct {
         const initial_ball_params = objects.BallParams{
             .position = Vector2{ .x = 0.0, .y = 100.0 },
             .radius = 10.0,
-            .color = rl.GREEN,
         };
         const game_ball = Ball.new(world_id, initial_ball_params);
 
@@ -79,7 +78,6 @@ pub const Game = struct {
         const anchor_params = objects.AnchorParams{
             .position = Vector2{ .x = 0.0, .y = 0.0 },
             .radius = 5.0,
-            .color = rl.LIME,
         };
         try objects_params.append(.{ .Anchor = anchor_params });
 
