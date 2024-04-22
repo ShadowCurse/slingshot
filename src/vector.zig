@@ -116,6 +116,10 @@ pub fn div(self: *const Self, v: f32) Self {
     };
 }
 
+pub fn dot(self: *const Self, other: *const Self) f32 {
+    return self.x * other.x + self.y * other.y;
+}
+
 pub fn orthogonal(self: *const Self) Self {
     return Self{
         .x = self.y,
