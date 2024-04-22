@@ -198,7 +198,7 @@ pub const Ball = struct {
 pub const AnchorParams = struct {
     position: Vector2 = Vector2.ZERO,
     radius: f32 = 10.0,
-    color: rl.Color = rl.WHITE,
+    color: rl.Color = rl.GREEN,
 
     min_length: f32 = 0.0,
     max_length: f32 = 100.0,
