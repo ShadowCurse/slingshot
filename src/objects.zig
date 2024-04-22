@@ -66,6 +66,7 @@ pub const BallParams = struct {
     position: Vector2 = Vector2.ZERO,
     radius: f32 = 10.0,
     color: rl.Color = rl.WHITE,
+    fast_color: rl.Color = rl.GOLD,
 };
 
 pub const Ball = struct {
@@ -141,7 +142,42 @@ pub const Ball = struct {
 
     pub fn draw(self: *const Self) void {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, self.params.color);
+        const max_velocity = 200.0;
+        const velocity = @min(Vector2.from_b2(b2.b2Body_GetLinearVelocity(self.body_id)).length() / max_velocity, 1.0);
+        const color = rl.Color{
+            .r = @as(
+                u8,
+                @intFromFloat(
+                    std.math.lerp(
+                        @as(f32, @floatFromInt(self.params.color.r)),
+                        @as(f32, @floatFromInt(self.params.fast_color.r)),
+                        velocity,
+                    ),
+                ),
+            ),
+            .g = @as(
+                u8,
+                @intFromFloat(
+                    std.math.lerp(
+                        @as(f32, @floatFromInt(self.params.color.g)),
+                        @as(f32, @floatFromInt(self.params.fast_color.g)),
+                        velocity,
+                    ),
+                ),
+            ),
+            .b = @as(
+                u8,
+                @intFromFloat(
+                    std.math.lerp(
+                        @as(f32, @floatFromInt(self.params.color.b)),
+                        @as(f32, @floatFromInt(self.params.fast_color.b)),
+                        velocity,
+                    ),
+                ),
+            ),
+            .a = 255,
+        };
+        rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, color);
     }
 
     pub fn draw_aabb(self: *const Self, color: rl.Color) void {
