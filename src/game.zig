@@ -174,7 +174,6 @@ pub const Game = struct {
         }
 
         self.ball.recreate(self.world_id);
-        self.ball = Ball.new(self.world_id, self.initial_ball_params);
     }
 
     pub fn deinit(self: *const Self) void {
