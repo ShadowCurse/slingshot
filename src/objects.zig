@@ -556,6 +556,7 @@ pub const RectangleParams = struct {
     point_2: Vector2 = Vector2.NEG_X,
     width: f32 = 10.0,
     height_offset: f32 = 10.0,
+    restitution: f32 = 0.0,
     color: rl.Color = rl.WHITE,
 };
 
@@ -579,7 +580,8 @@ pub const Rectangle = struct {
         const body_id = b2.b2CreateBody(world_id, &body_def);
         errdefer b2.b2DestroyBody(body_id);
 
-        const shape_def = b2.b2DefaultShapeDef();
+        var shape_def = b2.b2DefaultShapeDef();
+        shape_def.restitution = params.restitution;
         const rectangle = try RectangleShape.new(
             body_id,
             &shape_def,
