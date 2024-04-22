@@ -32,6 +32,11 @@ pub const GameState = enum {
     Paused,
 };
 
+pub const EditorSelection = union(enum) {
+    Ball,
+    Object: usize,
+};
+
 pub const Game = struct {
     allocator: Allocator,
     screen_width: u32,
@@ -49,7 +54,7 @@ pub const Game = struct {
     state: GameState,
 
     editor_camera: rl.Camera2D,
-    editor_selected_object_index: ?usize,
+    editor_selection: ?EditorSelection,
 
     const Self = @This();
 
@@ -103,7 +108,7 @@ pub const Game = struct {
             .state = GameState.Running,
 
             .editor_camera = camera,
-            .editor_selected_object_index = null,
+            .editor_selection = null,
         };
     }
 
@@ -160,7 +165,7 @@ pub const Game = struct {
             .state = GameState.Running,
 
             .editor_camera = state.editor_camera,
-            .editor_selected_object_index = null,
+            .editor_selection = null,
         };
     }
 
@@ -226,18 +231,24 @@ pub const Game = struct {
             .Paused => {
                 if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
                     const mp = self.mouse_position();
-                    self.editor_selected_object_index = null;
+                    self.editor_selection = null;
                     for (self.objects.items, 0..) |*object, i| {
                         if (object.aabb_contains(mp)) {
-                            self.editor_selected_object_index = i;
+                            self.editor_selection = .{ .Object = i };
                             break;
                         }
+                    }
+                    if (self.ball.aabb_contains(mp)) {
+                        self.editor_selection = .Ball;
                     }
                 }
                 if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
                     const mouse_pos = self.mouse_position();
-                    if (self.editor_selected_object_index) |i| {
-                        try self.objects.items[i].set_position(mouse_pos);
+                    if (self.editor_selection) |s| {
+                        switch (s) {
+                            .Ball => self.ball.set_position(mouse_pos),
+                            .Object => |i| try self.objects.items[i].set_position(mouse_pos),
+                        }
                     }
                 }
                 if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
@@ -249,8 +260,11 @@ pub const Game = struct {
                 const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
                 self.editor_camera.zoom += mouse_wheel_move;
 
-                if (self.editor_selected_object_index) |i| {
-                    try self.objects.items[i].draw_editor(self.world_id);
+                if (self.editor_selection) |s| {
+                    switch (s) {
+                        .Ball => self.ball.draw_editor(self.world_id),
+                        .Object => |i| try self.objects.items[i].draw_editor(self.world_id),
+                    }
                 }
 
                 var save_button_rect = rl.Rectangle{
@@ -288,10 +302,15 @@ pub const Game = struct {
                     "Remove",
                 );
                 if (remove != 0) {
-                    if (self.editor_selected_object_index) |i| {
-                        const object = self.objects.swapRemove(i);
-                        object.deinit();
-                        self.editor_selected_object_index = null;
+                    if (self.editor_selection) |s| {
+                        switch (s) {
+                            .Ball => {},
+                            .Object => |i| {
+                                const object = self.objects.swapRemove(i);
+                                object.deinit();
+                                self.editor_selection = null;
+                            },
+                        }
                     }
                 }
 
@@ -389,8 +408,11 @@ pub const Game = struct {
             self.ball.draw_aabb(aabb_color);
 
             const selected_color = rl.ORANGE;
-            if (self.editor_selected_object_index) |i| {
-                self.objects.items[i].draw_aabb(selected_color);
+            if (self.editor_selection) |s| {
+                switch (s) {
+                    .Ball => self.ball.draw_aabb(selected_color),
+                    .Object => |i| self.objects.items[i].draw_aabb(selected_color),
+                }
             }
         }
 
