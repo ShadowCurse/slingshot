@@ -283,35 +283,35 @@ pub const Anchor = struct {
         const self_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball_body_id));
 
-        if (self.length_joint_id == null) {
-            if (self_position.sub(&ball_position).length() < self.params.radius) {
-                var joint_def = b2.b2DefaultDistanceJointDef();
-                joint_def.bodyIdA = self.body_id;
-                joint_def.bodyIdB = ball_body_id;
-                joint_def.length = 0.0;
-                joint_def.minLength = self.params.min_length;
-                joint_def.maxLength = self.params.max_length;
-                joint_def.dampingRatio = self.params.damping_ratio;
-                joint_def.hertz = self.params.hertz;
-
-                const joint_id = b2.b2CreateDistanceJoint(world_id, &joint_def);
-                self.length_joint_id = joint_id;
-                self.attached_body_id = ball_body_id;
+        if (rl.IsKeyDown(rl.KEY_SPACE)) {
+            if (self.length_joint_id) |id| {
+                b2.b2DestroyJoint(id);
+                self.length_joint_id = null;
+                self.attached_body_id = null;
             }
         } else {
-            if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
-                const to_mouse = mouse_position
-                    .sub(&self_position)
-                    .normalized()
-                    .mul(self.params.pull_force);
-                b2.b2Body_SetLinearVelocity(ball_body_id, to_mouse.to_b2());
-            }
+            if (self.length_joint_id == null) {
+                if (self_position.sub(&ball_position).length() < self.params.radius) {
+                    var joint_def = b2.b2DefaultDistanceJointDef();
+                    joint_def.bodyIdA = self.body_id;
+                    joint_def.bodyIdB = ball_body_id;
+                    joint_def.length = 0.0;
+                    joint_def.minLength = self.params.min_length;
+                    joint_def.maxLength = self.params.max_length;
+                    joint_def.dampingRatio = self.params.damping_ratio;
+                    joint_def.hertz = self.params.hertz;
 
-            if (rl.IsKeyDown(rl.KEY_SPACE)) {
-                if (self.length_joint_id) |id| {
-                    b2.b2DestroyJoint(id);
-                    self.length_joint_id = null;
-                    self.attached_body_id = null;
+                    const joint_id = b2.b2CreateDistanceJoint(world_id, &joint_def);
+                    self.length_joint_id = joint_id;
+                    self.attached_body_id = ball_body_id;
+                }
+            } else {
+                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
+                    const to_mouse = mouse_position
+                        .sub(&self_position)
+                        .normalized()
+                        .mul(self.params.pull_force);
+                    b2.b2Body_SetLinearVelocity(ball_body_id, to_mouse.to_b2());
                 }
             }
         }
