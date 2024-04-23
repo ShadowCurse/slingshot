@@ -9,6 +9,61 @@ const LABEL_WIDTH: f32 = 50.0;
 const TEXT_BOX_WIDTH: f32 = 70.0;
 const COLOR_PICKER_WIDTH: f32 = 100.0;
 
+pub const EditorBool = struct {
+    text_buffer: [Self.TEXT_LEN:0]u8 = .{0} ** Self.TEXT_LEN,
+    state: bool,
+
+    const Self = @This();
+    const TEXT_LEN: u32 = 8;
+    const HEIGHT: f32 = EDITOR_HEIGHT;
+    const WIDTH: f32 = LABEL_WIDTH + TEXT_BOX_WIDTH;
+
+    pub fn new(value: *const bool) Self {
+        var text_buffer: [Self.TEXT_LEN:0]u8 = .{0} ** Self.TEXT_LEN;
+        _ = std.fmt.bufPrintZ(&text_buffer, "{}", .{value.*}) catch unreachable;
+        return Self{
+            .text_buffer = text_buffer,
+            .state = value.*,
+        };
+    }
+
+    pub fn draw(self: *Self, label: [:0]const u8, position: Vector2, mouse_position: Vector2) bool {
+        _ = mouse_position;
+        const rl_position = position.to_rl_as_pos();
+
+        const label_rect = rl.Rectangle{
+            .x = rl_position.x,
+            .y = rl_position.y,
+            .width = LABEL_WIDTH,
+            .height = EDITOR_HEIGHT,
+        };
+        _ = rl.GuiLabel(
+            label_rect,
+            label.ptr,
+        );
+
+        const switch_state = rl.GuiButton(
+            rl.Rectangle{
+                .x = rl_position.x,
+                .y = rl_position.y,
+                .width = Self.WIDTH,
+                .height = EDITOR_HEIGHT,
+            },
+            &self.text_buffer,
+        );
+
+        if (switch_state == 1) {
+            self.state = !self.state;
+        }
+
+        return switch_state == 1;
+    }
+
+    pub fn get_value(self: *const Self) ?bool {
+        return self.state;
+    }
+};
+
 pub const EditorF32 = struct {
     text_buffer: [Self.TEXT_LEN]u8 = .{0} ** Self.TEXT_LEN,
 
@@ -351,6 +406,15 @@ fn ParamEditorInner(comptime T: type) type {
     var new_fields: [type_fields.len]std.builtin.Type.StructField = undefined;
     inline for (type_fields, 0..) |field, i| {
         switch (field.type) {
+            bool => {
+                new_fields[i] = .{
+                    .name = field.name,
+                    .type = EditorBool,
+                    .default_value = null,
+                    .is_comptime = false,
+                    .alignment = @alignOf(EditorBool),
+                };
+            },
             f32 => {
                 new_fields[i] = .{
                     .name = field.name,
