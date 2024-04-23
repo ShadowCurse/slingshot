@@ -594,6 +594,7 @@ pub const RectangleParams = struct {
     width: f32 = 10.0,
     height_offset: f32 = 10.0,
     restitution: f32 = 0.0,
+    is_sensor: bool = false,
     color: rl.Color = rl.WHITE,
 };
 
@@ -619,6 +620,7 @@ pub const Rectangle = struct {
 
         var shape_def = b2.b2DefaultShapeDef();
         shape_def.restitution = params.restitution;
+        shape_def.isSensor = params.is_sensor;
         const rectangle = try RectangleShape.new(
             body_id,
             &shape_def,
