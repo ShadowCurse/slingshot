@@ -278,6 +278,7 @@ pub const Anchor = struct {
         game: *const Game,
     ) void {
         const world_id = game.world_id;
+        const ball_radius = game.ball.params.radius;
         const ball_body_id = game.ball.body_id;
         const mouse_position = game.mouse_position();
 
@@ -292,7 +293,7 @@ pub const Anchor = struct {
             }
         } else {
             if (self.length_joint_id == null) {
-                if (self_position.sub(&ball_position).length() < self.params.radius) {
+                if (self_position.sub(&ball_position).length() < self.params.radius + ball_radius) {
                     var joint_def = b2.b2DefaultDistanceJointDef();
                     joint_def.bodyIdA = self.body_id;
                     joint_def.bodyIdB = ball_body_id;
