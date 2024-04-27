@@ -31,7 +31,7 @@ pub fn main() anyerror!void {
         rl.BeginDrawing();
         rl.ClearBackground(BACKGROUND_COLOR);
 
-        game.draw();
+        try game.draw();
 
         rl.EndDrawing();
     }

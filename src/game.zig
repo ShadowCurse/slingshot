@@ -236,28 +236,9 @@ pub const Game = struct {
 
     pub fn update(self: *Self, dt: f32) !void {
         switch (self.state) {
-            .MainMenu => try self.update_main_menu(dt),
             .Running => try self.update_running(dt),
             .Paused => try self.update_paused(dt),
-            .Win => try self.update_win(dt),
-        }
-    }
-
-    pub fn update_main_menu(self: *Self, dt: f32) !void {
-        _ = dt;
-
-        var start_button_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - 50.0,
-            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - 50.0,
-            .width = 100.0,
-            .height = 100.0,
-        };
-        const win_button = rl.GuiButton(
-            start_button_rect,
-            "Start",
-        );
-        if (win_button != 0) {
-            self.state = .Running;
+            else => {},
         }
     }
 
@@ -276,24 +257,6 @@ pub const Game = struct {
         self.update_camera(dt);
         for (self.objects.items) |*object| {
             object.update(self, &sensor_events);
-        }
-    }
-
-    pub fn update_win(self: *Self, dt: f32) !void {
-        _ = dt;
-
-        var win_button_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0,
-            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0,
-            .width = 100.0,
-            .height = 100.0,
-        };
-        const win_button = rl.GuiButton(
-            win_button_rect,
-            "You won",
-        );
-        if (win_button != 0) {
-            try self.restart();
         }
     }
 
@@ -337,6 +300,73 @@ pub const Game = struct {
 
         const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
         self.editor_camera.zoom += mouse_wheel_move;
+    }
+
+    pub fn draw(self: *Self) !void {
+        switch (self.state) {
+            .MainMenu => self.draw_main_menu(),
+            .Running => self.draw_running(),
+            .Paused => try self.draw_paused(),
+            .Win => try self.draw_win(),
+        }
+    }
+
+    pub fn draw_main_menu(self: *Self) void {
+        var start_button_rect = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - 50.0,
+            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - 50.0,
+            .width = 100.0,
+            .height = 100.0,
+        };
+        const win_button = rl.GuiButton(
+            start_button_rect,
+            "Start",
+        );
+        if (win_button != 0) {
+            self.state = .Running;
+        }
+    }
+
+    pub fn draw_running(self: *const Self) void {
+        rl.BeginMode2D(self.camera);
+        defer rl.EndMode2D();
+
+        for (self.objects.items) |object| {
+            object.draw();
+        }
+        self.ball.draw();
+
+        const mouse_pos = self.mouse_position();
+        rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
+    }
+
+    pub fn draw_paused(self: *Self) !void {
+        {
+            rl.BeginMode2D(self.editor_camera);
+            defer rl.EndMode2D();
+
+            for (self.objects.items) |object| {
+                object.draw();
+            }
+            self.ball.draw();
+
+            const aabb_color = rl.SKYBLUE;
+            for (self.objects.items) |object| {
+                object.draw_aabb(aabb_color);
+            }
+            self.ball.draw_aabb(aabb_color);
+
+            const selected_color = rl.ORANGE;
+            if (self.editor_selection) |s| {
+                switch (s) {
+                    .Ball => self.ball.draw_aabb(selected_color),
+                    .Object => |i| self.objects.items[i].draw_aabb(selected_color),
+                }
+            }
+
+            const mouse_pos = self.mouse_position();
+            rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
+        }
 
         if (self.editor_selection) |s| {
             switch (s) {
@@ -462,38 +492,20 @@ pub const Game = struct {
         }
     }
 
-    pub fn draw(self: *const Self) void {
-        const camera = switch (self.state) {
-            .Paused => &self.editor_camera,
-            else => &self.camera,
+    pub fn draw_win(self: *Self) !void {
+        var win_button_rect = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0,
+            .width = 100.0,
+            .height = 100.0,
         };
-
-        rl.BeginMode2D(camera.*);
-        defer rl.EndMode2D();
-
-        for (self.objects.items) |object| {
-            object.draw();
+        const win_button = rl.GuiButton(
+            win_button_rect,
+            "You won",
+        );
+        if (win_button != 0) {
+            try self.restart();
         }
-        self.ball.draw();
-
-        if (self.state == .Paused) {
-            const aabb_color = rl.SKYBLUE;
-            for (self.objects.items) |object| {
-                object.draw_aabb(aabb_color);
-            }
-            self.ball.draw_aabb(aabb_color);
-
-            const selected_color = rl.ORANGE;
-            if (self.editor_selection) |s| {
-                switch (s) {
-                    .Ball => self.ball.draw_aabb(selected_color),
-                    .Object => |i| self.objects.items[i].draw_aabb(selected_color),
-                }
-            }
-        }
-
-        const mouse_pos = self.mouse_position();
-        rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
     }
 
     pub fn save(self: *const Self) !void {
