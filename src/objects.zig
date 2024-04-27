@@ -664,6 +664,18 @@ pub const Rectangle = struct {
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
     }
 
+    pub fn update(
+        self: *Self,
+        game: *Game,
+        sensor_events: *const SensorEvents,
+    ) void {
+        for (sensor_events.begin_events) |be| {
+            if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(self.rectangle.shape_id))) {
+                game.state = .Win;
+            }
+        }
+    }
+
     pub fn draw(self: *const Self) void {
         const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const body_angle = b2.b2Body_GetAngle(self.body_id);
@@ -970,13 +982,12 @@ pub const Object = union(ObjectTags) {
         };
     }
 
-    pub fn update(self: *Self, game: *const Game, sensor_events: *const SensorEvents) void {
-        _ = sensor_events;
+    pub fn update(self: *Self, game: *Game, sensor_events: *const SensorEvents) void {
         switch (self.*) {
             .Arc => |_| {},
             .Ball => |_| {},
             .Anchor => |*anchor| anchor.update(game),
-            .Rectangle => |_| {},
+            .Rectangle => |*rectangle| rectangle.update(game, sensor_events),
             .RectangleChain => |_| {},
         }
     }

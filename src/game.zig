@@ -195,6 +195,7 @@ pub const Game = struct {
 
     pub fn restart(self: *Self) !void {
         self.camera = self.initial_camera;
+        self.state = .Running;
 
         for (self.objects.items) |*object| {
             try object.recreate(self.world_id);
@@ -269,7 +270,7 @@ pub const Game = struct {
         };
         const win_button = rl.GuiButton(
             win_button_rect,
-            "Save",
+            "You won",
         );
         if (win_button != 0) {
             try self.restart();
