@@ -51,6 +51,7 @@ pub const SensorEvents = struct {
 };
 
 pub const GameState = enum {
+    MainMenu,
     Running,
     Paused,
     Win,
@@ -129,7 +130,7 @@ pub const Game = struct {
 
             .objects = game_objects,
 
-            .state = GameState.Running,
+            .state = .MainMenu,
 
             .editor_camera = camera,
             .editor_selection = null,
@@ -215,8 +216,8 @@ pub const Game = struct {
 
     pub fn mouse_position(self: *const Self) Vector2 {
         const camera = switch (self.state) {
-            .Running, .Win => &self.camera,
             .Paused => &self.editor_camera,
+            else => &self.camera,
         };
         return Vector2.from_rl_pos(
             rl.GetScreenToWorld2D(
@@ -235,9 +236,28 @@ pub const Game = struct {
 
     pub fn update(self: *Self, dt: f32) !void {
         switch (self.state) {
+            .MainMenu => try self.update_main_menu(dt),
             .Running => try self.update_running(dt),
             .Paused => try self.update_paused(dt),
             .Win => try self.update_win(dt),
+        }
+    }
+
+    pub fn update_main_menu(self: *Self, dt: f32) !void {
+        _ = dt;
+
+        var start_button_rect = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - 50.0,
+            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - 50.0,
+            .width = 100.0,
+            .height = 100.0,
+        };
+        const win_button = rl.GuiButton(
+            start_button_rect,
+            "Start",
+        );
+        if (win_button != 0) {
+            self.state = .Running;
         }
     }
 
@@ -444,8 +464,8 @@ pub const Game = struct {
 
     pub fn draw(self: *const Self) void {
         const camera = switch (self.state) {
-            .Running, .Win => &self.camera,
             .Paused => &self.editor_camera,
+            else => &self.camera,
         };
 
         rl.BeginMode2D(camera.*);
