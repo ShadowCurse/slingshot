@@ -53,6 +53,7 @@ pub const SensorEvents = struct {
 pub const GameState = enum {
     Running,
     Paused,
+    Win,
 };
 
 pub const EditorSelection = union(enum) {
@@ -213,7 +214,7 @@ pub const Game = struct {
 
     pub fn mouse_position(self: *const Self) Vector2 {
         const camera = switch (self.state) {
-            .Running => &self.camera,
+            .Running, .Win => &self.camera,
             .Paused => &self.editor_camera,
         };
         return Vector2.from_rl_pos(
@@ -233,8 +234,9 @@ pub const Game = struct {
 
     pub fn update(self: *Self, dt: f32) !void {
         switch (self.state) {
-            .Running => self.update_runnning(dt),
-            .Paused => self.update_paused(dt),
+            .Running => try self.update_running(dt),
+            .Paused => try self.update_paused(dt),
+            .Win => try self.update_win(dt),
         }
     }
 
@@ -244,10 +246,7 @@ pub const Game = struct {
         }
 
         if (rl.IsKeyPressed(rl.KEY_P)) {
-            switch (self.state) {
-                .Running => self.state = .Paused,
-                .Paused => self.state = .Running,
-            }
+            self.state = .Paused;
         }
 
         b2.b2World_Step(self.world_id, dt, 4);
@@ -259,6 +258,24 @@ pub const Game = struct {
         }
     }
 
+    pub fn update_win(self: *Self, dt: f32) !void {
+        _ = dt;
+
+        var win_button_rect = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0,
+            .width = 100.0,
+            .height = 100.0,
+        };
+        const win_button = rl.GuiButton(
+            win_button_rect,
+            "Save",
+        );
+        if (win_button != 0) {
+            try self.restart();
+        }
+    }
+
     pub fn update_paused(self: *Self, dt: f32) !void {
         _ = dt;
         if (rl.IsKeyPressed(rl.KEY_R)) {
@@ -266,10 +283,7 @@ pub const Game = struct {
         }
 
         if (rl.IsKeyPressed(rl.KEY_P)) {
-            switch (self.state) {
-                .Running => self.state = .Paused,
-                .Paused => self.state = .Running,
-            }
+            self.state = .Running;
         }
 
         if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
@@ -429,7 +443,7 @@ pub const Game = struct {
 
     pub fn draw(self: *const Self) void {
         const camera = switch (self.state) {
-            .Running => &self.camera,
+            .Running, .Win => &self.camera,
             .Paused => &self.editor_camera,
         };
 
