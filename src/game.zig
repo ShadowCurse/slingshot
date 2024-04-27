@@ -232,8 +232,13 @@ pub const Game = struct {
     }
 
     pub fn update(self: *Self, dt: f32) !void {
-        const sensor_events = SensorEvents.new(self.world_id);
+        switch (self.state) {
+            .Running => self.update_runnning(dt),
+            .Paused => self.update_paused(dt),
+        }
+    }
 
+    pub fn update_running(self: *Self, dt: f32) !void {
         if (rl.IsKeyPressed(rl.KEY_R)) {
             try self.restart();
         }
@@ -245,169 +250,180 @@ pub const Game = struct {
             }
         }
 
-        switch (self.state) {
-            .Running => {
-                b2.b2World_Step(self.world_id, dt, 4);
-                self.update_camera(dt);
-                for (self.objects.items) |*object| {
-                    object.update(self, &sensor_events);
-                }
-            },
-            .Paused => {
-                if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
-                    const mp = self.mouse_position();
-                    self.editor_selection = null;
-                    for (self.objects.items, 0..) |*object, i| {
-                        if (object.aabb_contains(mp)) {
-                            self.editor_selection = .{ .Object = i };
-                            break;
-                        }
-                    }
-                    if (self.ball.aabb_contains(mp)) {
-                        self.editor_selection = .Ball;
-                    }
-                }
-                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
-                    const mouse_pos = self.mouse_position();
-                    if (self.editor_selection) |s| {
-                        switch (s) {
-                            .Ball => self.ball.set_position(mouse_pos),
-                            .Object => |i| try self.objects.items[i].set_position(mouse_pos),
-                        }
-                    }
-                }
-                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
-                    const delta = rl.GetMouseDelta();
-                    self.editor_camera.target.x -= delta.x;
-                    self.editor_camera.target.y -= delta.y;
-                }
+        b2.b2World_Step(self.world_id, dt, 4);
 
-                const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
-                self.editor_camera.zoom += mouse_wheel_move;
+        const sensor_events = SensorEvents.new(self.world_id);
+        self.update_camera(dt);
+        for (self.objects.items) |*object| {
+            object.update(self, &sensor_events);
+        }
+    }
 
-                if (self.editor_selection) |s| {
-                    switch (s) {
-                        .Ball => self.ball.draw_editor(self.world_id),
-                        .Object => |i| try self.objects.items[i].draw_editor(self.world_id),
-                    }
-                }
+    pub fn update_paused(self: *Self, dt: f32) !void {
+        _ = dt;
+        if (rl.IsKeyPressed(rl.KEY_R)) {
+            try self.restart();
+        }
 
-                var save_button_rect = rl.Rectangle{
-                    .x = @as(f32, @floatFromInt(self.screen_width)) - 50.0,
-                    .y = 0.0,
-                    .width = 50.0,
-                    .height = 50.0,
-                };
-                const b_save = rl.GuiButton(
-                    save_button_rect,
-                    "Save",
-                );
-                if (b_save != 0) {
-                    try self.save();
-                }
-                save_button_rect.y += 50.0;
-                const b_load = rl.GuiButton(
-                    save_button_rect,
-                    "Load",
-                );
-                if (b_load != 0) {
-                    try self.load();
-                }
+        if (rl.IsKeyPressed(rl.KEY_P)) {
+            switch (self.state) {
+                .Running => self.state = .Paused,
+                .Paused => self.state = .Running,
+            }
+        }
 
-                const button_width = 100.0;
-                const button_height = 20.0;
-                var button_rect = rl.Rectangle{
-                    .x = 0.0,
-                    .y = @as(f32, @floatFromInt(self.screen_height)) - button_height,
-                    .width = button_width,
-                    .height = button_height,
-                };
-                const remove = rl.GuiButton(
-                    button_rect,
-                    "Remove",
-                );
-                if (remove != 0) {
-                    if (self.editor_selection) |s| {
-                        switch (s) {
-                            .Ball => {},
-                            .Object => |i| {
-                                const object = self.objects.swapRemove(i);
-                                object.deinit();
-                                self.editor_selection = null;
-                            },
-                        }
-                    }
+        if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
+            const mp = self.mouse_position();
+            self.editor_selection = null;
+            for (self.objects.items, 0..) |*object, i| {
+                if (object.aabb_contains(mp)) {
+                    self.editor_selection = .{ .Object = i };
+                    break;
                 }
-
-                button_rect.x += button_width;
-                const add_ball = rl.GuiButton(
-                    button_rect,
-                    "Add ball",
-                );
-                if (add_ball != 0) {
-                    const ball = Ball.new(self.world_id, .{
-                        .position = Vector2.from_rl_pos(self.editor_camera.target),
-                    });
-                    try self.objects.append(.{ .Ball = ball });
+            }
+            if (self.ball.aabb_contains(mp)) {
+                self.editor_selection = .Ball;
+            }
+        }
+        if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
+            const mouse_pos = self.mouse_position();
+            if (self.editor_selection) |s| {
+                switch (s) {
+                    .Ball => self.ball.set_position(mouse_pos),
+                    .Object => |i| try self.objects.items[i].set_position(mouse_pos),
                 }
+            }
+        }
+        if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
+            const delta = rl.GetMouseDelta();
+            self.editor_camera.target.x -= delta.x;
+            self.editor_camera.target.y -= delta.y;
+        }
 
-                button_rect.x += button_width;
-                const add_arc = rl.GuiButton(
-                    button_rect,
-                    "Add arc",
-                );
-                if (add_arc != 0) {
-                    const arc = Arc.new(self.world_id, .{
-                        .position = Vector2.from_rl_pos(self.editor_camera.target),
-                    });
-                    try self.objects.append(.{ .Arc = arc });
+        const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
+        self.editor_camera.zoom += mouse_wheel_move;
+
+        if (self.editor_selection) |s| {
+            switch (s) {
+                .Ball => self.ball.draw_editor(self.world_id),
+                .Object => |i| try self.objects.items[i].draw_editor(self.world_id),
+            }
+        }
+
+        var save_button_rect = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) - 50.0,
+            .y = 0.0,
+            .width = 50.0,
+            .height = 50.0,
+        };
+        const b_save = rl.GuiButton(
+            save_button_rect,
+            "Save",
+        );
+        if (b_save != 0) {
+            try self.save();
+        }
+        save_button_rect.y += 50.0;
+        const b_load = rl.GuiButton(
+            save_button_rect,
+            "Load",
+        );
+        if (b_load != 0) {
+            try self.load();
+        }
+
+        const button_width = 100.0;
+        const button_height = 20.0;
+        var button_rect = rl.Rectangle{
+            .x = 0.0,
+            .y = @as(f32, @floatFromInt(self.screen_height)) - button_height,
+            .width = button_width,
+            .height = button_height,
+        };
+        const remove = rl.GuiButton(
+            button_rect,
+            "Remove",
+        );
+        if (remove != 0) {
+            if (self.editor_selection) |s| {
+                switch (s) {
+                    .Ball => {},
+                    .Object => |i| {
+                        const object = self.objects.swapRemove(i);
+                        object.deinit();
+                        self.editor_selection = null;
+                    },
                 }
+            }
+        }
 
-                button_rect.x += button_width;
-                const add_anchor = rl.GuiButton(
-                    button_rect,
-                    "Add anchor",
-                );
-                if (add_anchor != 0) {
-                    const anchor = Anchor.new(self.world_id, .{
-                        .position = Vector2.from_rl_pos(self.editor_camera.target),
-                    });
-                    try self.objects.append(.{ .Anchor = anchor });
-                }
+        button_rect.x += button_width;
+        const add_ball = rl.GuiButton(
+            button_rect,
+            "Add ball",
+        );
+        if (add_ball != 0) {
+            const ball = Ball.new(self.world_id, .{
+                .position = Vector2.from_rl_pos(self.editor_camera.target),
+            });
+            try self.objects.append(.{ .Ball = ball });
+        }
 
-                button_rect.x += button_width;
-                const add_rect = rl.GuiButton(
-                    button_rect,
-                    "Add rect",
-                );
-                if (add_rect != 0) {
-                    const rect = try Rectangle.new(self.world_id, .{
-                        .position = Vector2.from_rl_pos(self.editor_camera.target),
-                    });
-                    try self.objects.append(.{ .Rectangle = rect });
-                }
+        button_rect.x += button_width;
+        const add_arc = rl.GuiButton(
+            button_rect,
+            "Add arc",
+        );
+        if (add_arc != 0) {
+            const arc = Arc.new(self.world_id, .{
+                .position = Vector2.from_rl_pos(self.editor_camera.target),
+            });
+            try self.objects.append(.{ .Arc = arc });
+        }
 
-                button_rect.x += button_width;
-                const add_rect_chain = rl.GuiButton(
-                    button_rect,
-                    "Add rect chain",
-                );
-                if (add_rect_chain != 0) {
-                    const rc_points = [_]Vector2{
-                        Vector2.X,
-                        Vector2.NEG_X,
-                    };
-                    const points = try self.allocator.alloc(Vector2, rc_points.len);
-                    @memcpy(points, &rc_points);
+        button_rect.x += button_width;
+        const add_anchor = rl.GuiButton(
+            button_rect,
+            "Add anchor",
+        );
+        if (add_anchor != 0) {
+            const anchor = Anchor.new(self.world_id, .{
+                .position = Vector2.from_rl_pos(self.editor_camera.target),
+            });
+            try self.objects.append(.{ .Anchor = anchor });
+        }
 
-                    const rect_chain_params = objects.RectangleChainParams{
-                        .position = Vector2.from_rl_pos(self.editor_camera.target),
-                        .points = points,
-                    };
-                    const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
-                    try self.objects.append(.{ .RectangleChain = rect_chain });
-                }
-            },
+        button_rect.x += button_width;
+        const add_rect = rl.GuiButton(
+            button_rect,
+            "Add rect",
+        );
+        if (add_rect != 0) {
+            const rect = try Rectangle.new(self.world_id, .{
+                .position = Vector2.from_rl_pos(self.editor_camera.target),
+            });
+            try self.objects.append(.{ .Rectangle = rect });
+        }
+
+        button_rect.x += button_width;
+        const add_rect_chain = rl.GuiButton(
+            button_rect,
+            "Add rect chain",
+        );
+        if (add_rect_chain != 0) {
+            const rc_points = [_]Vector2{
+                Vector2.X,
+                Vector2.NEG_X,
+            };
+            const points = try self.allocator.alloc(Vector2, rc_points.len);
+            @memcpy(points, &rc_points);
+
+            const rect_chain_params = objects.RectangleChainParams{
+                .position = Vector2.from_rl_pos(self.editor_camera.target),
+                .points = points,
+            };
+            const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
+            try self.objects.append(.{ .RectangleChain = rect_chain });
         }
     }
 
