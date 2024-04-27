@@ -3,6 +3,7 @@ const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const ParamEditor = @import("editor.zig").ParamEditor;
 const Game = @import("game.zig").Game;
+const SensorEvents = @import("game.zig").SensorEvents;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
@@ -969,7 +970,8 @@ pub const Object = union(ObjectTags) {
         };
     }
 
-    pub fn update(self: *Self, game: *const Game) void {
+    pub fn update(self: *Self, game: *const Game, sensor_events: *const SensorEvents) void {
+        _ = sensor_events;
         switch (self.*) {
             .Arc => |_| {},
             .Ball => |_| {},

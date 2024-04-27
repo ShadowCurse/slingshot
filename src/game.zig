@@ -27,6 +27,29 @@ pub const GameSaveState = struct {
     editor_camera: rl.Camera2D,
 };
 
+pub const SensorEvents = struct {
+    begin_events: []b2.b2SensorBeginTouchEvent,
+    end_events: []b2.b2SensorEndTouchEvent,
+
+    const Self = @This();
+
+    pub fn new(world_id: b2.b2WorldId) Self {
+        const events = b2.b2World_GetSensorEvents(world_id);
+
+        var begin_events: []b2.b2SensorBeginTouchEvent = undefined;
+        begin_events.ptr = events.beginEvents;
+        begin_events.len = @intCast(events.beginCount);
+
+        var end_events: []b2.b2SensorEndTouchEvent = undefined;
+        end_events.ptr = events.endEvents;
+        end_events.len = @intCast(events.endCount);
+        return Self{
+            .begin_events = begin_events,
+            .end_events = end_events,
+        };
+    }
+};
+
 pub const GameState = enum {
     Running,
     Paused,
@@ -209,6 +232,8 @@ pub const Game = struct {
     }
 
     pub fn update(self: *Self, dt: f32) !void {
+        const sensor_events = SensorEvents.new(self.world_id);
+
         if (rl.IsKeyPressed(rl.KEY_R)) {
             try self.restart();
         }
@@ -225,7 +250,7 @@ pub const Game = struct {
                 b2.b2World_Step(self.world_id, dt, 4);
                 self.update_camera(dt);
                 for (self.objects.items) |*object| {
-                    object.update(self);
+                    object.update(self, &sensor_events);
                 }
             },
             .Paused => {
