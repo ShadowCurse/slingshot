@@ -400,19 +400,16 @@ pub const Game = struct {
     }
 
     pub fn draw(self: *Self) !void {
-        // Draw to texture
-        {
-            rl.BeginDrawing();
-            defer rl.EndDrawing();
-            rl.ClearBackground(rl.BLACK);
+        rl.BeginDrawing();
+        defer rl.EndDrawing();
+        rl.ClearBackground(rl.BLACK);
 
-            switch (self.state) {
-                .MainMenu => self.draw_main_menu(),
-                .Settings => try self.draw_settings(),
-                .Running => self.draw_running(),
-                .Paused => try self.draw_paused(),
-                .Win => try self.draw_win(),
-            }
+        switch (self.state) {
+            .MainMenu => self.draw_main_menu(),
+            .Settings => try self.draw_settings(),
+            .Running => self.draw_running(),
+            .Paused => try self.draw_paused(),
+            .Win => try self.draw_win(),
         }
     }
 
