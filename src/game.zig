@@ -54,7 +54,7 @@ pub const SensorEvents = struct {
 };
 
 pub const GameSettings = struct {
-    const RESOLUTIONS = .{
+    const RESOLUTIONS = [_]struct { u32, u32 }{
         .{ 960, 540 },
         .{ 1280, 720 },
         .{ 1920, 1080 },
@@ -67,12 +67,18 @@ pub const GameSettings = struct {
         RESOLUTIONS[3],
     });
 
+    const SaveState = struct {
+        resolution_width: u32,
+        resolution_height: u32,
+    };
+
     const Self = @This();
 
+    // UI state
     selected_resolution: i32 = 0,
     select_resolution_active: bool = false,
 
-    pub fn draw(self: *Self, game: *Game) void {
+    pub fn draw(self: *Self, game: *Game) !void {
         var rectangle = rl.Rectangle{
             .x = @as(f32, @floatFromInt(game.screen_width)) / 2.0 - UI_ELEMENT_WIDTH,
             .y = @as(f32, @floatFromInt(game.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
@@ -101,7 +107,10 @@ pub const GameSettings = struct {
             rectangle,
             "Apply",
         );
-        _ = apply_button;
+        if (apply_button != 0) {
+            // TODO change game
+            try self.save();
+        }
 
         rectangle.y += UI_ELEMENT_HEIGHT;
         const back_button = rl.GuiButton(
@@ -111,6 +120,23 @@ pub const GameSettings = struct {
         if (back_button != 0) {
             game.state = .MainMenu;
         }
+    }
+
+    pub fn save(self: *const Self) !void {
+        var file = try std.fs.cwd().createFile("settings.json", .{});
+        defer file.close();
+
+        const selected_resolution: usize = @intCast(self.selected_resolution);
+        const settings_save = Self.SaveState{
+            .resolution_width = Self.RESOLUTIONS[selected_resolution][0],
+            .resolution_height = Self.RESOLUTIONS[selected_resolution][1],
+        };
+
+        const options = std.json.StringifyOptions{
+            .whitespace = .indent_4,
+        };
+
+        try std.json.stringify(settings_save, options, file.writer());
     }
 };
 
@@ -376,7 +402,7 @@ pub const Game = struct {
     pub fn draw(self: *Self) !void {
         switch (self.state) {
             .MainMenu => self.draw_main_menu(),
-            .Settings => self.draw_settings(),
+            .Settings => try self.draw_settings(),
             .Running => self.draw_running(),
             .Paused => try self.draw_paused(),
             .Win => try self.draw_win(),
@@ -408,8 +434,8 @@ pub const Game = struct {
         }
     }
 
-    pub fn draw_settings(self: *Self) void {
-        self.settings.draw(self);
+    pub fn draw_settings(self: *Self) !void {
+        try self.settings.draw(self);
     }
 
     pub fn draw_running(self: *const Self) void {
