@@ -14,6 +14,9 @@ const RectangleChain = objects.RectangleChain;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
+const UI_ELEMENT_WIDTH = 300.0;
+const UI_ELEMENT_HEIGHT = 100.0;
+
 pub const GameSaveState = struct {
     camera: rl.Camera2D,
     initial_camera: rl.Camera2D,
@@ -52,6 +55,7 @@ pub const SensorEvents = struct {
 
 pub const GameState = enum {
     MainMenu,
+    Settings,
     Running,
     Paused,
     Win,
@@ -305,6 +309,7 @@ pub const Game = struct {
     pub fn draw(self: *Self) !void {
         switch (self.state) {
             .MainMenu => self.draw_main_menu(),
+            .Settings => self.draw_settings(),
             .Running => self.draw_running(),
             .Paused => try self.draw_paused(),
             .Win => try self.draw_win(),
@@ -312,18 +317,72 @@ pub const Game = struct {
     }
 
     pub fn draw_main_menu(self: *Self) void {
-        var start_button_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - 50.0,
-            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - 50.0,
-            .width = 100.0,
-            .height = 100.0,
+        var rectangle = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
+            .width = UI_ELEMENT_WIDTH,
+            .height = UI_ELEMENT_HEIGHT,
         };
         const win_button = rl.GuiButton(
-            start_button_rect,
+            rectangle,
             "Start",
         );
         if (win_button != 0) {
             self.state = .Running;
+        }
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const settings_button = rl.GuiButton(
+            rectangle,
+            "Settings",
+        );
+        if (settings_button != 0) {
+            self.state = .Settings;
+        }
+    }
+
+    pub fn draw_settings(self: *Self) void {
+        var rectangle = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - UI_ELEMENT_WIDTH,
+            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
+            .width = UI_ELEMENT_WIDTH,
+            .height = UI_ELEMENT_HEIGHT,
+        };
+        _ = rl.GuiLabel(
+            rectangle,
+            "Resolution",
+        );
+
+        rectangle.x += UI_ELEMENT_WIDTH;
+        const S = struct {
+            var selected: i32 = 0;
+            var active: bool = false;
+        };
+        const r = rl.GuiDropdownBox(
+            rectangle,
+            "1280x720;1920x1080",
+            &S.selected,
+            S.active,
+        );
+        if (r == 1) {
+            S.active = !S.active;
+        }
+
+        rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
+        rectangle.y += UI_ELEMENT_HEIGHT * 3.5;
+        const apply_button = rl.GuiButton(
+            rectangle,
+            "Apply",
+        );
+        _ = apply_button;
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const back_button = rl.GuiButton(
+            rectangle,
+            "Back",
+        );
+        if (back_button != 0) {
+            self.state = .MainMenu;
         }
     }
 
