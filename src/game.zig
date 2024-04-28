@@ -53,6 +53,67 @@ pub const SensorEvents = struct {
     }
 };
 
+pub const GameSettings = struct {
+    const RESOLUTIONS = .{
+        .{ 960, 540 },
+        .{ 1280, 720 },
+        .{ 1920, 1080 },
+        .{ 2560, 1440 },
+    };
+    const RESOLUTIONS_STR: [:0]const u8 = std.fmt.comptimePrint("{};{};{};{}", .{
+        RESOLUTIONS[0],
+        RESOLUTIONS[1],
+        RESOLUTIONS[2],
+        RESOLUTIONS[3],
+    });
+
+    const Self = @This();
+
+    selected_resolution: i32 = 0,
+    select_resolution_active: bool = false,
+
+    pub fn draw(self: *Self, game: *Game) void {
+        var rectangle = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(game.screen_width)) / 2.0 - UI_ELEMENT_WIDTH,
+            .y = @as(f32, @floatFromInt(game.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
+            .width = UI_ELEMENT_WIDTH,
+            .height = UI_ELEMENT_HEIGHT,
+        };
+        _ = rl.GuiLabel(
+            rectangle,
+            "Resolution",
+        );
+
+        rectangle.x += UI_ELEMENT_WIDTH;
+        const r = rl.GuiDropdownBox(
+            rectangle,
+            Self.RESOLUTIONS_STR,
+            &self.selected_resolution,
+            self.select_resolution_active,
+        );
+        if (r == 1) {
+            self.select_resolution_active = !self.select_resolution_active;
+        }
+
+        rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
+        rectangle.y += UI_ELEMENT_HEIGHT * 3.5;
+        const apply_button = rl.GuiButton(
+            rectangle,
+            "Apply",
+        );
+        _ = apply_button;
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const back_button = rl.GuiButton(
+            rectangle,
+            "Back",
+        );
+        if (back_button != 0) {
+            game.state = .MainMenu;
+        }
+    }
+};
+
 pub const GameState = enum {
     MainMenu,
     Settings,
@@ -84,6 +145,8 @@ pub const Game = struct {
 
     editor_camera: rl.Camera2D,
     editor_selection: ?EditorSelection,
+
+    settings: GameSettings,
 
     const Self = @This();
 
@@ -138,6 +201,8 @@ pub const Game = struct {
 
             .editor_camera = camera,
             .editor_selection = null,
+
+            .settings = .{},
         };
     }
 
@@ -195,6 +260,8 @@ pub const Game = struct {
 
             .editor_camera = state.editor_camera,
             .editor_selection = null,
+
+            .settings = .{},
         };
     }
 
@@ -342,48 +409,7 @@ pub const Game = struct {
     }
 
     pub fn draw_settings(self: *Self) void {
-        var rectangle = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - UI_ELEMENT_WIDTH,
-            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
-            .width = UI_ELEMENT_WIDTH,
-            .height = UI_ELEMENT_HEIGHT,
-        };
-        _ = rl.GuiLabel(
-            rectangle,
-            "Resolution",
-        );
-
-        rectangle.x += UI_ELEMENT_WIDTH;
-        const S = struct {
-            var selected: i32 = 0;
-            var active: bool = false;
-        };
-        const r = rl.GuiDropdownBox(
-            rectangle,
-            "1280x720;1920x1080",
-            &S.selected,
-            S.active,
-        );
-        if (r == 1) {
-            S.active = !S.active;
-        }
-
-        rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
-        rectangle.y += UI_ELEMENT_HEIGHT * 3.5;
-        const apply_button = rl.GuiButton(
-            rectangle,
-            "Apply",
-        );
-        _ = apply_button;
-
-        rectangle.y += UI_ELEMENT_HEIGHT;
-        const back_button = rl.GuiButton(
-            rectangle,
-            "Back",
-        );
-        if (back_button != 0) {
-            self.state = .MainMenu;
-        }
+        self.settings.draw(self);
     }
 
     pub fn draw_running(self: *const Self) void {
