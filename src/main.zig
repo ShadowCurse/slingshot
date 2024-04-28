@@ -27,12 +27,6 @@ pub fn main() anyerror!void {
         const dt = rl.GetFrameTime();
 
         try game.update(dt);
-
-        rl.BeginDrawing();
-        rl.ClearBackground(BACKGROUND_COLOR);
-
         try game.draw();
-
-        rl.EndDrawing();
     }
 }
