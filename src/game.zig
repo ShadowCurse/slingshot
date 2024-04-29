@@ -78,6 +78,11 @@ pub const GameSettings = struct {
     selected_resolution: i32 = 0,
     select_resolution_active: bool = false,
 
+    pub fn get_selected_resolution(self: *const Self) struct { u32, u32 } {
+        const selected_resolution: usize = @intCast(self.selected_resolution);
+        return Self.RESOLUTIONS[selected_resolution];
+    }
+
     pub fn draw(self: *Self, game: *Game) !void {
         var rectangle = rl.Rectangle{
             .x = @as(f32, @floatFromInt(game.screen_width)) / 2.0 - UI_ELEMENT_WIDTH,
@@ -108,7 +113,8 @@ pub const GameSettings = struct {
             "Apply",
         );
         if (apply_button != 0) {
-            // TODO change game
+            const resolution = self.get_selected_resolution();
+            game.set_window_size(resolution[0], resolution[1]);
             try self.save();
         }
 
@@ -126,10 +132,10 @@ pub const GameSettings = struct {
         var file = try std.fs.cwd().createFile("settings.json", .{});
         defer file.close();
 
-        const selected_resolution: usize = @intCast(self.selected_resolution);
+        const resolution = self.get_selected_resolution();
         const settings_save = Self.SaveState{
-            .resolution_width = Self.RESOLUTIONS[selected_resolution][0],
-            .resolution_height = Self.RESOLUTIONS[selected_resolution][1],
+            .resolution_width = resolution[0],
+            .resolution_height = resolution[1],
         };
 
         const options = std.json.StringifyOptions{
@@ -309,6 +315,30 @@ pub const Game = struct {
         self.objects.deinit();
         self.ball.deinit();
         b2.b2DestroyWorld(self.world_id);
+    }
+
+    pub fn set_window_size(self: *Self, width: u32, height: u32) void {
+        self.screen_width = width;
+        self.screen_height = height;
+        const camera = rl.Camera2D{
+            .offset = rl.Vector2{
+                .x = @as(f32, @floatFromInt(width)) / 2.0,
+                .y = @as(f32, @floatFromInt(height)) / 2.0,
+            },
+            .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+            .rotation = 0.0,
+            .zoom = 1.0,
+        };
+        self.camera = camera;
+        self.initial_camera = camera;
+        self.editor_camera = camera;
+        // TODO is there a better workaround?
+        // Currently this is needed, because when
+        // only SetWindowSize is used, the inner viewport
+        // is not resized
+        rl.ToggleFullscreen();
+        rl.ToggleFullscreen();
+        rl.SetWindowSize(@intCast(width), @intCast(height));
     }
 
     pub fn mouse_position(self: *const Self) Vector2 {
