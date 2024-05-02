@@ -2,6 +2,7 @@ const std = @import("std");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const Game = @import("game.zig").Game;
+const GameSettings = @import("game.zig").GameSettings;
 
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -13,14 +14,20 @@ pub fn main() anyerror!void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    rl.InitWindow(WIDTH, HEIGHT, "Breakout");
-    defer rl.CloseWindow();
+    const settings = try GameSettings.load(allocator, "settings.json");
 
-    rl.GuiLoadStyleDefault();
+    rl.InitWindow(
+        @intCast(settings.resolution_width),
+        @intCast(settings.resolution_height),
+        "Slingshot",
+    );
+    defer rl.CloseWindow();
 
     rl.SetTargetFPS(TARGET_FPS);
 
-    var game = try Game.new(allocator, WIDTH, HEIGHT);
+    rl.GuiLoadStyleDefault();
+
+    var game = try Game.new(allocator, settings);
     defer game.deinit();
 
     while (!rl.WindowShouldClose()) {

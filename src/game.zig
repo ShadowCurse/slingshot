@@ -78,15 +78,19 @@ pub const GameSettings = struct {
     selected_resolution: i32 = 0,
     select_resolution_active: bool = false,
 
-    pub fn get_selected_resolution(self: *const Self) struct { u32, u32 } {
+    resolution_width: u32,
+    resolution_height: u32,
+
+    pub fn update_selected_resolution(self: *Self) void {
         const selected_resolution: usize = @intCast(self.selected_resolution);
-        return Self.RESOLUTIONS[selected_resolution];
+        self.resolution_width = Self.RESOLUTIONS[selected_resolution][0];
+        self.resolution_height = Self.RESOLUTIONS[selected_resolution][1];
     }
 
     pub fn draw(self: *Self, game: *Game) !void {
         var rectangle = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(game.screen_width)) / 2.0 - UI_ELEMENT_WIDTH,
-            .y = @as(f32, @floatFromInt(game.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
+            .x = @as(f32, @floatFromInt(game.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH,
+            .y = @as(f32, @floatFromInt(game.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
             .width = UI_ELEMENT_WIDTH,
             .height = UI_ELEMENT_HEIGHT,
         };
@@ -113,8 +117,8 @@ pub const GameSettings = struct {
             "Apply",
         );
         if (apply_button != 0) {
-            const resolution = self.get_selected_resolution();
-            game.set_window_size(resolution[0], resolution[1]);
+            self.update_selected_resolution();
+            game.set_window_size();
             try self.save();
         }
 
@@ -132,10 +136,9 @@ pub const GameSettings = struct {
         var file = try std.fs.cwd().createFile("settings.json", .{});
         defer file.close();
 
-        const resolution = self.get_selected_resolution();
         const settings_save = Self.SaveState{
-            .resolution_width = resolution[0],
-            .resolution_height = resolution[1],
+            .resolution_width = self.resolution_width,
+            .resolution_height = self.resolution_height,
         };
 
         const options = std.json.StringifyOptions{
@@ -143,6 +146,23 @@ pub const GameSettings = struct {
         };
 
         try std.json.stringify(settings_save, options, file.writer());
+    }
+
+    pub fn load(allocator: Allocator, path: []const u8) !Self {
+        var file = try std.fs.cwd().openFile(path, .{});
+        defer file.close();
+
+        const file_data = try file.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+        defer allocator.free(file_data);
+
+        const self_state = try std.json.parseFromSlice(Self, allocator, file_data, .{});
+        defer self_state.deinit();
+
+        var s = std.mem.zeroInit(Self, .{});
+        s.resolution_width = self_state.value.resolution_width;
+        s.resolution_height = self_state.value.resolution_height;
+
+        return s;
     }
 };
 
@@ -161,8 +181,6 @@ pub const EditorSelection = union(enum) {
 
 pub const Game = struct {
     allocator: Allocator,
-    screen_width: u32,
-    screen_height: u32,
 
     world_id: b2.b2WorldId,
 
@@ -182,15 +200,15 @@ pub const Game = struct {
 
     const Self = @This();
 
-    pub fn new(allocator: Allocator, screen_width: u32, screen_height: u32) !Self {
+    pub fn new(allocator: Allocator, settings: GameSettings) !Self {
         var world_def = b2.b2DefaultWorldDef();
         world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
         const world_id = b2.b2CreateWorld(&world_def);
 
         const camera = rl.Camera2D{
             .offset = rl.Vector2{
-                .x = @as(f32, @floatFromInt(screen_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(screen_height)) / 2.0,
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
             },
             .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
             .rotation = 0.0,
@@ -216,8 +234,6 @@ pub const Game = struct {
 
         return Self{
             .allocator = allocator,
-            .screen_width = screen_width,
-            .screen_height = screen_height,
 
             .world_id = world_id,
 
@@ -234,11 +250,11 @@ pub const Game = struct {
             .editor_camera = camera,
             .editor_selection = null,
 
-            .settings = .{},
+            .settings = settings,
         };
     }
 
-    pub fn from_state(allocator: Allocator, screen_width: u32, screen_height: u32, state: *const GameSaveState) !Self {
+    pub fn from_state(allocator: Allocator, state: *const GameSaveState, settings: GameSettings) !Self {
         var world_def = b2.b2DefaultWorldDef();
         world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
         const world_id = b2.b2CreateWorld(&world_def);
@@ -275,8 +291,6 @@ pub const Game = struct {
 
         return Self{
             .allocator = allocator,
-            .screen_width = screen_width,
-            .screen_height = screen_height,
 
             .world_id = world_id,
 
@@ -293,7 +307,7 @@ pub const Game = struct {
             .editor_camera = state.editor_camera,
             .editor_selection = null,
 
-            .settings = .{},
+            .settings = settings,
         };
     }
 
@@ -317,13 +331,11 @@ pub const Game = struct {
         b2.b2DestroyWorld(self.world_id);
     }
 
-    pub fn set_window_size(self: *Self, width: u32, height: u32) void {
-        self.screen_width = width;
-        self.screen_height = height;
+    pub fn set_window_size(self: *Self) void {
         const camera = rl.Camera2D{
             .offset = rl.Vector2{
-                .x = @as(f32, @floatFromInt(width)) / 2.0,
-                .y = @as(f32, @floatFromInt(height)) / 2.0,
+                .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0,
             },
             .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
             .rotation = 0.0,
@@ -338,7 +350,10 @@ pub const Game = struct {
         // is not resized
         rl.ToggleFullscreen();
         rl.ToggleFullscreen();
-        rl.SetWindowSize(@intCast(width), @intCast(height));
+        rl.SetWindowSize(
+            @intCast(self.settings.resolution_width),
+            @intCast(self.settings.resolution_height),
+        );
     }
 
     pub fn mouse_position(self: *const Self) Vector2 {
@@ -445,8 +460,8 @@ pub const Game = struct {
 
     pub fn draw_main_menu(self: *Self) void {
         var rectangle = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
+            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
             .width = UI_ELEMENT_WIDTH,
             .height = UI_ELEMENT_HEIGHT,
         };
@@ -521,7 +536,7 @@ pub const Game = struct {
         }
 
         var save_button_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) - 50.0,
+            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) - 50.0,
             .y = 0.0,
             .width = 50.0,
             .height = 50.0,
@@ -546,7 +561,7 @@ pub const Game = struct {
         const button_height = 20.0;
         var button_rect = rl.Rectangle{
             .x = 0.0,
-            .y = @as(f32, @floatFromInt(self.screen_height)) - button_height,
+            .y = @as(f32, @floatFromInt(self.settings.resolution_height)) - button_height,
             .width = button_width,
             .height = button_height,
         };
@@ -639,8 +654,8 @@ pub const Game = struct {
 
     pub fn draw_win(self: *Self) !void {
         var win_button_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.screen_width)) / 2.0,
-            .y = @as(f32, @floatFromInt(self.screen_height)) / 2.0,
+            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0,
             .width = 100.0,
             .height = 100.0,
         };
@@ -699,9 +714,7 @@ pub const Game = struct {
         defer save_state.deinit();
 
         const allocator = self.allocator;
-        const screen_width = self.screen_width;
-        const screen_height = self.screen_height;
         self.deinit();
-        self.* = try Game.from_state(allocator, screen_width, screen_height, &save_state.value);
+        self.* = try Game.from_state(allocator, &save_state.value, self.settings);
     }
 };
