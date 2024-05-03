@@ -653,7 +653,7 @@ pub const Game = struct {
     }
 
     pub fn draw_win(self: *Self) !void {
-        var win_button_rect = rl.Rectangle{
+        const win_button_rect = rl.Rectangle{
             .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0,
             .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0,
             .width = 100.0,
@@ -672,7 +672,7 @@ pub const Game = struct {
         var file = try std.fs.cwd().createFile("save.json", .{});
         defer file.close();
 
-        var objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
+        const objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
         for (self.objects.items, objects_params) |*item, *param| {
             param.* = try item.params(self.allocator);
         }

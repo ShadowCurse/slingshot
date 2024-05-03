@@ -137,7 +137,7 @@ pub fn normalized(self: *const Self) Self {
 }
 
 pub fn angle(self: *const Self) f32 {
-    return std.math.atan2(f32, self.y, self.x);
+    return std.math.atan2(self.y, self.x);
 }
 
 pub fn rotate(self: *const Self, rad: f32) Self {

@@ -18,10 +18,12 @@ pub fn build(b: *std.Build) void {
 
     // If compiled for wasm32-wasi chagne raylib and box2c
     // to be compiled for wasm32-emscripten
-    const c_libs_target = if (target.getOsTag() == .wasi) blk: {
-        break :blk std.zig.CrossTarget.parse(.{
+    const c_libs_target = if (target.result.os.tag == .wasi) blk: {
+        const cross_target = std.zig.CrossTarget.parse(.{
             .arch_os_abi = "wasm32-emscripten",
         }) catch unreachable;
+
+        break :blk b.resolveTargetQuery(cross_target);
     } else blk: {
         break :blk target;
     };
@@ -52,7 +54,7 @@ pub fn build(b: *std.Build) void {
     defer box2d_flags.deinit();
 
     // Special flags for box2c needed only for wasi builds
-    if (target.getOsTag() == .wasi) {
+    if (target.result.os.tag == .wasi) {
         box2d_flags.appendSlice(&[_][]const u8{
             "-fno-stack-protector",
             "-D_GNU_SOURCE",
@@ -61,49 +63,51 @@ pub fn build(b: *std.Build) void {
         }) catch unreachable;
     }
     box2c.addCSourceFiles(
-        &.{
-            "box2c/src/aabb.c",
-            "box2c/src/allocate.c",
-            "box2c/src/array.c",
-            "box2c/src/bitset.c",
-            "box2c/src/block_allocator.c",
-            "box2c/src/body.c",
-            "box2c/src/broad_phase.c",
-            "box2c/src/constraint_graph.c",
-            "box2c/src/contact.c",
-            "box2c/src/contact_solver.c",
-            "box2c/src/core.c",
-            "box2c/src/distance.c",
-            "box2c/src/distance_joint.c",
-            "box2c/src/dynamic_tree.c",
-            "box2c/src/geometry.c",
-            "box2c/src/hull.c",
-            "box2c/src/implementation.c",
-            "box2c/src/island.c",
-            "box2c/src/joint.c",
-            "box2c/src/manifold.c",
-            "box2c/src/math.c",
-            "box2c/src/motor_joint.c",
-            "box2c/src/mouse_joint.c",
-            "box2c/src/pool.c",
-            "box2c/src/prismatic_joint.c",
-            "box2c/src/revolute_joint.c",
-            "box2c/src/shape.c",
-            "box2c/src/solver.c",
-            "box2c/src/stack_allocator.c",
-            "box2c/src/table.c",
-            "box2c/src/timer.c",
-            "box2c/src/types.c",
-            "box2c/src/weld_joint.c",
-            "box2c/src/wheel_joint.c",
-            "box2c/src/world.c",
+        .{
+            .files = &.{
+                "box2c/src/aabb.c",
+                "box2c/src/allocate.c",
+                "box2c/src/array.c",
+                "box2c/src/bitset.c",
+                "box2c/src/block_allocator.c",
+                "box2c/src/body.c",
+                "box2c/src/broad_phase.c",
+                "box2c/src/constraint_graph.c",
+                "box2c/src/contact.c",
+                "box2c/src/contact_solver.c",
+                "box2c/src/core.c",
+                "box2c/src/distance.c",
+                "box2c/src/distance_joint.c",
+                "box2c/src/dynamic_tree.c",
+                "box2c/src/geometry.c",
+                "box2c/src/hull.c",
+                "box2c/src/implementation.c",
+                "box2c/src/island.c",
+                "box2c/src/joint.c",
+                "box2c/src/manifold.c",
+                "box2c/src/math.c",
+                "box2c/src/motor_joint.c",
+                "box2c/src/mouse_joint.c",
+                "box2c/src/pool.c",
+                "box2c/src/prismatic_joint.c",
+                "box2c/src/revolute_joint.c",
+                "box2c/src/shape.c",
+                "box2c/src/solver.c",
+                "box2c/src/stack_allocator.c",
+                "box2c/src/table.c",
+                "box2c/src/timer.c",
+                "box2c/src/types.c",
+                "box2c/src/weld_joint.c",
+                "box2c/src/wheel_joint.c",
+                "box2c/src/world.c",
+            },
+            .flags = box2d_flags.items,
         },
-        box2d_flags.items,
     );
     box2c.linkLibC();
 
     // If compiled for wasm32-wasi, compile project as a static lib
-    const artifact = if (target.getOsTag() == .wasi) blk: {
+    const artifact = if (target.result.os.tag == .wasi) blk: {
         const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
         box2c.addIncludePath(.{ .path = cache_include });

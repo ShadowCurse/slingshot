@@ -167,7 +167,7 @@ pub const EditorArrayOfVectors = struct {
     const WIDTH: f32 = LABEL_WIDTH + COLOR_PICKER_WIDTH;
 
     pub fn new(points: []Vector2, allocator: Allocator) !Self {
-        var points_editors = try allocator.alloc(EditorVector2, points.len);
+        const points_editors = try allocator.alloc(EditorVector2, points.len);
         for (points, points_editors) |*point, *point_editor| {
             point_editor.* = EditorVector2.new(point);
         }
@@ -223,7 +223,7 @@ pub const EditorArrayOfVectors = struct {
     }
 
     pub fn get_value(self: *const Self, allocator: Allocator) !?[]Vector2 {
-        var points = try allocator.alloc(Vector2, self.points_editors.len);
+        const points = try allocator.alloc(Vector2, self.points_editors.len);
         for (self.points_editors, points) |*e, *p| {
             p.* = e.get_value() orelse {
                 allocator.free(points);
@@ -456,7 +456,7 @@ fn ParamEditorInner(comptime T: type) type {
     }
     return @Type(.{
         .Struct = .{
-            .layout = .Auto,
+            .layout = .auto,
             .fields = new_fields[0..],
             .decls = &[_]std.builtin.Type.Declaration{},
             .is_tuple = false,
