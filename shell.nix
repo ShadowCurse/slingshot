@@ -8,6 +8,7 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     libGL
     wayland
+    emscripten
     libxkbcommon
     pkg-config
   ];

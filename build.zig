@@ -111,10 +111,7 @@ pub fn build(b: *std.Build) void {
 
         lib.addIncludePath(.{ .path = "raylib/src" });
         lib.addIncludePath(.{ .path = "raygui/src" });
-        lib.linkLibrary(raylib);
-
         lib.addIncludePath(.{ .path = "box2c/include" });
-        lib.linkLibrary(box2c);
 
         lib.linkLibC();
 
@@ -143,6 +140,10 @@ pub fn build(b: *std.Build) void {
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
     b.installArtifact(artifact);
+    if (target.result.os.tag == .emscripten) {
+        b.installArtifact(raylib);
+        b.installArtifact(box2c);
+    }
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
