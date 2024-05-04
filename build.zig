@@ -16,22 +16,10 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    // If compiled for wasm32-wasi chagne raylib and box2c
-    // to be compiled for wasm32-emscripten
-    const c_libs_target = if (target.result.os.tag == .wasi) blk: {
-        const cross_target = std.zig.CrossTarget.parse(.{
-            .arch_os_abi = "wasm32-emscripten",
-        }) catch unreachable;
-
-        break :blk b.resolveTargetQuery(cross_target);
-    } else blk: {
-        break :blk target;
-    };
-
     const raylib_build = @import("raylib/src/build.zig");
     const raylib = raylib_build.addRaylib(
         b,
-        c_libs_target,
+        target,
         optimize,
         .{
             .raygui = true,
@@ -41,7 +29,7 @@ pub fn build(b: *std.Build) void {
 
     const box2c = b.addStaticLibrary(.{
         .name = "box2c",
-        .target = c_libs_target,
+        .target = target,
         .optimize = optimize,
     });
     box2c.addIncludePath(.{ .path = "box2c/extern/glad/include" });
@@ -54,7 +42,7 @@ pub fn build(b: *std.Build) void {
     defer box2d_flags.deinit();
 
     // Special flags for box2c needed only for wasi builds
-    if (target.result.os.tag == .wasi) {
+    if (target.result.os.tag == .emscripten) {
         box2d_flags.appendSlice(&[_][]const u8{
             "-fno-stack-protector",
             "-D_GNU_SOURCE",
@@ -107,7 +95,8 @@ pub fn build(b: *std.Build) void {
     box2c.linkLibC();
 
     // If compiled for wasm32-wasi, compile project as a static lib
-    const artifact = if (target.result.os.tag == .wasi) blk: {
+    // const artifact = if (target.result.os.tag == .wasi) blk: {
+    const artifact = if (target.result.os.tag == .emscripten) blk: {
         const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
         box2c.addIncludePath(.{ .path = cache_include });
