@@ -704,7 +704,7 @@ pub const Game = struct {
     }
 
     pub fn load(self: *Self) !void {
-        var file = try std.fs.cwd().openFile("save.json", .{});
+        var file = try std.fs.cwd().openFile("resources/save.json", .{});
         defer file.close();
 
         const file_data = try file.readToEndAlloc(self.allocator, 1024 * 1024 * 1024);

@@ -1,0 +1,513 @@
+{
+    "camera": {
+        "offset": {
+            "x": 6.4e+02,
+            "y": 3.6e+02
+        },
+        "target": {
+            "x": 0.0e+00,
+            "y": -7.691110229492188e+02
+        },
+        "rotation": 0.0e+00,
+        "zoom": 1.0e+00
+    },
+    "initial_camera": {
+        "offset": {
+            "x": 6.4e+02,
+            "y": 3.6e+02
+        },
+        "target": {
+            "x": 0.0e+00,
+            "y": -1.527073211669922e+02
+        },
+        "rotation": 0.0e+00,
+        "zoom": 1.0e+00
+    },
+    "ball": {
+        "position": {
+            "x": 0.0e+00,
+            "y": 1.0e+02
+        },
+        "radius": 1.0e+01,
+        "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 255
+        },
+        "fast_color": {
+            "r": 255,
+            "g": 203,
+            "b": 0,
+            "a": 255
+        }
+    },
+    "initial_ball_params": {
+        "position": {
+            "x": 0.0e+00,
+            "y": 1.0e+02
+        },
+        "radius": 1.0e+01,
+        "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 255
+        },
+        "fast_color": {
+            "r": 255,
+            "g": 203,
+            "b": 0,
+            "a": 255
+        }
+    },
+    "objects": [
+        {
+            "Anchor": {
+                "position": {
+                    "x": 0.0e+00,
+                    "y": 0.0e+00
+                },
+                "radius": 5.0e+00,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 0.0e+00,
+                    "y": -3.0e+02
+                },
+                "point_1": {
+                    "x": -3.0e+02,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": 3.0e+02,
+                    "y": 0.0e+00
+                },
+                "width": 1.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 3.0e+02,
+                    "y": 0.0e+00
+                },
+                "point_1": {
+                    "x": 0.0e+00,
+                    "y": 1.0e+03
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": -3.0e+02
+                },
+                "width": 1.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": -3.0e+02,
+                    "y": 0.0e+00
+                },
+                "point_1": {
+                    "x": 1.0e+00,
+                    "y": 1.0e+03
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": -3.0e+02
+                },
+                "width": 1.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "RectangleChain": {
+                "position": {
+                    "x": -2.0e+01,
+                    "y": 0.0e+00
+                },
+                "points": [
+                    {
+                        "x": -2.8e+02,
+                        "y": 1.5e+02
+                    },
+                    {
+                        "x": 0.0e+00,
+                        "y": 0.0e+00
+                    },
+                    {
+                        "x": 0.0e+00,
+                        "y": -3.0e+02
+                    }
+                ],
+                "width": 1.0e+01,
+                "height_offset": 3.0e+00,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "RectangleChain": {
+                "position": {
+                    "x": 2.0e+01,
+                    "y": 0.0e+00
+                },
+                "points": [
+                    {
+                        "x": 2.8e+02,
+                        "y": 1.5e+02
+                    },
+                    {
+                        "x": 0.0e+00,
+                        "y": 0.0e+00
+                    },
+                    {
+                        "x": 0.0e+00,
+                        "y": -3.0e+02
+                    }
+                ],
+                "width": 1.0e+01,
+                "height_offset": 3.0e+00,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 0.0e+00,
+                    "y": -1.5e+02
+                },
+                "point_1": {
+                    "x": 1.0e+00,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": -1.0e+00,
+                    "y": 0.0e+00
+                },
+                "width": 1.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 2.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 0,
+                    "b": 0,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Anchor": {
+                "position": {
+                    "x": -2.0e+00,
+                    "y": 1.69e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Anchor": {
+                "position": {
+                    "x": -1.4e+02,
+                    "y": 3.06e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Anchor": {
+                "position": {
+                    "x": 1.49e+02,
+                    "y": 3.61e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 3.3e+01,
+                    "y": 3.85e+02
+                },
+                "point_1": {
+                    "x": 8.0e+01,
+                    "y": -2.0e+01
+                },
+                "point_2": {
+                    "x": -7.0e+01,
+                    "y": 0.0e+00
+                },
+                "width": 1.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Anchor": {
+                "position": {
+                    "x": 2.2e+02,
+                    "y": 5.14e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 7.1e+01,
+                    "y": 5.87e+02
+                },
+                "point_1": {
+                    "x": 3.0e+01,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": -3.0e+01,
+                    "y": 0.0e+00
+                },
+                "width": 2.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 2.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 0,
+                    "b": 0,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Anchor": {
+                "position": {
+                    "x": -9.5e+01,
+                    "y": 6.67e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Anchor": {
+                "position": {
+                    "x": 2.07e+02,
+                    "y": 8.55e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "min_length": 0.0e+00,
+                "max_length": 1.0e+02,
+                "damping_ratio": 5.0e-01,
+                "hertz": 1.0e+00,
+                "pull_force": 2.0e+02
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 2.12e+02,
+                    "y": 7.51e+02
+                },
+                "point_1": {
+                    "x": 3.0e+01,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": -3.0e+01,
+                    "y": 0.0e+00
+                },
+                "width": 2.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 1.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 0,
+                    "b": 0,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 2.83e+02,
+                    "y": 8.33e+02
+                },
+                "point_1": {
+                    "x": 0.0e+00,
+                    "y": 2.0e+01
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": -2.0e+01
+                },
+                "width": 2.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 2.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 0,
+                    "b": 0,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 0.0e+00,
+                    "y": 9.84e+02
+                },
+                "point_1": {
+                    "x": 1.0e+00,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": -1.0e+00,
+                    "y": 0.0e+00
+                },
+                "width": 2.0e+01,
+                "height_offset": 1.0e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": true,
+                "color": {
+                    "r": 231,
+                    "g": 255,
+                    "b": 0,
+                    "a": 255
+                }
+            }
+        }
+    ],
+    "state": "Paused",
+    "editor_camera": {
+        "offset": {
+            "x": 6.4e+02,
+            "y": 3.6e+02
+        },
+        "target": {
+            "x": 7.8e+01,
+            "y": -8.24e+02
+        },
+        "rotation": 0.0e+00,
+        "zoom": 1.0e+00
+    }
+}
