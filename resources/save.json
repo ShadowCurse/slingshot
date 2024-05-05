@@ -497,7 +497,7 @@
             }
         }
     ],
-    "state": "Paused",
+    "state": "Editor",
     "editor_camera": {
         "offset": {
             "x": 6.4e+02,

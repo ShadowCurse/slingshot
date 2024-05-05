@@ -170,7 +170,7 @@ pub const GameState = enum {
     MainMenu,
     Settings,
     Running,
-    Paused,
+    Editor,
     Win,
     Exit,
 };
@@ -359,7 +359,7 @@ pub const Game = struct {
 
     pub fn mouse_position(self: *const Self) Vector2 {
         const camera = switch (self.state) {
-            .Paused => &self.editor_camera,
+            .Editor => &self.editor_camera,
             else => &self.camera,
         };
         return Vector2.from_rl_pos(
@@ -380,7 +380,7 @@ pub const Game = struct {
     pub fn update(self: *Self, dt: f32) !void {
         switch (self.state) {
             .Running => try self.update_running(dt),
-            .Paused => try self.update_paused(dt),
+            .Editor => try self.update_editor(dt),
             else => {},
         }
     }
@@ -391,7 +391,7 @@ pub const Game = struct {
         }
 
         if (rl.IsKeyPressed(rl.KEY_P)) {
-            self.state = .Paused;
+            self.state = .Editor;
         }
 
         b2.b2World_Step(self.world_id, dt, 4);
@@ -403,7 +403,7 @@ pub const Game = struct {
         }
     }
 
-    pub fn update_paused(self: *Self, dt: f32) !void {
+    pub fn update_editor(self: *Self, dt: f32) !void {
         _ = dt;
         if (rl.IsKeyPressed(rl.KEY_R)) {
             try self.restart();
@@ -454,7 +454,7 @@ pub const Game = struct {
             .MainMenu => self.draw_main_menu(),
             .Settings => try self.draw_settings(),
             .Running => self.draw_running(),
-            .Paused => try self.draw_paused(),
+            .Editor => try self.draw_editor(),
             .Win => try self.draw_win(),
             .Exit => {},
         }
@@ -511,7 +511,7 @@ pub const Game = struct {
         rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
     }
 
-    pub fn draw_paused(self: *Self) !void {
+    pub fn draw_editor(self: *Self) !void {
         {
             rl.BeginMode2D(self.editor_camera);
             defer rl.EndMode2D();
