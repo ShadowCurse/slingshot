@@ -20,17 +20,132 @@ const UI_ELEMENT_HEIGHT = 100.0;
 const DEFAULT_LEVELS_PATH = "resources/levels";
 const DEFAULT_SAVE_PATH = "resources/levels/save.json";
 
-pub const GameSaveState = struct {
-    camera: rl.Camera2D,
-    initial_camera: rl.Camera2D,
+pub const LevelSave = struct {
+    objects: []ObjectParams,
+    initial_ball_params: objects.BallParams,
+};
 
-    ball: objects.BallParams,
+pub const Level = struct {
+    ball: objects.Ball,
+    objects: std.ArrayList(Object),
+
     initial_ball_params: objects.BallParams,
 
-    objects: []ObjectParams,
-    state: GameState,
+    const Self = @This();
 
-    editor_camera: rl.Camera2D,
+    pub fn default(allocator: Allocator, world_id: b2.b2WorldId) Self {
+        const initial_ball_params = .{};
+        const ball = Ball.new(world_id, initial_ball_params);
+        const o = std.ArrayList(Object).init(allocator);
+
+        return Self{
+            .ball = ball,
+            .objects = o,
+            .initial_ball_params = initial_ball_params,
+        };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        std.log.debug("level deinit", .{});
+        for (self.objects.items) |*o| {
+            o.deinit();
+        }
+        self.ball.deinit();
+        self.objects.deinit();
+    }
+
+    fn from_safe(allocator: Allocator, world_id: b2.b2WorldId, level_save: *const LevelSave) !Self {
+        const initial_ball_params = level_save.initial_ball_params;
+        const ball = Ball.new(world_id, initial_ball_params);
+
+        var o = std.ArrayList(Object).init(allocator);
+        for (level_save.objects) |*p| {
+            const obj = try Object.init(allocator, world_id, p);
+            try o.append(obj);
+        }
+
+        return Self{
+            .ball = ball,
+            .objects = o,
+            .initial_ball_params = initial_ball_params,
+        };
+    }
+
+    pub fn update(self: *Self, game: *Game, sensor_events: *const SensorEvents) void {
+        for (self.objects.items) |*object| {
+            object.update(game, sensor_events);
+        }
+    }
+
+    pub fn draw(self: *const Self) void {
+        for (self.objects.items) |object| {
+            object.draw();
+        }
+        self.ball.draw();
+    }
+
+    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
+        for (self.objects.items) |object| {
+            object.draw_aabb(color);
+        }
+        self.ball.draw_aabb(color);
+    }
+
+    pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
+        for (self.objects.items) |*object| {
+            try object.recreate(world_id);
+        }
+        self.ball.recreate(world_id);
+    }
+
+    pub fn save(self: *const Self, allocator: Allocator, path: []const u8) !void {
+        const save_path = std.mem.sliceTo(path, 0);
+
+        std.log.debug("Saving level to: {s}", .{save_path});
+
+        var file = try std.fs.cwd().createFile(save_path, .{});
+        defer file.close();
+
+        const objects_params = try allocator.alloc(ObjectParams, self.objects.items.len);
+        for (self.objects.items, objects_params) |*item, *param| {
+            param.* = try item.params(allocator);
+        }
+        defer {
+            for (objects_params) |*p| {
+                switch (p.*) {
+                    .RectangleChain => |*rc| rc.deinit(allocator),
+                    else => {},
+                }
+            }
+            allocator.free(objects_params);
+        }
+
+        const save_state = LevelSave{
+            .objects = objects_params,
+            .initial_ball_params = self.initial_ball_params,
+        };
+
+        const options = std.json.StringifyOptions{
+            .whitespace = .indent_4,
+        };
+
+        try std.json.stringify(save_state, options, file.writer());
+    }
+
+    pub fn load(allocator: Allocator, world_id: b2.b2WorldId, path: []const u8) !Self {
+        std.log.debug("Loading level from path: {s}", .{path});
+
+        var file = try std.fs.cwd().openFile(path, .{});
+        defer file.close();
+
+        const file_data = try file.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+        defer allocator.free(file_data);
+
+        const save_state = try std.json.parseFromSlice(LevelSave, allocator, file_data, .{});
+        defer save_state.deinit();
+
+        return try Self.from_safe(allocator, world_id, &save_state.value);
+    }
 };
 
 pub const SensorEvents = struct {
@@ -323,7 +438,7 @@ pub const GameStateStack = struct {
     stack: [STACK_SIZE]GameState,
     current_index: usize,
 
-    const STACK_SIZE = 4;
+    const STACK_SIZE = 5;
     const Self = @This();
 
     pub fn new(initial_state: GameState) Self {
@@ -365,17 +480,13 @@ pub const Game = struct {
     camera: rl.Camera2D,
     initial_camera: rl.Camera2D,
 
-    ball: objects.Ball,
-    initial_ball_params: objects.BallParams,
-
-    objects: std.ArrayList(Object),
-
     state_stack: GameStateStack,
 
     editor_level_file_path: [32]u8,
     editor_camera: rl.Camera2D,
     editor_selection: ?EditorSelection,
 
+    level: Level,
     levels: Levels,
     settings: GameSettings,
 
@@ -395,29 +506,13 @@ pub const Game = struct {
             .rotation = 0.0,
             .zoom = 1.0,
         };
-        const initial_ball_params = objects.BallParams{
-            .position = Vector2{ .x = 0.0, .y = 100.0 },
-            .radius = 10.0,
-        };
-        const game_ball = Ball.new(world_id, initial_ball_params);
-
-        var objects_params = std.ArrayList(ObjectParams).init(allocator);
-        defer objects_params.deinit();
-        const anchor_params = objects.AnchorParams{
-            .position = Vector2{ .x = 0.0, .y = 0.0 },
-            .radius = 5.0,
-        };
-        try objects_params.append(.{ .Anchor = anchor_params });
-
-        var game_objects = std.ArrayList(objects.Object).init(allocator);
-        const anchor = Anchor.new(world_id, anchor_params);
-        try game_objects.append(.{ .Anchor = anchor });
 
         const state_stack = GameStateStack.new(.MainMenu);
 
         var editor_level_file_path: [32]u8 = .{0} ** 32;
         _ = try std.fmt.bufPrint(&editor_level_file_path, "{s}", .{DEFAULT_SAVE_PATH});
 
+        const level = Level.default(allocator, world_id);
         const levels = try Levels.init(allocator);
 
         return Self{
@@ -428,86 +523,82 @@ pub const Game = struct {
             .camera = camera,
             .initial_camera = camera,
 
-            .ball = game_ball,
-            .initial_ball_params = initial_ball_params,
-
-            .objects = game_objects,
-
             .state_stack = state_stack,
 
             .editor_level_file_path = editor_level_file_path,
             .editor_camera = camera,
             .editor_selection = null,
 
+            .level = level,
             .levels = levels,
             .settings = settings,
         };
     }
 
-    pub fn from_state(allocator: Allocator, state: *const GameSaveState, old_self: *const Self) !Self {
-        var world_def = b2.b2DefaultWorldDef();
-        world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
-        const world_id = b2.b2CreateWorld(&world_def);
-
-        const game_ball = Ball.new(world_id, state.initial_ball_params);
-
-        var game_objects = std.ArrayList(objects.Object).init(allocator);
-        for (state.objects) |*params| {
-            switch (params.*) {
-                .Arc => |p| {
-                    const arc = Arc.new(world_id, p);
-                    try game_objects.append(.{ .Arc = arc });
-                },
-                .Ball => |p| {
-                    const ball = Ball.new(world_id, p);
-                    try game_objects.append(.{ .Ball = ball });
-                },
-                .Anchor => |p| {
-                    const anchor = Anchor.new(world_id, p);
-                    try game_objects.append(.{ .Anchor = anchor });
-                },
-                .Rectangle => |p| {
-                    const rectangle = try Rectangle.new(world_id, p);
-                    try game_objects.append(.{ .Rectangle = rectangle });
-                },
-                .RectangleChain => |p| {
-                    // state will be deallocated, so need to clone params
-                    const p_clone = try p.clone(allocator);
-                    const rectangle_chain = try RectangleChain.new(world_id, allocator, p_clone);
-                    try game_objects.append(.{ .RectangleChain = rectangle_chain });
-                },
-            }
-        }
-
-        var state_stack = GameStateStack.new(.MainMenu);
-        state_stack.push_state(.Running);
-        state_stack.push_state(state.state);
-
-        const levels = try Levels.init(allocator);
-
-        return Self{
-            .allocator = allocator,
-
-            .world_id = world_id,
-
-            .camera = state.camera,
-            .initial_camera = state.camera,
-
-            .ball = game_ball,
-            .initial_ball_params = state.initial_ball_params,
-
-            .objects = game_objects,
-
-            .state_stack = state_stack,
-
-            .editor_level_file_path = old_self.editor_level_file_path,
-            .editor_camera = state.editor_camera,
-            .editor_selection = null,
-
-            .levels = levels,
-            .settings = old_self.settings,
-        };
-    }
+    // pub fn from_state(allocator: Allocator, state: *const LevelSave, old_self: *const Self) !Self {
+    //     var world_def = b2.b2DefaultWorldDef();
+    //     world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
+    //     const world_id = b2.b2CreateWorld(&world_def);
+    //
+    //     const game_ball = Ball.new(world_id, state.initial_ball_params);
+    //
+    //     var game_objects = std.ArrayList(objects.Object).init(allocator);
+    //     for (state.objects) |*params| {
+    //         switch (params.*) {
+    //             .Arc => |p| {
+    //                 const arc = Arc.new(world_id, p);
+    //                 try game_objects.append(.{ .Arc = arc });
+    //             },
+    //             .Ball => |p| {
+    //                 const ball = Ball.new(world_id, p);
+    //                 try game_objects.append(.{ .Ball = ball });
+    //             },
+    //             .Anchor => |p| {
+    //                 const anchor = Anchor.new(world_id, p);
+    //                 try game_objects.append(.{ .Anchor = anchor });
+    //             },
+    //             .Rectangle => |p| {
+    //                 const rectangle = try Rectangle.new(world_id, p);
+    //                 try game_objects.append(.{ .Rectangle = rectangle });
+    //             },
+    //             .RectangleChain => |p| {
+    //                 // state will be deallocated, so need to clone params
+    //                 const p_clone = try p.clone(allocator);
+    //                 const rectangle_chain = try RectangleChain.new(world_id, allocator, p_clone);
+    //                 try game_objects.append(.{ .RectangleChain = rectangle_chain });
+    //             },
+    //         }
+    //     }
+    //
+    //     var state_stack = GameStateStack.new(.MainMenu);
+    //     state_stack.push_state(.Running);
+    //     state_stack.push_state(state.state);
+    //
+    //     const levels = try Levels.init(allocator);
+    //
+    //     return Self{
+    //         .allocator = allocator,
+    //
+    //         .world_id = world_id,
+    //
+    //         .camera = state.camera,
+    //         .initial_camera = state.camera,
+    //
+    //         .ball = game_ball,
+    //         .initial_ball_params = state.initial_ball_params,
+    //
+    //         .objects = game_objects,
+    //
+    //         .state_stack = state_stack,
+    //
+    //         .editor_level_file_path = old_self.editor_level_file_path,
+    //         .editor_camera = state.editor_camera,
+    //         .editor_selection = null,
+    //
+    //         .levels = levels,
+    //         .settings = old_self.settings,
+    //     };
+    // }
 
     pub fn restart(self: *Self) !void {
         self.camera = self.initial_camera;
@@ -515,22 +606,13 @@ pub const Game = struct {
         self.state_stack = GameStateStack.new(.MainMenu);
         self.state_stack.push_state(.Running);
 
-        for (self.objects.items) |*object| {
-            try object.recreate(self.world_id);
-        }
-
-        self.ball.recreate(self.world_id);
+        try self.level.recreate(self.world_id);
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.objects.items) |object| {
-            object.deinit();
-        }
-        self.objects.deinit();
-        self.ball.deinit();
-        b2.b2DestroyWorld(self.world_id);
-
         self.levels.deinit();
+        self.level.deinit();
+        b2.b2DestroyWorld(self.world_id);
     }
 
     pub fn set_window_size(self: *Self) void {
@@ -576,7 +658,7 @@ pub const Game = struct {
     }
 
     pub fn update_camera(self: *Self, dt: f32) void {
-        const ball_pos = self.ball.get_position();
+        const ball_pos = self.level.ball.get_position();
         const camera_pos = Vector2.from_rl_pos(self.camera.target);
         const p = ball_pos.lerp(&camera_pos, dt);
         self.camera.target.y = p.to_rl_as_pos().y;
@@ -607,9 +689,7 @@ pub const Game = struct {
 
         const sensor_events = SensorEvents.new(self.world_id);
         self.update_camera(dt);
-        for (self.objects.items) |*object| {
-            object.update(self, &sensor_events);
-        }
+        self.level.update(self, &sensor_events);
     }
 
     pub fn update_editor(self: *Self, dt: f32) !void {
@@ -622,13 +702,13 @@ pub const Game = struct {
         if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
             const mp = self.mouse_position();
             self.editor_selection = null;
-            for (self.objects.items, 0..) |*object, i| {
+            for (self.level.objects.items, 0..) |*object, i| {
                 if (object.aabb_contains(mp)) {
                     self.editor_selection = .{ .Object = i };
                     break;
                 }
             }
-            if (self.ball.aabb_contains(mp)) {
+            if (self.level.ball.aabb_contains(mp)) {
                 self.editor_selection = .Ball;
             }
         }
@@ -636,8 +716,8 @@ pub const Game = struct {
             const mouse_pos = self.mouse_position();
             if (self.editor_selection) |s| {
                 switch (s) {
-                    .Ball => self.ball.set_position(mouse_pos),
-                    .Object => |i| try self.objects.items[i].set_position(mouse_pos),
+                    .Ball => self.level.ball.set_position(mouse_pos),
+                    .Object => |i| try self.level.objects.items[i].set_position(mouse_pos),
                 }
             }
         }
@@ -715,10 +795,7 @@ pub const Game = struct {
         rl.BeginMode2D(self.camera);
         defer rl.EndMode2D();
 
-        for (self.objects.items) |object| {
-            object.draw();
-        }
-        self.ball.draw();
+        self.level.draw();
 
         const mouse_pos = self.mouse_position();
         rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
@@ -756,7 +833,8 @@ pub const Game = struct {
             "Main menu",
         );
         if (main_menu_button != 0) {
-            try self.restart();
+            self.state_stack.pop_state();
+            self.state_stack.pop_state();
             self.state_stack.pop_state();
         }
     }
@@ -766,22 +844,16 @@ pub const Game = struct {
             rl.BeginMode2D(self.editor_camera);
             defer rl.EndMode2D();
 
-            for (self.objects.items) |object| {
-                object.draw();
-            }
-            self.ball.draw();
+            self.level.draw();
 
             const aabb_color = rl.SKYBLUE;
-            for (self.objects.items) |object| {
-                object.draw_aabb(aabb_color);
-            }
-            self.ball.draw_aabb(aabb_color);
+            self.level.draw_aabb(aabb_color);
 
             const selected_color = rl.ORANGE;
             if (self.editor_selection) |s| {
                 switch (s) {
-                    .Ball => self.ball.draw_aabb(selected_color),
-                    .Object => |i| self.objects.items[i].draw_aabb(selected_color),
+                    .Ball => self.level.ball.draw_aabb(selected_color),
+                    .Object => |i| self.level.objects.items[i].draw_aabb(selected_color),
                 }
             }
 
@@ -791,8 +863,8 @@ pub const Game = struct {
 
         if (self.editor_selection) |s| {
             switch (s) {
-                .Ball => self.ball.draw_editor(self.world_id),
-                .Object => |i| try self.objects.items[i].draw_editor(self.world_id),
+                .Ball => self.level.ball.draw_editor(self.world_id),
+                .Object => |i| try self.level.objects.items[i].draw_editor(self.world_id),
             }
         }
 
@@ -825,6 +897,8 @@ pub const Game = struct {
             "Load",
         );
         if (b_load != 0) {
+            self.state_stack.pop_state();
+            self.state_stack.pop_state();
             try self.load(null);
         }
 
@@ -845,7 +919,7 @@ pub const Game = struct {
                 switch (s) {
                     .Ball => {},
                     .Object => |i| {
-                        const object = self.objects.swapRemove(i);
+                        const object = self.level.objects.swapRemove(i);
                         object.deinit();
                         self.editor_selection = null;
                     },
@@ -862,7 +936,7 @@ pub const Game = struct {
             const ball = Ball.new(self.world_id, .{
                 .position = Vector2.from_rl_pos(self.editor_camera.target),
             });
-            try self.objects.append(.{ .Ball = ball });
+            try self.level.objects.append(.{ .Ball = ball });
         }
 
         button_rect.x += button_width;
@@ -874,7 +948,7 @@ pub const Game = struct {
             const arc = Arc.new(self.world_id, .{
                 .position = Vector2.from_rl_pos(self.editor_camera.target),
             });
-            try self.objects.append(.{ .Arc = arc });
+            try self.level.objects.append(.{ .Arc = arc });
         }
 
         button_rect.x += button_width;
@@ -886,7 +960,7 @@ pub const Game = struct {
             const anchor = Anchor.new(self.world_id, .{
                 .position = Vector2.from_rl_pos(self.editor_camera.target),
             });
-            try self.objects.append(.{ .Anchor = anchor });
+            try self.level.objects.append(.{ .Anchor = anchor });
         }
 
         button_rect.x += button_width;
@@ -898,7 +972,7 @@ pub const Game = struct {
             const rect = try Rectangle.new(self.world_id, .{
                 .position = Vector2.from_rl_pos(self.editor_camera.target),
             });
-            try self.objects.append(.{ .Rectangle = rect });
+            try self.level.objects.append(.{ .Rectangle = rect });
         }
 
         button_rect.x += button_width;
@@ -919,7 +993,7 @@ pub const Game = struct {
                 .points = points,
             };
             const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
-            try self.objects.append(.{ .RectangleChain = rect_chain });
+            try self.level.objects.append(.{ .RectangleChain = rect_chain });
         }
     }
 
@@ -941,54 +1015,13 @@ pub const Game = struct {
 
     pub fn save(self: *const Self) !void {
         const save_path = std.mem.sliceTo(&self.editor_level_file_path, 0);
-        var file = try std.fs.cwd().createFile(save_path, .{});
-        defer file.close();
-
-        const objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
-        for (self.objects.items, objects_params) |*item, *param| {
-            param.* = try item.params(self.allocator);
-        }
-        defer {
-            for (objects_params) |*p| {
-                switch (p.*) {
-                    .RectangleChain => |*rc| rc.deinit(self.allocator),
-                    else => {},
-                }
-            }
-            self.allocator.free(objects_params);
-        }
-
-        const save_state = GameSaveState{
-            .camera = self.camera,
-            .initial_camera = self.initial_camera,
-            .ball = self.ball.params,
-            .initial_ball_params = self.initial_ball_params,
-            .objects = objects_params,
-            .state = self.state_stack.current_state(),
-            .editor_camera = self.editor_camera,
-        };
-
-        const options = std.json.StringifyOptions{
-            .whitespace = .indent_4,
-        };
-
-        try std.json.stringify(save_state, options, file.writer());
+        try self.level.save(self.allocator, save_path);
     }
 
     pub fn load(self: *Self, path: ?[]const u8) !void {
         const load_path = if (path) |p| p else std.mem.sliceTo(&self.editor_level_file_path, 0);
-        std.log.debug("Loading level from path: {s}", .{load_path});
-        var file = try std.fs.cwd().openFile(load_path, .{});
-        defer file.close();
-
-        const file_data = try file.readToEndAlloc(self.allocator, 1024 * 1024 * 1024);
-        defer self.allocator.free(file_data);
-
-        const save_state = try std.json.parseFromSlice(GameSaveState, self.allocator, file_data, .{});
-        defer save_state.deinit();
-
-        const allocator = self.allocator;
-        self.deinit();
-        self.* = try Game.from_state(allocator, &save_state.value, self);
+        self.level.deinit();
+        self.level = try Level.load(self.allocator, self.world_id, load_path);
+        self.state_stack.push_state(.Running);
     }
 };

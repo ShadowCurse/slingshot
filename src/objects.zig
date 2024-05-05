@@ -278,8 +278,8 @@ pub const Anchor = struct {
         game: *const Game,
     ) void {
         const world_id = game.world_id;
-        const ball_radius = game.ball.params.radius;
-        const ball_body_id = game.ball.body_id;
+        const ball_radius = game.level.ball.params.radius;
+        const ball_body_id = game.level.ball.body_id;
         const mouse_position = game.mouse_position();
 
         const self_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
@@ -900,6 +900,21 @@ pub const Object = union(ObjectTags) {
     RectangleChain: RectangleChain,
 
     const Self = @This();
+
+    pub fn init(allocator: Allocator, world_id: b2.b2WorldId, p: *const ObjectParams) !Self {
+        return switch (p.*) {
+            .Arc => |*arc_params| .{ .Arc = Arc.new(world_id, arc_params.*) },
+            .Ball => |*ball_params| .{ .Ball = Ball.new(world_id, ball_params.*) },
+            .Anchor => |*anchor_params| .{ .Anchor = Anchor.new(world_id, anchor_params.*) },
+            .Rectangle => |*rectangle_params| .{ .Rectangle = try Rectangle.new(world_id, rectangle_params.*) },
+            .RectangleChain => |*rectangle_chain_params| {
+                const c = try rectangle_chain_params.clone(allocator);
+                return .{
+                    .RectangleChain = try RectangleChain.new(world_id, allocator, c),
+                };
+            },
+        };
+    }
 
     pub fn deinit(self: *const Self) void {
         switch (self.*) {

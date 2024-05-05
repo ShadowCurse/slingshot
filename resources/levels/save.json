@@ -1,47 +1,4 @@
 {
-    "camera": {
-        "offset": {
-            "x": 6.4e+02,
-            "y": 3.6e+02
-        },
-        "target": {
-            "x": 0.0e+00,
-            "y": -7.691110229492188e+02
-        },
-        "rotation": 0.0e+00,
-        "zoom": 1.0e+00
-    },
-    "initial_camera": {
-        "offset": {
-            "x": 6.4e+02,
-            "y": 3.6e+02
-        },
-        "target": {
-            "x": 0.0e+00,
-            "y": -1.527073211669922e+02
-        },
-        "rotation": 0.0e+00,
-        "zoom": 1.0e+00
-    },
-    "ball": {
-        "position": {
-            "x": 0.0e+00,
-            "y": 1.0e+02
-        },
-        "radius": 1.0e+01,
-        "color": {
-            "r": 255,
-            "g": 255,
-            "b": 255,
-            "a": 255
-        },
-        "fast_color": {
-            "r": 255,
-            "g": 203,
-            "b": 0,
-            "a": 255
-        }
-    },
     "initial_ball_params": {
         "position": {
             "x": 0.0e+00,
@@ -496,18 +453,5 @@
                 }
             }
         }
-    ],
-    "state": "Editor",
-    "editor_camera": {
-        "offset": {
-            "x": 6.4e+02,
-            "y": 3.6e+02
-        },
-        "target": {
-            "x": 7.8e+01,
-            "y": -8.24e+02
-        },
-        "rotation": 0.0e+00,
-        "zoom": 1.0e+00
-    }
+    ]
 }
