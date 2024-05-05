@@ -17,6 +17,8 @@ const Allocator = std.mem.Allocator;
 const UI_ELEMENT_WIDTH = 300.0;
 const UI_ELEMENT_HEIGHT = 100.0;
 
+const DEFAULT_SAVE_PATH = "resources/save.json";
+
 pub const GameSaveState = struct {
     camera: rl.Camera2D,
     initial_camera: rl.Camera2D,
@@ -229,6 +231,7 @@ pub const Game = struct {
 
     state_stack: GameStateStack,
 
+    editor_level_file_path: [32]u8,
     editor_camera: rl.Camera2D,
     editor_selection: ?EditorSelection,
 
@@ -269,6 +272,10 @@ pub const Game = struct {
         try game_objects.append(.{ .Anchor = anchor });
 
         const state_stack = GameStateStack.new(.MainMenu);
+
+        var editor_level_file_path: [32]u8 = .{0} ** 32;
+        _ = try std.fmt.bufPrint(&editor_level_file_path, "{s}", .{DEFAULT_SAVE_PATH});
+
         return Self{
             .allocator = allocator,
 
@@ -284,6 +291,7 @@ pub const Game = struct {
 
             .state_stack = state_stack,
 
+            .editor_level_file_path = editor_level_file_path,
             .editor_camera = camera,
             .editor_selection = null,
 
@@ -291,7 +299,7 @@ pub const Game = struct {
         };
     }
 
-    pub fn from_state(allocator: Allocator, state: *const GameSaveState, settings: GameSettings) !Self {
+    pub fn from_state(allocator: Allocator, state: *const GameSaveState, old_self: *const Self) !Self {
         var world_def = b2.b2DefaultWorldDef();
         world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
         const world_id = b2.b2CreateWorld(&world_def);
@@ -345,10 +353,11 @@ pub const Game = struct {
 
             .state_stack = state_stack,
 
+            .editor_level_file_path = old_self.editor_level_file_path,
             .editor_camera = state.editor_camera,
             .editor_selection = null,
 
-            .settings = settings,
+            .settings = old_self.settings,
         };
     }
 
@@ -631,22 +640,32 @@ pub const Game = struct {
             }
         }
 
-        var save_button_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) - 50.0,
+        var level_save_load_rect = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) - 200.0,
             .y = 0.0,
-            .width = 50.0,
+            .width = 200.0,
             .height = 50.0,
         };
+        const mp = Self.mouse_position_raw();
+        const editable = rl.CheckCollisionPointRec(mp.to_rl_as_pos(), level_save_load_rect);
+        _ = rl.GuiTextBox(
+            level_save_load_rect,
+            &self.editor_level_file_path,
+            self.editor_level_file_path.len,
+            editable,
+        );
+
+        level_save_load_rect.y += 50.0;
         const b_save = rl.GuiButton(
-            save_button_rect,
+            level_save_load_rect,
             "Save",
         );
         if (b_save != 0) {
             try self.save();
         }
-        save_button_rect.y += 50.0;
+        level_save_load_rect.y += 50.0;
         const b_load = rl.GuiButton(
-            save_button_rect,
+            level_save_load_rect,
             "Load",
         );
         if (b_load != 0) {
@@ -765,7 +784,8 @@ pub const Game = struct {
     }
 
     pub fn save(self: *const Self) !void {
-        var file = try std.fs.cwd().createFile("resources/save.json", .{});
+        const save_path = std.mem.sliceTo(&self.editor_level_file_path, 0);
+        var file = try std.fs.cwd().createFile(save_path, .{});
         defer file.close();
 
         const objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
@@ -800,7 +820,9 @@ pub const Game = struct {
     }
 
     pub fn load(self: *Self) !void {
-        var file = try std.fs.cwd().openFile("resources/save.json", .{});
+        const load_path = std.mem.sliceTo(&self.editor_level_file_path, 0);
+        std.log.debug("Loading level from path: {s}", .{load_path});
+        var file = try std.fs.cwd().openFile(load_path, .{});
         defer file.close();
 
         const file_data = try file.readToEndAlloc(self.allocator, 1024 * 1024 * 1024);
@@ -811,6 +833,6 @@ pub const Game = struct {
 
         const allocator = self.allocator;
         self.deinit();
-        self.* = try Game.from_state(allocator, &save_state.value, self.settings);
+        self.* = try Game.from_state(allocator, &save_state.value, self);
     }
 };
