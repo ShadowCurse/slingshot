@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const objects = @import("objects.zig");
@@ -19,6 +20,8 @@ const UI_ELEMENT_HEIGHT = 100.0;
 
 const DEFAULT_LEVELS_PATH = "resources/levels";
 const DEFAULT_SAVE_PATH = "resources/levels/save.json";
+
+const EMSCRIPTEN_LEVEL_NAMES = [_][]const u8{"save.json"};
 
 pub const LevelSave = struct {
     objects: []ObjectParams,
@@ -241,19 +244,25 @@ pub const Levels = struct {
         self.levels.clearRetainingCapacity();
         self.level_names_list.clearRetainingCapacity();
 
-        const levles_dir = try std.fs.cwd().openDir(DEFAULT_LEVELS_PATH, .{ .iterate = true });
-        var iterator = levles_dir.iterate();
-        while (try iterator.next()) |entry| {
-            if (entry.kind == .file) {
-                if (std.mem.endsWith(u8, entry.name, ".json")) {
-                    const level_info = try LevelInfo.init(self.allocator, entry.name);
-                    try self.levels.append(level_info);
+        if (builtin.os.tag == .emscripten) {
+            for (EMSCRIPTEN_LEVEL_NAMES) |level_name| {
+                const level_info = try LevelInfo.init(self.allocator, level_name);
+                try self.levels.append(level_info);
+            }
+        } else {
+            const levels_dir = try std.fs.cwd().openDir(DEFAULT_LEVELS_PATH, .{ .iterate = true });
+            var iterator = levels_dir.iterate();
+            while (try iterator.next()) |entry| {
+                if (entry.kind == .file) {
+                    if (std.mem.endsWith(u8, entry.name, ".json")) {
+                        const level_info = try LevelInfo.init(self.allocator, entry.name);
+                        try self.levels.append(level_info);
+                    }
                 }
             }
         }
 
         std.sort.heap(LevelInfo, self.levels.items, {}, LevelInfo.cmp);
-
         for (self.levels.items) |level_info| {
             try self.level_names_list.append(@ptrCast(level_info.name.ptr));
         }
