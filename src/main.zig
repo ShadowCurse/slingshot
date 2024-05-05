@@ -58,6 +58,8 @@ pub fn main() anyerror!void {
     );
     defer rl.CloseWindow();
 
+    rl.SetExitKey(rl.KEY_NULL);
+
     rl.GuiLoadStyleDefault();
 
     game = try Game.new(allocator, settings);
