@@ -8,5 +8,8 @@ zig-out/
 raylib/
 raygui/
 box2c/
+emsdk/
 .envrc
 .direnv
+/wasm/slingshot*
+/wasm/resources

@@ -1,10 +1,7 @@
 #!/bin/bash
 
-rm -rf emc
-mkdir emc
-cp -r resources emc
-
-cd emc
+cp -r resources wasm
+cd wasm
 
 emcc \
   -03 \
@@ -26,7 +23,9 @@ emcc \
   --embed-file resources@/resources \
   ../zig-out/lib/* \
   -o \
-  slingshot.html
+  slingshot.js
+
+ zip -r ../slingshot_wasm.zip .
 
   # -sASYNCIFY \
   # -sUSE_PTHREADS=1 \

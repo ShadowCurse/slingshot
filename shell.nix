@@ -6,6 +6,7 @@ pkgs.mkShell {
   ]}"
   '';
   buildInputs = with pkgs; [
+    zip
     libGL
     wayland
     emscripten
