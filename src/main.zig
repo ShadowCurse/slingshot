@@ -68,11 +68,15 @@ pub fn main() anyerror!void {
     } else {
         rl.SetTargetFPS(TARGET_FPS);
 
-        while (!rl.WindowShouldClose()) {
+        while (game.state != .Exit) {
             const dt = rl.GetFrameTime();
 
             try game.update(dt);
             try game.draw();
+
+            if (rl.WindowShouldClose()) {
+                game.state = .Exit;
+            }
         }
     }
 }

@@ -172,6 +172,7 @@ pub const GameState = enum {
     Running,
     Paused,
     Win,
+    Exit,
 };
 
 pub const EditorSelection = union(enum) {
@@ -455,6 +456,7 @@ pub const Game = struct {
             .Running => self.draw_running(),
             .Paused => try self.draw_paused(),
             .Win => try self.draw_win(),
+            .Exit => {},
         }
     }
 
@@ -480,6 +482,15 @@ pub const Game = struct {
         );
         if (settings_button != 0) {
             self.state = .Settings;
+        }
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const exit_button = rl.GuiButton(
+            rectangle,
+            "Exit",
+        );
+        if (exit_button != 0) {
+            self.state = .Exit;
         }
     }
 
