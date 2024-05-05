@@ -412,6 +412,10 @@ pub const Game = struct {
         );
     }
 
+    pub fn mouse_position_raw() Vector2 {
+        return Vector2.from_rl_pos(rl.GetMousePosition());
+    }
+
     pub fn update_camera(self: *Self, dt: f32) void {
         const ball_pos = self.ball.get_position();
         const camera_pos = Vector2.from_rl_pos(self.camera.target);

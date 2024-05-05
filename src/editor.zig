@@ -1,6 +1,7 @@
 const std = @import("std");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
+const Game = @import("game.zig").Game;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
@@ -330,7 +331,7 @@ pub fn ParamEditor(comptime T: type) type {
         }
 
         pub fn draw(self: *Self, position: Vector2) ?T {
-            const mouse_position = Vector2.from_rl_pos(rl.GetMousePosition());
+            const mouse_position = Game.mouse_position_raw();
             const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
             var p = position;
             var interacted = false;
@@ -348,7 +349,7 @@ pub fn ParamEditor(comptime T: type) type {
         }
 
         pub fn draw_alloc(self: *Self, allocator: Allocator, position: Vector2) !?T {
-            const mouse_position = Vector2.from_rl_pos(rl.GetMousePosition());
+            const mouse_position = Game.mouse_position_raw();
             const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
             var p = position;
             var interacted = false;
