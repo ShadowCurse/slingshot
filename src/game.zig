@@ -17,7 +17,8 @@ const Allocator = std.mem.Allocator;
 const UI_ELEMENT_WIDTH = 300.0;
 const UI_ELEMENT_HEIGHT = 100.0;
 
-const DEFAULT_SAVE_PATH = "resources/save.json";
+const DEFAULT_LEVELS_PATH = "resources/levels";
+const DEFAULT_SAVE_PATH = "resources/levels/save.json";
 
 pub const GameSaveState = struct {
     camera: rl.Camera2D,
@@ -52,6 +53,145 @@ pub const SensorEvents = struct {
             .begin_events = begin_events,
             .end_events = end_events,
         };
+    }
+};
+
+pub const Levels = struct {
+    allocator: Allocator,
+    levels: std.ArrayList(Self.LevelInfo),
+    level_names_list: std.ArrayList(*const u8),
+
+    scroll_index: i32 = 0,
+    active: i32 = 0,
+    focus: i32 = 0,
+
+    const LevelInfo = struct {
+        name: [:0]const u8,
+        path: []const u8,
+
+        fn init(allocator: Allocator, name: []const u8) !LevelInfo {
+            return LevelInfo{
+                .name = try allocator.dupeZ(u8, name),
+                .path = try std.fs.path.join(allocator, &.{ DEFAULT_LEVELS_PATH, name }),
+            };
+        }
+
+        fn deinit(self: *const LevelInfo, allocator: Allocator) void {
+            allocator.free(self.name);
+            allocator.free(self.path);
+        }
+
+        fn cmp(context: void, a: LevelInfo, b: LevelInfo) bool {
+            _ = context;
+            const min_len = @min(a.name.len, b.name.len);
+            for (a.name[0..min_len], b.name[0..min_len]) |a_char, b_char| {
+                if (a_char == b_char) {
+                    continue;
+                } else {
+                    if (a_char < b_char) {
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+    };
+
+    const Self = @This();
+
+    pub fn init(allocator: Allocator) !Self {
+        const levels = std.ArrayList(Self.LevelInfo).init(allocator);
+        const level_names_list = std.ArrayList(*const u8).init(allocator);
+        return Self{
+            .allocator = allocator,
+            .levels = levels,
+            .level_names_list = level_names_list,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (self.levels.items) |level_info| {
+            level_info.deinit(self.allocator);
+        }
+        self.levels.deinit();
+        self.level_names_list.deinit();
+    }
+
+    pub fn scan(self: *Self) !void {
+        for (self.levels.items) |level_info| {
+            level_info.deinit(self.allocator);
+        }
+        self.levels.clearRetainingCapacity();
+        self.level_names_list.clearRetainingCapacity();
+
+        const levles_dir = try std.fs.cwd().openDir(DEFAULT_LEVELS_PATH, .{ .iterate = true });
+        var iterator = levles_dir.iterate();
+        while (try iterator.next()) |entry| {
+            if (entry.kind == .file) {
+                if (std.mem.endsWith(u8, entry.name, ".json")) {
+                    const level_info = try LevelInfo.init(self.allocator, entry.name);
+                    try self.levels.append(level_info);
+                }
+            }
+        }
+
+        std.sort.heap(LevelInfo, self.levels.items, {}, LevelInfo.cmp);
+
+        for (self.levels.items) |level_info| {
+            try self.level_names_list.append(@ptrCast(level_info.name.ptr));
+        }
+
+        for (self.levels.items) |level_info| {
+            std.log.debug(
+                "found level: name: {s}, path: {s}",
+                .{
+                    level_info.name,
+                    level_info.path,
+                },
+            );
+        }
+    }
+
+    pub fn draw(self: *Self, game: *Game) !void {
+        var rectangle = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(game.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(game.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
+            .width = UI_ELEMENT_WIDTH,
+            .height = UI_ELEMENT_HEIGHT * 2.0,
+        };
+
+        _ = rl.GuiListViewEx(
+            rectangle,
+            @ptrCast(self.level_names_list.items.ptr),
+            @intCast(self.level_names_list.items.len),
+            &self.scroll_index,
+            &self.active,
+            &self.focus,
+        );
+
+        rectangle.y += UI_ELEMENT_HEIGHT * 3.0;
+        rectangle.height = UI_ELEMENT_HEIGHT;
+        const load = rl.GuiButton(
+            rectangle,
+            "Load",
+        );
+        if (load != 0) {
+            if (self.active != -1) {
+                const i: usize = @intCast(self.active);
+                try game.load(self.levels.items[i].path);
+            }
+        }
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const main_menu = rl.GuiButton(
+            rectangle,
+            "Main menu",
+        );
+        if (main_menu != 0) {
+            game.state_stack.pop_state();
+        }
     }
 };
 
@@ -170,6 +310,7 @@ pub const GameSettings = struct {
 
 pub const GameState = enum {
     MainMenu,
+    LevelSelection,
     Settings,
     Running,
     Paused,
@@ -235,6 +376,7 @@ pub const Game = struct {
     editor_camera: rl.Camera2D,
     editor_selection: ?EditorSelection,
 
+    levels: Levels,
     settings: GameSettings,
 
     const Self = @This();
@@ -276,6 +418,8 @@ pub const Game = struct {
         var editor_level_file_path: [32]u8 = .{0} ** 32;
         _ = try std.fmt.bufPrint(&editor_level_file_path, "{s}", .{DEFAULT_SAVE_PATH});
 
+        const levels = try Levels.init(allocator);
+
         return Self{
             .allocator = allocator,
 
@@ -295,6 +439,7 @@ pub const Game = struct {
             .editor_camera = camera,
             .editor_selection = null,
 
+            .levels = levels,
             .settings = settings,
         };
     }
@@ -338,6 +483,8 @@ pub const Game = struct {
         state_stack.push_state(.Running);
         state_stack.push_state(state.state);
 
+        const levels = try Levels.init(allocator);
+
         return Self{
             .allocator = allocator,
 
@@ -357,6 +504,7 @@ pub const Game = struct {
             .editor_camera = state.editor_camera,
             .editor_selection = null,
 
+            .levels = levels,
             .settings = old_self.settings,
         };
     }
@@ -374,13 +522,15 @@ pub const Game = struct {
         self.ball.recreate(self.world_id);
     }
 
-    pub fn deinit(self: *const Self) void {
+    pub fn deinit(self: *Self) void {
         for (self.objects.items) |object| {
             object.deinit();
         }
         self.objects.deinit();
         self.ball.deinit();
         b2.b2DestroyWorld(self.world_id);
+
+        self.levels.deinit();
     }
 
     pub fn set_window_size(self: *Self) void {
@@ -507,7 +657,8 @@ pub const Game = struct {
         rl.ClearBackground(rl.BLACK);
 
         switch (self.state_stack.current_state()) {
-            .MainMenu => self.draw_main_menu(),
+            .MainMenu => try self.draw_main_menu(),
+            .LevelSelection => try self.draw_level_selection(),
             .Settings => try self.draw_settings(),
             .Running => self.draw_running(),
             .Paused => try self.draw_paused(),
@@ -517,7 +668,7 @@ pub const Game = struct {
         }
     }
 
-    pub fn draw_main_menu(self: *Self) void {
+    pub fn draw_main_menu(self: *Self) !void {
         var rectangle = rl.Rectangle{
             .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
             .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
@@ -529,7 +680,8 @@ pub const Game = struct {
             "Start",
         );
         if (win_button != 0) {
-            self.state_stack.push_state(.Running);
+            try self.levels.scan();
+            self.state_stack.push_state(.LevelSelection);
         }
 
         rectangle.y += UI_ELEMENT_HEIGHT;
@@ -549,6 +701,10 @@ pub const Game = struct {
         if (exit_button != 0) {
             self.state_stack.push_state(.Exit);
         }
+    }
+
+    pub fn draw_level_selection(self: *Self) !void {
+        try self.levels.draw(self);
     }
 
     pub fn draw_settings(self: *Self) !void {
@@ -669,7 +825,7 @@ pub const Game = struct {
             "Load",
         );
         if (b_load != 0) {
-            try self.load();
+            try self.load(null);
         }
 
         const button_width = 100.0;
@@ -819,8 +975,8 @@ pub const Game = struct {
         try std.json.stringify(save_state, options, file.writer());
     }
 
-    pub fn load(self: *Self) !void {
-        const load_path = std.mem.sliceTo(&self.editor_level_file_path, 0);
+    pub fn load(self: *Self, path: ?[]const u8) !void {
+        const load_path = if (path) |p| p else std.mem.sliceTo(&self.editor_level_file_path, 0);
         std.log.debug("Loading level from path: {s}", .{load_path});
         var file = try std.fs.cwd().openFile(load_path, .{});
         defer file.close();
