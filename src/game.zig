@@ -669,7 +669,7 @@ pub const Game = struct {
     }
 
     pub fn save(self: *const Self) !void {
-        var file = try std.fs.cwd().createFile("save.json", .{});
+        var file = try std.fs.cwd().createFile("resources/save.json", .{});
         defer file.close();
 
         const objects_params = try self.allocator.alloc(ObjectParams, self.objects.items.len);
