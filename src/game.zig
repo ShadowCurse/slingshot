@@ -128,7 +128,7 @@ pub const GameSettings = struct {
             "Back",
         );
         if (back_button != 0) {
-            game.state = .MainMenu;
+            game.state_stack.pop_state();
         }
     }
 
@@ -170,9 +170,43 @@ pub const GameState = enum {
     MainMenu,
     Settings,
     Running,
+    Paused,
     Editor,
     Win,
     Exit,
+};
+
+pub const GameStateStack = struct {
+    stack: [STACK_SIZE]GameState,
+    current_index: usize,
+
+    const STACK_SIZE = 4;
+    const Self = @This();
+
+    pub fn new(initial_state: GameState) Self {
+        return Self{
+            .stack = .{initial_state} ** Self.STACK_SIZE,
+            .current_index = 0,
+        };
+    }
+
+    pub fn current_state(self: *const Self) GameState {
+        return self.stack[self.current_index];
+    }
+
+    pub fn push_state(self: *Self, state: GameState) void {
+        self.current_index += 1;
+        std.debug.assert(self.current_index < Self.STACK_SIZE);
+
+        self.stack[self.current_index] = state;
+        std.log.debug("State stack push. Stack: {any}", .{self.stack[0 .. self.current_index + 1]});
+    }
+
+    pub fn pop_state(self: *Self) void {
+        if (self.current_index == 0) return;
+        self.current_index -= 1;
+        std.log.debug("State stack pop. Stack: {any}", .{self.stack[0 .. self.current_index + 1]});
+    }
 };
 
 pub const EditorSelection = union(enum) {
@@ -192,7 +226,8 @@ pub const Game = struct {
     initial_ball_params: objects.BallParams,
 
     objects: std.ArrayList(Object),
-    state: GameState,
+
+    state_stack: GameStateStack,
 
     editor_camera: rl.Camera2D,
     editor_selection: ?EditorSelection,
@@ -233,6 +268,7 @@ pub const Game = struct {
         const anchor = Anchor.new(world_id, anchor_params);
         try game_objects.append(.{ .Anchor = anchor });
 
+        const state_stack = GameStateStack.new(.MainMenu);
         return Self{
             .allocator = allocator,
 
@@ -246,7 +282,7 @@ pub const Game = struct {
 
             .objects = game_objects,
 
-            .state = .MainMenu,
+            .state_stack = state_stack,
 
             .editor_camera = camera,
             .editor_selection = null,
@@ -290,6 +326,10 @@ pub const Game = struct {
             }
         }
 
+        var state_stack = GameStateStack.new(.MainMenu);
+        state_stack.push_state(.Running);
+        state_stack.push_state(state.state);
+
         return Self{
             .allocator = allocator,
 
@@ -303,7 +343,7 @@ pub const Game = struct {
 
             .objects = game_objects,
 
-            .state = GameState.Running,
+            .state_stack = state_stack,
 
             .editor_camera = state.editor_camera,
             .editor_selection = null,
@@ -314,7 +354,9 @@ pub const Game = struct {
 
     pub fn restart(self: *Self) !void {
         self.camera = self.initial_camera;
-        self.state = .Running;
+
+        self.state_stack = GameStateStack.new(.MainMenu);
+        self.state_stack.push_state(.Running);
 
         for (self.objects.items) |*object| {
             try object.recreate(self.world_id);
@@ -358,7 +400,7 @@ pub const Game = struct {
     }
 
     pub fn mouse_position(self: *const Self) Vector2 {
-        const camera = switch (self.state) {
+        const camera = switch (self.state_stack.current_state()) {
             .Editor => &self.editor_camera,
             else => &self.camera,
         };
@@ -378,7 +420,7 @@ pub const Game = struct {
     }
 
     pub fn update(self: *Self, dt: f32) !void {
-        switch (self.state) {
+        switch (self.state_stack.current_state()) {
             .Running => try self.update_running(dt),
             .Editor => try self.update_editor(dt),
             else => {},
@@ -390,8 +432,12 @@ pub const Game = struct {
             try self.restart();
         }
 
+        if (rl.IsKeyPressed(rl.KEY_ESCAPE)) {
+            self.state_stack.push_state(.Paused);
+        }
+
         if (rl.IsKeyPressed(rl.KEY_P)) {
-            self.state = .Editor;
+            self.state_stack.push_state(.Editor);
         }
 
         b2.b2World_Step(self.world_id, dt, 4);
@@ -405,12 +451,9 @@ pub const Game = struct {
 
     pub fn update_editor(self: *Self, dt: f32) !void {
         _ = dt;
-        if (rl.IsKeyPressed(rl.KEY_R)) {
-            try self.restart();
-        }
 
         if (rl.IsKeyPressed(rl.KEY_P)) {
-            self.state = .Running;
+            self.state_stack.pop_state();
         }
 
         if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
@@ -450,10 +493,11 @@ pub const Game = struct {
         defer rl.EndDrawing();
         rl.ClearBackground(rl.BLACK);
 
-        switch (self.state) {
+        switch (self.state_stack.current_state()) {
             .MainMenu => self.draw_main_menu(),
             .Settings => try self.draw_settings(),
             .Running => self.draw_running(),
+            .Paused => try self.draw_paused(),
             .Editor => try self.draw_editor(),
             .Win => try self.draw_win(),
             .Exit => {},
@@ -472,7 +516,7 @@ pub const Game = struct {
             "Start",
         );
         if (win_button != 0) {
-            self.state = .Running;
+            self.state_stack.push_state(.Running);
         }
 
         rectangle.y += UI_ELEMENT_HEIGHT;
@@ -481,7 +525,7 @@ pub const Game = struct {
             "Settings",
         );
         if (settings_button != 0) {
-            self.state = .Settings;
+            self.state_stack.push_state(.Settings);
         }
 
         rectangle.y += UI_ELEMENT_HEIGHT;
@@ -490,7 +534,7 @@ pub const Game = struct {
             "Exit",
         );
         if (exit_button != 0) {
-            self.state = .Exit;
+            self.state_stack.push_state(.Exit);
         }
     }
 
@@ -509,6 +553,43 @@ pub const Game = struct {
 
         const mouse_pos = self.mouse_position();
         rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
+    }
+
+    pub fn draw_paused(self: *Self) !void {
+        self.draw_running();
+
+        var rectangle = rl.Rectangle{
+            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
+            .width = UI_ELEMENT_WIDTH,
+            .height = UI_ELEMENT_HEIGHT,
+        };
+        const resume_button = rl.GuiButton(
+            rectangle,
+            "Resume",
+        );
+        if (resume_button != 0) {
+            self.state_stack.pop_state();
+        }
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const settings_button = rl.GuiButton(
+            rectangle,
+            "Settings",
+        );
+        if (settings_button != 0) {
+            self.state_stack.push_state(.Settings);
+        }
+
+        rectangle.y += UI_ELEMENT_HEIGHT;
+        const main_menu_button = rl.GuiButton(
+            rectangle,
+            "Main menu",
+        );
+        if (main_menu_button != 0) {
+            try self.restart();
+            self.state_stack.pop_state();
+        }
     }
 
     pub fn draw_editor(self: *Self) !void {
@@ -703,7 +784,7 @@ pub const Game = struct {
             .ball = self.ball.params,
             .initial_ball_params = self.initial_ball_params,
             .objects = objects_params,
-            .state = self.state,
+            .state = self.state_stack.current_state(),
             .editor_camera = self.editor_camera,
         };
 

@@ -672,7 +672,7 @@ pub const Rectangle = struct {
     ) void {
         for (sensor_events.begin_events) |be| {
             if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(self.rectangle.shape_id))) {
-                game.state = .Win;
+                game.state_stack.push_state(.Win);
             }
         }
     }

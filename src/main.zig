@@ -70,14 +70,14 @@ pub fn main() anyerror!void {
     } else {
         rl.SetTargetFPS(TARGET_FPS);
 
-        while (game.state != .Exit) {
+        while (game.state_stack.current_state() != .Exit) {
             const dt = rl.GetFrameTime();
 
             try game.update(dt);
             try game.draw();
 
             if (rl.WindowShouldClose()) {
-                game.state = .Exit;
+                game.state_stack.push_state(.Exit);
             }
         }
     }
