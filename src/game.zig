@@ -21,7 +21,9 @@ const UI_ELEMENT_HEIGHT = 100.0;
 const DEFAULT_LEVELS_PATH = "resources/levels";
 const DEFAULT_SAVE_PATH = "resources/levels/save.json";
 
-const EMSCRIPTEN_LEVEL_NAMES = [_][]const u8{"save.json"};
+const EMSCRIPTEN_LEVEL_NAMES = [_][]const u8{
+    "level_1.json",
+};
 
 pub const LevelSave = struct {
     objects: []ObjectParams,
