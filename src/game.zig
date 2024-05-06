@@ -9,6 +9,9 @@ const Level = _level.Level;
 const Levels = _level.Levels;
 const DEFAULT_SAVE_PATH = _level.DEFAULT_SAVE_PATH;
 
+const _settings = @import("settings.zig");
+const Settings = _settings.Settings;
+
 const Object = objects.Object;
 const ObjectParams = objects.ObjectParams;
 const DebugDraw = objects.DebugDraw;
@@ -44,119 +47,6 @@ pub const SensorEvents = struct {
             .begin_events = begin_events,
             .end_events = end_events,
         };
-    }
-};
-
-pub const GameSettings = struct {
-    const RESOLUTIONS = [_]struct { u32, u32 }{
-        .{ 960, 540 },
-        .{ 1280, 720 },
-        .{ 1920, 1080 },
-        .{ 2560, 1440 },
-    };
-    const RESOLUTIONS_STR: [:0]const u8 = std.fmt.comptimePrint("{};{};{};{}", .{
-        RESOLUTIONS[0],
-        RESOLUTIONS[1],
-        RESOLUTIONS[2],
-        RESOLUTIONS[3],
-    });
-
-    const SaveState = struct {
-        resolution_width: u32,
-        resolution_height: u32,
-    };
-
-    const Self = @This();
-
-    // UI state
-    selected_resolution: i32 = 0,
-    select_resolution_active: bool = false,
-
-    resolution_width: u32,
-    resolution_height: u32,
-
-    pub fn update_selected_resolution(self: *Self) void {
-        const selected_resolution: usize = @intCast(self.selected_resolution);
-        self.resolution_width = Self.RESOLUTIONS[selected_resolution][0];
-        self.resolution_height = Self.RESOLUTIONS[selected_resolution][1];
-    }
-
-    pub fn draw(self: *Self, game: *Game) !void {
-        var rectangle = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(game.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH,
-            .y = @as(f32, @floatFromInt(game.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
-            .width = UI_ELEMENT_WIDTH,
-            .height = UI_ELEMENT_HEIGHT,
-        };
-        _ = rl.GuiLabel(
-            rectangle,
-            "Resolution",
-        );
-
-        rectangle.x += UI_ELEMENT_WIDTH;
-        const r = rl.GuiDropdownBox(
-            rectangle,
-            Self.RESOLUTIONS_STR,
-            &self.selected_resolution,
-            self.select_resolution_active,
-        );
-        if (r == 1) {
-            self.select_resolution_active = !self.select_resolution_active;
-        }
-
-        rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
-        rectangle.y += UI_ELEMENT_HEIGHT * 3.5;
-        const apply_button = rl.GuiButton(
-            rectangle,
-            "Apply",
-        );
-        if (apply_button != 0) {
-            self.update_selected_resolution();
-            game.set_window_size();
-            try self.save();
-        }
-
-        rectangle.y += UI_ELEMENT_HEIGHT;
-        const back_button = rl.GuiButton(
-            rectangle,
-            "Back",
-        );
-        if (back_button != 0) {
-            game.state_stack.pop_state();
-        }
-    }
-
-    pub fn save(self: *const Self) !void {
-        var file = try std.fs.cwd().createFile("settings.json", .{});
-        defer file.close();
-
-        const settings_save = Self.SaveState{
-            .resolution_width = self.resolution_width,
-            .resolution_height = self.resolution_height,
-        };
-
-        const options = std.json.StringifyOptions{
-            .whitespace = .indent_4,
-        };
-
-        try std.json.stringify(settings_save, options, file.writer());
-    }
-
-    pub fn load(allocator: Allocator, path: []const u8) !Self {
-        var file = try std.fs.cwd().openFile(path, .{});
-        defer file.close();
-
-        const file_data = try file.readToEndAlloc(allocator, 1024 * 1024 * 1024);
-        defer allocator.free(file_data);
-
-        const self_state = try std.json.parseFromSlice(Self, allocator, file_data, .{});
-        defer self_state.deinit();
-
-        var s = std.mem.zeroInit(Self, .{});
-        s.resolution_width = self_state.value.resolution_width;
-        s.resolution_height = self_state.value.resolution_height;
-
-        return s;
     }
 };
 
@@ -225,11 +115,11 @@ pub const Game = struct {
 
     level: Level,
     levels: Levels,
-    settings: GameSettings,
+    settings: Settings,
 
     const Self = @This();
 
-    pub fn new(allocator: Allocator, settings: GameSettings) !Self {
+    pub fn new(allocator: Allocator, settings: Settings) !Self {
         var world_def = b2.b2DefaultWorldDef();
         world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
         const world_id = b2.b2CreateWorld(&world_def);

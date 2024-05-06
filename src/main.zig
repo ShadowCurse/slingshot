@@ -3,7 +3,9 @@ const builtin = @import("builtin");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const Game = @import("game.zig").Game;
-const GameSettings = @import("game.zig").GameSettings;
+const _settings = @import("settings.zig");
+const Settings = _settings.Settings;
+const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -49,7 +51,7 @@ pub fn main() anyerror!void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const settings = try GameSettings.load(allocator, "resources/settings.json");
+    const settings = try Settings.load(allocator, DEFAULT_SETTINGS_PATH);
 
     rl.InitWindow(
         @intCast(settings.resolution_width),
