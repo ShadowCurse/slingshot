@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
+const flecs = @import("flecs.zig");
 const objects = @import("objects.zig");
 
 const _level = @import("level.zig");
@@ -102,6 +103,7 @@ pub const EditorSelection = union(enum) {
 pub const Game = struct {
     allocator: Allocator,
 
+    ecs: *flecs.world_t,
     world_id: b2.b2WorldId,
 
     camera: rl.Camera2D,
@@ -120,6 +122,8 @@ pub const Game = struct {
     const Self = @This();
 
     pub fn new(allocator: Allocator, settings: Settings) !Self {
+        const ecs = flecs.init();
+
         var world_def = b2.b2DefaultWorldDef();
         world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
         const world_id = b2.b2CreateWorld(&world_def);
@@ -145,6 +149,7 @@ pub const Game = struct {
         return Self{
             .allocator = allocator,
 
+            .ecs = ecs,
             .world_id = world_id,
 
             .camera = camera,
@@ -240,6 +245,7 @@ pub const Game = struct {
         self.levels.deinit();
         self.level.deinit();
         b2.b2DestroyWorld(self.world_id);
+        _ = flecs.fini(self.ecs);
     }
 
     pub fn set_window_size(self: *Self) void {

@@ -94,6 +94,24 @@ pub fn build(b: *std.Build) void {
     );
     box2c.linkLibC();
 
+    const flecs = b.addStaticLibrary(.{
+        .name = "flecs",
+        .root_source_file = .{ .path = "src/flecs.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    flecs.addIncludePath(.{ .path = "flecs/include" });
+    flecs.addCSourceFile(.{
+        .file = .{ .path = "flecs/flecs.c" },
+        .flags = &.{
+            "-fno-sanitize=undefined",
+            "-DFLECS_NO_CPP",
+            "-DFLECS_USE_OS_ALLOC",
+            if (@import("builtin").mode == .Debug) "-DFLECS_SANITIZE" else "",
+        },
+    });
+    flecs.linkLibC();
+
     // If compiled for wasm32-wasi, compile project as a static lib
     // const artifact = if (target.result.os.tag == .wasi) blk: {
     const artifact = if (target.result.os.tag == .emscripten) blk: {
@@ -130,6 +148,9 @@ pub fn build(b: *std.Build) void {
 
         exe.addIncludePath(.{ .path = "box2c/include" });
         exe.linkLibrary(box2c);
+
+        exe.addIncludePath(.{ .path = "flecs/include" });
+        exe.linkLibrary(flecs);
 
         exe.linkLibC();
 
