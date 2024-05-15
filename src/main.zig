@@ -75,8 +75,14 @@ pub fn main() anyerror!void {
         while (game.state_stack.current_state() != .Exit) {
             const dt = rl.GetFrameTime();
 
-            try game.update(dt);
-            try game.draw();
+            {
+                rl.BeginDrawing();
+                defer rl.EndDrawing();
+                rl.ClearBackground(rl.BLACK);
+
+                try game.update(dt);
+                try game.draw();
+            }
 
             if (rl.WindowShouldClose()) {
                 game.state_stack.push_state(.Exit);

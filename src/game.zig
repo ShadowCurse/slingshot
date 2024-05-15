@@ -103,9 +103,6 @@ pub const EditorSelection = union(enum) {
 pub const Game = struct {
     allocator: Allocator,
 
-    ecs: *flecs.world_t,
-    world_id: b2.b2WorldId,
-
     camera: rl.Camera2D,
     initial_camera: rl.Camera2D,
 
@@ -122,12 +119,6 @@ pub const Game = struct {
     const Self = @This();
 
     pub fn new(allocator: Allocator, settings: Settings) !Self {
-        const ecs = flecs.init();
-
-        var world_def = b2.b2DefaultWorldDef();
-        world_def.gravity = b2.b2Vec2{ .x = 0, .y = -100 };
-        const world_id = b2.b2CreateWorld(&world_def);
-
         const camera = rl.Camera2D{
             .offset = rl.Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
@@ -143,14 +134,11 @@ pub const Game = struct {
         var editor_level_file_path: [32]u8 = .{0} ** 32;
         _ = try std.fmt.bufPrint(&editor_level_file_path, "{s}", .{DEFAULT_SAVE_PATH});
 
-        const level = Level.default(allocator, world_id);
+        const level = Level.default(allocator);
         const levels = try Levels.init(allocator);
 
         return Self{
             .allocator = allocator,
-
-            .ecs = ecs,
-            .world_id = world_id,
 
             .camera = camera,
             .initial_camera = camera,
@@ -173,14 +161,12 @@ pub const Game = struct {
         self.state_stack = GameStateStack.new(.MainMenu);
         self.state_stack.push_state(.Running);
 
-        try self.level.recreate(self.world_id);
+        try self.level.recreate();
     }
 
     pub fn deinit(self: *Self) void {
         self.levels.deinit();
         self.level.deinit();
-        b2.b2DestroyWorld(self.world_id);
-        _ = flecs.fini(self.ecs);
     }
 
     pub fn set_window_size(self: *Self) void {
@@ -225,13 +211,6 @@ pub const Game = struct {
         return Vector2.from_rl_pos(rl.GetMousePosition());
     }
 
-    pub fn update_camera(self: *Self, dt: f32) void {
-        const ball_pos = self.level.ball.get_position();
-        const camera_pos = Vector2.from_rl_pos(self.camera.target);
-        const p = ball_pos.lerp(&camera_pos, dt);
-        self.camera.target.y = p.to_rl_as_pos().y;
-    }
-
     pub fn update(self: *Self, dt: f32) !void {
         switch (self.state_stack.current_state()) {
             .Running => try self.update_running(dt),
@@ -253,11 +232,7 @@ pub const Game = struct {
             self.state_stack.push_state(.Editor);
         }
 
-        b2.b2World_Step(self.world_id, dt, 4);
-
-        const sensor_events = SensorEvents.new(self.world_id);
-        self.update_camera(dt);
-        self.level.update(self, &sensor_events);
+        self.level.update(dt);
     }
 
     pub fn update_editor(self: *Self, dt: f32) !void {
@@ -267,28 +242,28 @@ pub const Game = struct {
             self.state_stack.pop_state();
         }
 
-        if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
-            const mp = self.mouse_position();
-            self.editor_selection = null;
-            for (self.level.objects.items, 0..) |*object, i| {
-                if (object.aabb_contains(mp)) {
-                    self.editor_selection = .{ .Object = i };
-                    break;
-                }
-            }
-            if (self.level.ball.aabb_contains(mp)) {
-                self.editor_selection = .Ball;
-            }
-        }
-        if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
-            const mouse_pos = self.mouse_position();
-            if (self.editor_selection) |s| {
-                switch (s) {
-                    .Ball => self.level.ball.set_position(mouse_pos),
-                    .Object => |i| try self.level.objects.items[i].set_position(mouse_pos),
-                }
-            }
-        }
+        // if (rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_RIGHT)) {
+        //     const mp = self.mouse_position();
+        //     self.editor_selection = null;
+        //     for (self.level.objects.items, 0..) |*object, i| {
+        //         if (object.aabb_contains(mp)) {
+        //             self.editor_selection = .{ .Object = i };
+        //             break;
+        //         }
+        //     }
+        //     if (self.level.ball.aabb_contains(mp)) {
+        //         self.editor_selection = .Ball;
+        //     }
+        // }
+        // if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_SIDE)) {
+        //     const mouse_pos = self.mouse_position();
+        //     if (self.editor_selection) |s| {
+        //         switch (s) {
+        //             .Ball => self.level.ball.set_position(mouse_pos),
+        //             .Object => |i| try self.level.objects.items[i].set_position(mouse_pos),
+        //         }
+        //     }
+        // }
         if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
             const delta = rl.GetMouseDelta();
             self.editor_camera.target.x -= delta.x;
@@ -300,15 +275,11 @@ pub const Game = struct {
     }
 
     pub fn draw(self: *Self) !void {
-        rl.BeginDrawing();
-        defer rl.EndDrawing();
-        rl.ClearBackground(rl.BLACK);
-
         switch (self.state_stack.current_state()) {
             .MainMenu => try self.draw_main_menu(),
             .LevelSelection => try self.draw_level_selection(),
             .Settings => try self.draw_settings(),
-            .Running => self.draw_running(),
+            .Running => {},
             .Paused => try self.draw_paused(),
             .Editor => try self.draw_editor(),
             .Win => try self.draw_win(),
@@ -359,19 +330,7 @@ pub const Game = struct {
         try self.settings.draw(self);
     }
 
-    pub fn draw_running(self: *const Self) void {
-        rl.BeginMode2D(self.camera);
-        defer rl.EndMode2D();
-
-        self.level.draw();
-
-        const mouse_pos = self.mouse_position();
-        rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
-    }
-
     pub fn draw_paused(self: *Self) !void {
-        self.draw_running();
-
         var rectangle = rl.Rectangle{
             .x = @as(f32, @floatFromInt(self.settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
             .y = @as(f32, @floatFromInt(self.settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
@@ -408,161 +367,162 @@ pub const Game = struct {
     }
 
     pub fn draw_editor(self: *Self) !void {
-        {
-            rl.BeginMode2D(self.editor_camera);
-            defer rl.EndMode2D();
-
-            self.level.draw();
-
-            const aabb_color = rl.SKYBLUE;
-            self.level.draw_aabb(aabb_color);
-
-            const selected_color = rl.ORANGE;
-            if (self.editor_selection) |s| {
-                switch (s) {
-                    .Ball => self.level.ball.draw_aabb(selected_color),
-                    .Object => |i| self.level.objects.items[i].draw_aabb(selected_color),
-                }
-            }
-
-            const mouse_pos = self.mouse_position();
-            rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
-        }
-
-        if (self.editor_selection) |s| {
-            switch (s) {
-                .Ball => self.level.ball.draw_editor(self.world_id),
-                .Object => |i| try self.level.objects.items[i].draw_editor(self.world_id),
-            }
-        }
-
-        var level_save_load_rect = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(self.settings.resolution_width)) - 200.0,
-            .y = 0.0,
-            .width = 200.0,
-            .height = 50.0,
-        };
-        const mp = Self.mouse_position_raw();
-        const editable = rl.CheckCollisionPointRec(mp.to_rl_as_pos(), level_save_load_rect);
-        _ = rl.GuiTextBox(
-            level_save_load_rect,
-            &self.editor_level_file_path,
-            self.editor_level_file_path.len,
-            editable,
-        );
-
-        level_save_load_rect.y += 50.0;
-        const b_save = rl.GuiButton(
-            level_save_load_rect,
-            "Save",
-        );
-        if (b_save != 0) {
-            try self.save();
-        }
-        level_save_load_rect.y += 50.0;
-        const b_load = rl.GuiButton(
-            level_save_load_rect,
-            "Load",
-        );
-        if (b_load != 0) {
-            self.state_stack.pop_state();
-            self.state_stack.pop_state();
-            try self.load(null);
-        }
-
-        const button_width = 100.0;
-        const button_height = 20.0;
-        var button_rect = rl.Rectangle{
-            .x = 0.0,
-            .y = @as(f32, @floatFromInt(self.settings.resolution_height)) - button_height,
-            .width = button_width,
-            .height = button_height,
-        };
-        const remove = rl.GuiButton(
-            button_rect,
-            "Remove",
-        );
-        if (remove != 0) {
-            if (self.editor_selection) |s| {
-                switch (s) {
-                    .Ball => {},
-                    .Object => |i| {
-                        const object = self.level.objects.swapRemove(i);
-                        object.deinit();
-                        self.editor_selection = null;
-                    },
-                }
-            }
-        }
-
-        button_rect.x += button_width;
-        const add_ball = rl.GuiButton(
-            button_rect,
-            "Add ball",
-        );
-        if (add_ball != 0) {
-            const ball = Ball.new(self.world_id, .{
-                .position = Vector2.from_rl_pos(self.editor_camera.target),
-            });
-            try self.level.objects.append(.{ .Ball = ball });
-        }
-
-        button_rect.x += button_width;
-        const add_arc = rl.GuiButton(
-            button_rect,
-            "Add arc",
-        );
-        if (add_arc != 0) {
-            const arc = Arc.new(self.world_id, .{
-                .position = Vector2.from_rl_pos(self.editor_camera.target),
-            });
-            try self.level.objects.append(.{ .Arc = arc });
-        }
-
-        button_rect.x += button_width;
-        const add_anchor = rl.GuiButton(
-            button_rect,
-            "Add anchor",
-        );
-        if (add_anchor != 0) {
-            const anchor = Anchor.new(self.world_id, .{
-                .position = Vector2.from_rl_pos(self.editor_camera.target),
-            });
-            try self.level.objects.append(.{ .Anchor = anchor });
-        }
-
-        button_rect.x += button_width;
-        const add_rect = rl.GuiButton(
-            button_rect,
-            "Add rect",
-        );
-        if (add_rect != 0) {
-            const rect = try Rectangle.new(self.world_id, .{
-                .position = Vector2.from_rl_pos(self.editor_camera.target),
-            });
-            try self.level.objects.append(.{ .Rectangle = rect });
-        }
-
-        button_rect.x += button_width;
-        const add_rect_chain = rl.GuiButton(
-            button_rect,
-            "Add rect chain",
-        );
-        if (add_rect_chain != 0) {
-            const rc_points = [_]Vector2{
-                Vector2.X,
-                Vector2.NEG_X,
-            };
-            const points = try self.allocator.alloc(Vector2, rc_points.len);
-            @memcpy(points, &rc_points);
-
-            const rect_chain_params = objects.RectangleChainParams{
-                .position = Vector2.from_rl_pos(self.editor_camera.target),
-                .points = points,
-            };
-            const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
-            try self.level.objects.append(.{ .RectangleChain = rect_chain });
-        }
+        _ = self;
+        // {
+        //     rl.BeginMode2D(self.editor_camera);
+        //     defer rl.EndMode2D();
+        //
+        //     self.level.draw();
+        //
+        //     const aabb_color = rl.SKYBLUE;
+        //     self.level.draw_aabb(aabb_color);
+        //
+        //     const selected_color = rl.ORANGE;
+        //     if (self.editor_selection) |s| {
+        //         switch (s) {
+        //             .Ball => self.level.ball.draw_aabb(selected_color),
+        //             .Object => |i| self.level.objects.items[i].draw_aabb(selected_color),
+        //         }
+        //     }
+        //
+        //     const mouse_pos = self.mouse_position();
+        //     rl.DrawCircleV(mouse_pos.to_rl_as_pos(), 2.0, rl.YELLOW);
+        // }
+        //
+        // if (self.editor_selection) |s| {
+        //     switch (s) {
+        //         .Ball => self.level.ball.draw_editor(self.world_id),
+        //         .Object => |i| try self.level.objects.items[i].draw_editor(self.world_id),
+        //     }
+        // }
+        //
+        // var level_save_load_rect = rl.Rectangle{
+        //     .x = @as(f32, @floatFromInt(self.settings.resolution_width)) - 200.0,
+        //     .y = 0.0,
+        //     .width = 200.0,
+        //     .height = 50.0,
+        // };
+        // const mp = Self.mouse_position_raw();
+        // const editable = rl.CheckCollisionPointRec(mp.to_rl_as_pos(), level_save_load_rect);
+        // _ = rl.GuiTextBox(
+        //     level_save_load_rect,
+        //     &self.editor_level_file_path,
+        //     self.editor_level_file_path.len,
+        //     editable,
+        // );
+        //
+        // level_save_load_rect.y += 50.0;
+        // const b_save = rl.GuiButton(
+        //     level_save_load_rect,
+        //     "Save",
+        // );
+        // if (b_save != 0) {
+        //     try self.save();
+        // }
+        // level_save_load_rect.y += 50.0;
+        // const b_load = rl.GuiButton(
+        //     level_save_load_rect,
+        //     "Load",
+        // );
+        // if (b_load != 0) {
+        //     self.state_stack.pop_state();
+        //     self.state_stack.pop_state();
+        //     try self.load(null);
+        // }
+        //
+        // const button_width = 100.0;
+        // const button_height = 20.0;
+        // var button_rect = rl.Rectangle{
+        //     .x = 0.0,
+        //     .y = @as(f32, @floatFromInt(self.settings.resolution_height)) - button_height,
+        //     .width = button_width,
+        //     .height = button_height,
+        // };
+        // const remove = rl.GuiButton(
+        //     button_rect,
+        //     "Remove",
+        // );
+        // if (remove != 0) {
+        //     if (self.editor_selection) |s| {
+        //         switch (s) {
+        //             .Ball => {},
+        //             .Object => |i| {
+        //                 const object = self.level.objects.swapRemove(i);
+        //                 object.deinit();
+        //                 self.editor_selection = null;
+        //             },
+        //         }
+        //     }
+        // }
+        //
+        // button_rect.x += button_width;
+        // const add_ball = rl.GuiButton(
+        //     button_rect,
+        //     "Add ball",
+        // );
+        // if (add_ball != 0) {
+        //     const ball = Ball.new(self.world_id, .{
+        //         .position = Vector2.from_rl_pos(self.editor_camera.target),
+        //     });
+        //     try self.level.objects.append(.{ .Ball = ball });
+        // }
+        //
+        // button_rect.x += button_width;
+        // const add_arc = rl.GuiButton(
+        //     button_rect,
+        //     "Add arc",
+        // );
+        // if (add_arc != 0) {
+        //     const arc = Arc.new(self.world_id, .{
+        //         .position = Vector2.from_rl_pos(self.editor_camera.target),
+        //     });
+        //     try self.level.objects.append(.{ .Arc = arc });
+        // }
+        //
+        // button_rect.x += button_width;
+        // const add_anchor = rl.GuiButton(
+        //     button_rect,
+        //     "Add anchor",
+        // );
+        // if (add_anchor != 0) {
+        //     const anchor = Anchor.new(self.world_id, .{
+        //         .position = Vector2.from_rl_pos(self.editor_camera.target),
+        //     });
+        //     try self.level.objects.append(.{ .Anchor = anchor });
+        // }
+        //
+        // button_rect.x += button_width;
+        // const add_rect = rl.GuiButton(
+        //     button_rect,
+        //     "Add rect",
+        // );
+        // if (add_rect != 0) {
+        //     const rect = try Rectangle.new(self.world_id, .{
+        //         .position = Vector2.from_rl_pos(self.editor_camera.target),
+        //     });
+        //     try self.level.objects.append(.{ .Rectangle = rect });
+        // }
+        //
+        // button_rect.x += button_width;
+        // const add_rect_chain = rl.GuiButton(
+        //     button_rect,
+        //     "Add rect chain",
+        // );
+        // if (add_rect_chain != 0) {
+        //     const rc_points = [_]Vector2{
+        //         Vector2.X,
+        //         Vector2.NEG_X,
+        //     };
+        //     const points = try self.allocator.alloc(Vector2, rc_points.len);
+        //     @memcpy(points, &rc_points);
+        //
+        //     const rect_chain_params = objects.RectangleChainParams{
+        //         .position = Vector2.from_rl_pos(self.editor_camera.target),
+        //         .points = points,
+        //     };
+        //     const rect_chain = try RectangleChain.new(self.world_id, self.allocator, rect_chain_params);
+        //     try self.level.objects.append(.{ .RectangleChain = rect_chain });
+        // }
     }
 
     pub fn draw_win(self: *Self) !void {
@@ -589,7 +549,7 @@ pub const Game = struct {
     pub fn load(self: *Self, path: ?[]const u8) !void {
         const load_path = if (path) |p| p else std.mem.sliceTo(&self.editor_level_file_path, 0);
         self.level.deinit();
-        self.level = try Level.load(self.allocator, self.world_id, load_path);
+        self.level = try Level.load(self.allocator, load_path);
         self.state_stack.push_state(.Running);
     }
 };
