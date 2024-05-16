@@ -87,8 +87,11 @@ fn update_mouse_pos(iter: *flecs.iter_t) void {
     );
 }
 
-fn update_anchor(iter: *flecs.iter_t, balls: []const Ball, anchors: []Anchor) void {
-    const ball = balls[0];
+fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
+    const pair_id = flecs.field_id(iter, 2);
+    const ball_id = flecs.pair_second(pair_id);
+    const ball = flecs.get(iter.world, ball_id, Ball).?;
+
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
 
@@ -131,6 +134,8 @@ fn update_anchor(iter: *flecs.iter_t, balls: []const Ball, anchors: []Anchor) vo
     }
 }
 
+pub const Attaches = struct {};
+
 pub const GameCamera = struct {
     camera: rl.Camera2D,
 };
@@ -163,6 +168,8 @@ pub const Level = struct {
 
         const ecs_world = flecs.init();
 
+        flecs.TAG(ecs_world, Attaches);
+
         flecs.COMPONENT(ecs_world, Ball);
         flecs.COMPONENT(ecs_world, Anchor);
         flecs.COMPONENT(ecs_world, Rectangle);
@@ -180,8 +187,11 @@ pub const Level = struct {
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangle_chains", flecs.OnUpdate, draw_rectangle_chains);
         flecs.ADD_SYSTEM(ecs_world, "draw_mouse_pos", flecs.OnUpdate, draw_mouse_pos);
-        flecs.ADD_SYSTEM(ecs_world, "update_anchor", flecs.OnUpdate, update_anchor);
         flecs.ADD_SYSTEM(ecs_world, "draw_end", flecs.PostUpdate, draw_end);
+
+        var desc = flecs.SYSTEM_DESC(update_anchor);
+        desc.query.filter.terms[1].id = flecs.pair(flecs.id(Attaches), flecs.Wildcard);
+        flecs.SYSTEM(ecs_world, "update_anchor", flecs.OnUpdate, &desc);
 
         const camera = rl.Camera2D{
             .offset = rl.Vector2{
@@ -211,14 +221,20 @@ pub const Level = struct {
     fn from_safe(allocator: Allocator, level_save: *const LevelSave) !Self {
         const self = Self.default(allocator);
 
-        const b = flecs.new_id(self.ecs_world);
-        _ = flecs.set(self.ecs_world, b, Ball, Ball.new(self.physics_world, level_save.initial_ball_params));
+        const ball_id = flecs.new_id(self.ecs_world);
+        const ball = flecs.set(
+            self.ecs_world,
+            ball_id,
+            Ball,
+            Ball.new(self.physics_world, level_save.initial_ball_params),
+        );
 
         for (level_save.objects) |*obj| {
             switch (obj.*) {
                 .Anchor => |r| {
                     const n = flecs.new_id(self.ecs_world);
                     _ = flecs.set(self.ecs_world, n, Anchor, Anchor.new(self.physics_world, r));
+                    flecs.add_pair(self.ecs_world, n, flecs.id(Attaches), ball);
                 },
                 .Rectangle => |r| {
                     const n = flecs.new_id(self.ecs_world);
