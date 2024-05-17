@@ -2310,9 +2310,14 @@ pub fn COMPONENT(world: *world_t, comptime T: type) void {
             .size = @sizeOf(T),
             .hooks = .{
                 .dtor = switch (@typeInfo(T)) {
-                    .Struct => if (@hasDecl(T, "dtor")) struct {
-                        pub fn dtor(ptr: *anyopaque, _: i32, _: *const type_info_t) callconv(.C) void {
-                            T.dtor(@as(*T, @alignCast(@ptrCast(ptr))).*);
+                    .Struct => if (@hasDecl(T, "deinit")) struct {
+                        pub fn dtor(ptr: *anyopaque, len: i32, _: *const type_info_t) callconv(.C) void {
+                            var slice: []T = undefined;
+                            slice.ptr = @as([*]T, @alignCast(@ptrCast(ptr)));
+                            slice.len = @intCast(len);
+                            for (slice) |*s| {
+                                T.deinit(s);
+                            }
                         }
                     }.dtor else null,
                     else => null,

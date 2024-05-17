@@ -214,8 +214,8 @@ pub const Level = struct {
     }
 
     pub fn deinit(self: *const Self) void {
-        b2.b2DestroyWorld(self.physics_world);
         _ = flecs.fini(self.ecs_world);
+        b2.b2DestroyWorld(self.physics_world);
     }
 
     fn from_safe(allocator: Allocator, level_save: *const LevelSave) !Self {
@@ -241,8 +241,11 @@ pub const Level = struct {
                     _ = flecs.set(self.ecs_world, n, Rectangle, try Rectangle.new(self.physics_world, r));
                 },
                 .RectangleChain => |r| {
+                    const c = try r.clone(allocator);
+                    const rc = try RectangleChain.new(self.physics_world, allocator, c);
+
                     const n = flecs.new_id(self.ecs_world);
-                    _ = flecs.set(self.ecs_world, n, RectangleChain, try RectangleChain.new(self.physics_world, allocator, r));
+                    _ = flecs.set(self.ecs_world, n, RectangleChain, rc);
                 },
                 else => {},
             }
