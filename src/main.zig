@@ -29,8 +29,14 @@ fn emscripten_log(
 fn emscripten_loop() callconv(.C) void {
     const dt = rl.GetFrameTime();
 
-    game.update(dt) catch unreachable;
-    game.draw() catch unreachable;
+    {
+        rl.BeginDrawing();
+        defer rl.EndDrawing();
+        rl.ClearBackground(rl.BLACK);
+
+        game.update(dt) catch unreachable;
+        game.draw() catch unreachable;
+    }
 }
 
 pub const std_options = if (builtin.os.tag != .emscripten) .{} else std.Options{

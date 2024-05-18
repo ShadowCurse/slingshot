@@ -117,7 +117,9 @@ pub fn build(b: *std.Build) void {
     const artifact = if (target.result.os.tag == .emscripten) blk: {
         const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
+
         box2c.addIncludePath(.{ .path = cache_include });
+        flecs.addIncludePath(.{ .path = cache_include });
 
         const lib = b.addStaticLibrary(.{
             .name = "slingshot",
@@ -164,6 +166,7 @@ pub fn build(b: *std.Build) void {
     if (target.result.os.tag == .emscripten) {
         b.installArtifact(raylib);
         b.installArtifact(box2c);
+        b.installArtifact(flecs);
     }
 
     // This *creates* a Run step in the build graph, to be executed when another
