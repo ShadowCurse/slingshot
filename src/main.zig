@@ -40,7 +40,7 @@ fn emscripten_loop() callconv(.C) void {
 }
 
 pub const std_options = if (builtin.os.tag != .emscripten) .{} else std.Options{
-    .log_level = .info,
+    .log_level = .debug,
     .logFn = emscripten_log,
 };
 
