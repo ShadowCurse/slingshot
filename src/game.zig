@@ -29,6 +29,8 @@ const Ball = objects.Ball;
 const BallParams = objects.BallParams;
 
 const Anchor = objects.Anchor;
+const AnchorParams = objects.AnchorParams;
+
 const Rectangle = objects.Rectangle;
 const RectangleChain = objects.RectangleChain;
 
@@ -388,17 +390,44 @@ fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
     }
 }
 
-fn draw_anchors(anchors: []const Anchor) void {
-    for (anchors) |*anchor| {
-        anchor.draw();
+fn draw_anchors(anchors: []const Anchor, params: []const AnchorParams) void {
+    for (anchors, params) |*anchor, *param| {
+        const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
+        rl.DrawCircleV(position.to_rl_as_pos(), param.radius, param.color);
+
+        if (anchor.attached_body_id) |id| {
+            const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
+            rl.DrawLineV(
+                position.to_rl_as_pos(),
+                attached_body_position.to_rl_as_pos(),
+                param.color,
+            );
+        }
     }
 }
 
-fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor) void {
+fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor, params: []const AnchorParams) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     if (state_stack.current_state() == .Editor) {
-        for (anchors) |*anchor| {
-            anchor.draw_aabb(rl.SKYBLUE);
+        for (anchors, params) |*anchor, *param| {
+            const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
+            const aabb = AABB.from_b2(b2.b2AABB{
+                .lowerBound = (Vector2{
+                    .x = -param.radius,
+                    .y = -param.radius,
+                }).add(&position).to_b2(),
+                .upperBound = (Vector2{
+                    .x = param.radius,
+                    .y = param.radius,
+                }).add(&position).to_b2(),
+            });
+
+            const rl_aabb_rect = aabb.to_rl_rect(position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_COLOR,
+            );
         }
     }
 }
@@ -489,6 +518,8 @@ pub fn load_level(iter: *flecs.iter_t) void {
             .Anchor => |r| {
                 const n = flecs.new_id(iter.world);
                 _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, r));
+                _ = flecs.set(iter.world, n, AnchorParams, r);
+                _ = flecs.set(iter.world, n, ParamEditor(AnchorParams), ParamEditor(AnchorParams).new(&r));
                 _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
             },
             .Rectangle => |r| {
@@ -587,7 +618,7 @@ pub fn update_physics(iter: *flecs.iter_t) void {
     b2.b2World_Step(physics_world.id, iter.delta_time, 4);
 }
 
-pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
+pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor, anchor_params: []const AnchorParams) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
@@ -605,7 +636,7 @@ pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
     const ball_param = ball_params[0];
     std.debug.assert(!flecs.query_next(&ball_iter));
 
-    for (anchors) |*anchor| {
+    for (anchors, anchor_params) |*anchor, *anchor_param| {
         const self_position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
         const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
 
@@ -617,15 +648,15 @@ pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
             }
         } else {
             if (anchor.length_joint_id == null) {
-                if (self_position.sub(&ball_position).length() < anchor.params.radius + ball_param.radius) {
+                if (self_position.sub(&ball_position).length() < anchor_param.radius + ball_param.radius) {
                     var joint_def = b2.b2DefaultDistanceJointDef();
                     joint_def.bodyIdA = anchor.body_id;
                     joint_def.bodyIdB = ball.body_id;
                     joint_def.length = 0.0;
-                    joint_def.minLength = anchor.params.min_length;
-                    joint_def.maxLength = anchor.params.max_length;
-                    joint_def.dampingRatio = anchor.params.damping_ratio;
-                    joint_def.hertz = anchor.params.hertz;
+                    joint_def.minLength = anchor_param.min_length;
+                    joint_def.maxLength = anchor_param.max_length;
+                    joint_def.dampingRatio = anchor_param.damping_ratio;
+                    joint_def.hertz = anchor_param.hertz;
 
                     const joint_id = b2.b2CreateDistanceJoint(physics_world.*.id, &joint_def);
                     anchor.length_joint_id = joint_id;
@@ -636,7 +667,7 @@ pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
                     const to_mouse = mouse_pos.world_position
                         .sub(&self_position)
                         .normalized()
-                        .mul(anchor.params.pull_force);
+                        .mul(anchor_param.pull_force);
                     b2.b2Body_SetLinearVelocity(ball.body_id, to_mouse.to_b2());
                 }
             }
@@ -704,6 +735,9 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, ParamEditor(BallParams));
 
         flecs.COMPONENT(ecs_world, Anchor);
+        flecs.COMPONENT(ecs_world, AnchorParams);
+        flecs.COMPONENT(ecs_world, ParamEditor(AnchorParams));
+
         flecs.COMPONENT(ecs_world, Rectangle);
         flecs.COMPONENT(ecs_world, RectangleChain);
 
@@ -777,7 +811,7 @@ pub const GameV2 = struct {
         flecs.ADD_SYSTEM(ecs_world, "draw_balls", flecs.OnUpdate, draw_balls);
         flecs.ADD_SYSTEM(ecs_world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
         flecs.ADD_SYSTEM(ecs_world, "draw_anchors", flecs.OnUpdate, draw_anchors);
-        flecs.ADD_SYSTEM(ecs_world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors);
+        flecs.ADD_SYSTEM(ecs_world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangle_chains", flecs.OnUpdate, draw_rectangle_chains);

@@ -166,9 +166,6 @@ pub const Anchor = struct {
     length_joint_id: ?b2.b2JointId,
     attached_body_id: ?b2.b2BodyId,
 
-    params: AnchorParams,
-    params_editor: ParamEditor(AnchorParams),
-
     const Self = @This();
 
     pub fn new(
@@ -185,8 +182,6 @@ pub const Anchor = struct {
             .body_id = body_id,
             .length_joint_id = null,
             .attached_body_id = null,
-            .params = params,
-            .params_editor = ParamEditor(AnchorParams).new(&params),
         };
     }
 
@@ -204,11 +199,6 @@ pub const Anchor = struct {
             b2.b2DestroyJoint(id);
         }
         b2.b2DestroyBody(self.body_id);
-    }
-
-    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
-        self.deinit();
-        self.* = Self.new(world_id, self.params);
     }
 
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
@@ -232,87 +222,6 @@ pub const Anchor = struct {
 
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
-    }
-
-    pub fn update(
-        self: *Self,
-        game: *const Game,
-    ) void {
-        const world_id = game.world_id;
-        const ball_radius = game.level.ball.params.radius;
-        const ball_body_id = game.level.ball.body_id;
-        const mouse_position = game.mouse_position();
-
-        const self_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball_body_id));
-
-        if (rl.IsKeyDown(rl.KEY_SPACE)) {
-            if (self.length_joint_id) |id| {
-                b2.b2DestroyJoint(id);
-                self.length_joint_id = null;
-                self.attached_body_id = null;
-            }
-        } else {
-            if (self.length_joint_id == null) {
-                if (self_position.sub(&ball_position).length() < self.params.radius + ball_radius) {
-                    var joint_def = b2.b2DefaultDistanceJointDef();
-                    joint_def.bodyIdA = self.body_id;
-                    joint_def.bodyIdB = ball_body_id;
-                    joint_def.length = 0.0;
-                    joint_def.minLength = self.params.min_length;
-                    joint_def.maxLength = self.params.max_length;
-                    joint_def.dampingRatio = self.params.damping_ratio;
-                    joint_def.hertz = self.params.hertz;
-
-                    const joint_id = b2.b2CreateDistanceJoint(world_id, &joint_def);
-                    self.length_joint_id = joint_id;
-                    self.attached_body_id = ball_body_id;
-                }
-            } else {
-                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
-                    const to_mouse = mouse_position
-                        .sub(&self_position)
-                        .normalized()
-                        .mul(self.params.pull_force);
-                    b2.b2Body_SetLinearVelocity(ball_body_id, to_mouse.to_b2());
-                }
-            }
-        }
-    }
-
-    pub fn draw(self: *const Self) void {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        rl.DrawCircleV(position.to_rl_as_pos(), self.params.radius, self.params.color);
-
-        if (self.attached_body_id) |id| {
-            const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
-            rl.DrawLineV(
-                position.to_rl_as_pos(),
-                attached_body_position.to_rl_as_pos(),
-                self.params.color,
-            );
-        }
-    }
-
-    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const aabb = AABB.from_b2(b2.b2AABB{
-            .lowerBound = (Vector2{
-                .x = -self.params.radius,
-                .y = -self.params.radius,
-            }).add(&position).to_b2(),
-            .upperBound = (Vector2{
-                .x = self.params.radius,
-                .y = self.params.radius,
-            }).add(&position).to_b2(),
-        });
-
-        const rl_aabb_rect = aabb.to_rl_rect(position);
-        rl.DrawRectangleLinesEx(
-            rl_aabb_rect,
-            AABB_LINE_THICKNESS,
-            color,
-        );
     }
 
     pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
