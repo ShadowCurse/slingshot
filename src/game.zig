@@ -203,6 +203,7 @@ fn check_exit(iter: *flecs.iter_t) void {
 fn draw_main_menu(iter: *flecs.iter_t) void {
     const settings = flecs.singleton_get(iter.world, Settings).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const levels = flecs.singleton_get_mut(iter.world, Levels).?;
 
     if (state_stack.current_state() != .MainMenu) {
         return;
@@ -214,12 +215,15 @@ fn draw_main_menu(iter: *flecs.iter_t) void {
         .width = UI_ELEMENT_WIDTH,
         .height = UI_ELEMENT_HEIGHT,
     };
-    const win_button = rl.GuiButton(
+    const start_button = rl.GuiButton(
         rectangle,
         "Start",
     );
-    if (win_button != 0) {
-        // try self.levels.scan();
+    if (start_button != 0) {
+        levels.scan() catch {
+            state_stack.push_state(.Exit);
+            return;
+        };
         state_stack.push_state(.LevelSelection);
     }
 
@@ -953,8 +957,7 @@ pub const GameV2 = struct {
             .screen_position = Vector2.ZERO,
         });
 
-        var levels = try Levels.init(allocator);
-        try levels.scan();
+        const levels = try Levels.init(allocator);
         _ = flecs.singleton_set(ecs_world, Levels, levels);
         _ = flecs.singleton_set(ecs_world, CurrentLevel, .{});
 
