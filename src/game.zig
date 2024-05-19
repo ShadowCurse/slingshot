@@ -525,19 +525,20 @@ pub fn load_level(iter: *flecs.iter_t) void {
 
     const level_save = &save_state.value;
 
-    const ball_id = flecs.new_id(iter.world);
-    _ = flecs.set(
-        iter.world,
-        ball_id,
-        Ball,
-        Ball.new(physics_world.id, level_save.initial_ball_params),
-    );
-    _ = flecs.set(iter.world, ball_id, BallParams, level_save.initial_ball_params);
-    _ = flecs.set(iter.world, ball_id, ParamEditor(BallParams), ParamEditor(BallParams).new(&level_save.initial_ball_params));
-    _ = flecs.set(iter.world, ball_id, LevelObject, .{ .destruction_order = 1 });
-
     for (level_save.objects) |*obj| {
         switch (obj.*) {
+            .Ball => |r| {
+                const n = flecs.new_id(iter.world);
+                _ = flecs.set(
+                    iter.world,
+                    n,
+                    Ball,
+                    Ball.new(physics_world.id, r),
+                );
+                _ = flecs.set(iter.world, n, BallParams, r);
+                _ = flecs.set(iter.world, n, ParamEditor(BallParams), ParamEditor(BallParams).new(&r));
+                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
+            },
             .Anchor => |r| {
                 const n = flecs.new_id(iter.world);
                 _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, r));
