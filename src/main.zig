@@ -22,11 +22,6 @@ fn emscripten_log(
     std.os.emscripten.emscripten_log(0, &buffer);
 }
 
-fn emscripten_loop() callconv(.C) void {
-    const dt = rl.GetFrameTime();
-    game.run_once(dt);
-}
-
 pub const std_options = if (builtin.os.tag != .emscripten) .{} else std.Options{
     .log_level = .debug,
     .logFn = emscripten_log,
@@ -48,9 +43,5 @@ pub fn main() anyerror!void {
     game = try GameV2.new(allocator);
     defer game.deinit();
 
-    if (builtin.os.tag == .emscripten) {
-        std.os.emscripten.emscripten_set_main_loop(emscripten_loop, -1, 1);
-    } else {
-        game.run();
-    }
+    game.run();
 }

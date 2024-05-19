@@ -22,6 +22,7 @@ emcc \
   -sALLOW_MEMORY_GROWTH=1 \
   -sSTACK_SIZE=1mb \
   -sABORTING_MALLOC=0 \
+  -sASYNCIFY \
   --emrun \
   --embed-file resources@/resources \
   ../zig-out/lib/* \
