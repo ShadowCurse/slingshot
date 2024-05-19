@@ -114,6 +114,15 @@ pub const Ball = struct {
     }
 
     pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
         b2.b2DestroyShape(self.shape_id);
         b2.b2DestroyBody(self.body_id);
     }
@@ -239,6 +248,15 @@ pub const Anchor = struct {
     }
 
     pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
         if (self.length_joint_id) |id| {
             b2.b2DestroyJoint(id);
         }
@@ -427,6 +445,15 @@ pub const Arc = struct {
     }
 
     pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
         for (&self.sub_circles) |*sub_circle| {
             b2.b2DestroyShape(sub_circle.shape_id);
         }
@@ -642,6 +669,15 @@ pub const Rectangle = struct {
     }
 
     pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
         self.rectangle.deinit();
         b2.b2DestroyBody(self.body_id);
     }
@@ -792,6 +828,15 @@ pub const RectangleChain = struct {
     }
 
     pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
         for (self.rectangles.items) |*rectangle| {
             rectangle.deinit();
         }
