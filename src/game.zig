@@ -35,6 +35,7 @@ const Rectangle = objects.Rectangle;
 const RectangleParams = objects.RectangleParams;
 
 const RectangleChain = objects.RectangleChain;
+const RectangleChainParams = objects.RectangleChainParams;
 
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
@@ -645,6 +646,104 @@ pub fn recreate_level(iter: *flecs.iter_t) void {
     }
 }
 
+pub const SaveLevelCtx = struct {
+    allocator: Allocator,
+    ball_query: *flecs.query_t,
+    anchor_query: *flecs.query_t,
+    rectangle_query: *flecs.query_t,
+    rectangle_chain_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn deinit(self: *const Self) callconv(.C) void {
+        self.allocator.destroy(self);
+    }
+};
+pub fn save_level(iter: *flecs.iter_t) void {
+    const allocator = flecs.singleton_get_mut(iter.world, Allocator).?;
+    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+
+    if (!current_level.need_to_save) {
+        return;
+    }
+
+    current_level.need_to_save = false;
+
+    const ctx: *const SaveLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
+
+    var objects_params = std.ArrayList(ObjectParams).init(allocator.*);
+    defer objects_params.deinit();
+
+    const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
+    var ball_iter = flecs.query_iter(iter.world, ball_query);
+    while (flecs.query_next(&ball_iter)) {
+        const ball_params = flecs.field(&ball_iter, BallParams, 1).?;
+        for (ball_params) |*params| {
+            objects_params.append(.{ .Ball = params.* }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
+
+    const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
+    var anchor_iter = flecs.query_iter(iter.world, anchor_query);
+    while (flecs.query_next(&anchor_iter)) {
+        const anchor_params = flecs.field(&anchor_iter, AnchorParams, 1).?;
+        for (anchor_params) |*params| {
+            objects_params.append(.{ .Anchor = params.* }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
+
+    const rectangle_query: *flecs.query_t = @ptrCast(ctx.rectangle_query);
+    var rectangle_iter = flecs.query_iter(iter.world, rectangle_query);
+    while (flecs.query_next(&rectangle_iter)) {
+        const rectangle_params = flecs.field(&rectangle_iter, RectangleParams, 1).?;
+        for (rectangle_params) |*params| {
+            objects_params.append(.{ .Rectangle = params.* }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
+
+    const rectangle_chain_query: *flecs.query_t = @ptrCast(ctx.rectangle_chain_query);
+    var rectangle_chain_iter = flecs.query_iter(iter.world, rectangle_chain_query);
+    while (flecs.query_next(&rectangle_chain_iter)) {
+        const rectangle_chain_params = flecs.field(&rectangle_chain_iter, RectangleChainParams, 1).?;
+        for (rectangle_chain_params) |*params| {
+            objects_params.append(.{ .RectangleChain = params.* }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
+
+    const save_state = LevelSave{
+        .objects = objects_params.items,
+    };
+
+    std.log.debug("Saving level to: {s}", .{DEFAULT_SAVE_PATH});
+
+    var file = std.fs.cwd().createFile(DEFAULT_SAVE_PATH, .{}) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+
+    defer file.close();
+
+    const options = std.json.StringifyOptions{
+        .whitespace = .indent_4,
+    };
+    std.json.stringify(save_state, options, file.writer()) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+}
+
 pub fn process_keys(iter: *flecs.iter_t) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
@@ -884,6 +983,41 @@ pub const GameV2 = struct {
             desc.ctx_free = @ptrCast(&RecreateLevelCtx.deinit);
 
             flecs.SYSTEM(ecs_world, "recreate_level", flecs.OnLoad, &desc);
+        }
+        {
+            var desc = flecs.SYSTEM_DESC(save_level);
+
+            var ball_query: flecs.query_desc_t = .{};
+            ball_query.filter.terms[0].inout = .In;
+            ball_query.filter.terms[0].id = flecs.id(BallParams);
+            const bq = try flecs.query_init(ecs_world, &ball_query);
+
+            var anchor_query: flecs.query_desc_t = .{};
+            anchor_query.filter.terms[0].inout = .In;
+            anchor_query.filter.terms[0].id = flecs.id(AnchorParams);
+            const aq = try flecs.query_init(ecs_world, &anchor_query);
+
+            var rectangle_query: flecs.query_desc_t = .{};
+            rectangle_query.filter.terms[0].inout = .In;
+            rectangle_query.filter.terms[0].id = flecs.id(RectangleParams);
+            const rq = try flecs.query_init(ecs_world, &rectangle_query);
+
+            var rectangle_chain_query: flecs.query_desc_t = .{};
+            rectangle_chain_query.filter.terms[0].inout = .In;
+            rectangle_chain_query.filter.terms[0].id = flecs.id(RectangleChainParams);
+            const rcq = try flecs.query_init(ecs_world, &rectangle_chain_query);
+
+            var s_ctx = try allocator.create(SaveLevelCtx);
+            s_ctx.allocator = allocator;
+            s_ctx.ball_query = bq;
+            s_ctx.anchor_query = aq;
+            s_ctx.rectangle_query = rq;
+            s_ctx.rectangle_chain_query = rcq;
+
+            desc.ctx = s_ctx;
+            desc.ctx_free = @ptrCast(&SaveLevelCtx.deinit);
+
+            flecs.SYSTEM(ecs_world, "save_level", flecs.OnLoad, &desc);
         }
 
         // Game

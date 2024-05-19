@@ -29,13 +29,13 @@ pub const EMSCRIPTEN_LEVEL_NAMES = [_][]const u8{
 
 pub const LevelSave = struct {
     objects: []ObjectParams,
-    initial_ball_params: BallParams,
 };
 
 pub const CurrentLevel = struct {
     path: ?[]const u8 = null,
     need_to_clean: bool = false,
     need_to_restart: bool = false,
+    need_to_save: bool = false,
 };
 
 pub const Levels = struct {
