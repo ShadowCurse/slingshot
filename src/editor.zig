@@ -318,7 +318,7 @@ pub fn ParamEditor(comptime T: type) type {
             return Self{ .inner = inner };
         }
 
-        pub fn deinit(self: *const Self, allocator: Allocator) void {
+        pub fn deinit_with_alloc(self: *const Self, allocator: Allocator) void {
             const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
             inline for (type_fields) |field| {
                 switch (field.type) {

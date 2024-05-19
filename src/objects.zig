@@ -843,7 +843,7 @@ pub const RectangleChain = struct {
         b2.b2DestroyBody(self.body_id);
         self.rectangles.deinit();
         self.params.deinit(self.allocator);
-        self.params_editor.deinit(self.allocator);
+        self.params_editor.deinit_with_alloc(self.allocator);
     }
 
     pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
