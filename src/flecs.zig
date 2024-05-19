@@ -2254,6 +2254,26 @@ extern fn ecs_value_init_w_type_info(world: *const world_t, ti: *const type_info
 pub const progress = ecs_progress;
 extern fn ecs_progress(world: *world_t, delta_time: ftime_t) bool;
 
+pub const ecs_app_init_action_t = *const fn (world: *world_t) callconv(.C) i32;
+
+pub const ecs_app_desc_t = extern struct {
+    target_fps: ftime_t = 0.0,
+    delta_time: ftime_t = 0.0,
+    threads: i32 = 0,
+    frames: i32 = 0,
+    enable_rest: bool = false,
+    enable_monitor: bool = false,
+    port: u16 = 0,
+    init: ?ecs_app_init_action_t = null,
+    ctx: ?*anyopaque = null,
+};
+
+pub const app_run = ecs_app_run;
+extern fn ecs_app_run(world: *world_t, desc: *const ecs_app_desc_t) i32;
+
+pub const app_run_frame = ecs_app_run_frame;
+extern fn ecs_app_run_frame(world: *world_t, desc: *const ecs_app_desc_t) i32;
+
 /// `pub fn set_time_scale(world: *world_t, scale: ftime_t) void`
 pub const set_time_scale = ecs_set_time_scale;
 extern fn ecs_set_time_scale(world: *world_t, scale: ftime_t) void;
