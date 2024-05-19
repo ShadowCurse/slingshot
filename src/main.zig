@@ -3,14 +3,10 @@ const builtin = @import("builtin");
 const rl = @import("raylib.zig");
 const b2 = @import("box2d.zig");
 const Game = @import("game.zig").Game;
+const GameV2 = @import("game.zig").GameV2;
 const _settings = @import("settings.zig");
 const Settings = _settings.Settings;
 const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
-
-const WIDTH = 1280;
-const HEIGHT = 720;
-const TARGET_FPS = 80;
-const BACKGROUND_COLOR = rl.BLACK;
 
 fn emscripten_log(
     comptime message_level: std.log.Level,
@@ -28,15 +24,7 @@ fn emscripten_log(
 
 fn emscripten_loop() callconv(.C) void {
     const dt = rl.GetFrameTime();
-
-    {
-        rl.BeginDrawing();
-        defer rl.EndDrawing();
-        rl.ClearBackground(rl.BLACK);
-
-        game.update(dt) catch unreachable;
-        game.draw() catch unreachable;
-    }
+    game.run_once(dt);
 }
 
 pub const std_options = if (builtin.os.tag != .emscripten) .{} else std.Options{
@@ -50,49 +38,19 @@ pub const os = if (builtin.os.tag != .emscripten) std.os else struct {
     };
 };
 
-var game: Game = undefined;
+var game: GameV2 = undefined;
 
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const settings = try Settings.load(allocator, DEFAULT_SETTINGS_PATH);
-
-    rl.InitWindow(
-        @intCast(settings.resolution_width),
-        @intCast(settings.resolution_height),
-        "Slingshot",
-    );
-    defer rl.CloseWindow();
-
-    rl.SetExitKey(rl.KEY_NULL);
-
-    rl.GuiLoadStyleDefault();
-
-    game = try Game.new(allocator, settings);
+    game = try GameV2.new(allocator);
     defer game.deinit();
 
     if (builtin.os.tag == .emscripten) {
         std.os.emscripten.emscripten_set_main_loop(emscripten_loop, -1, 1);
     } else {
-        rl.SetTargetFPS(TARGET_FPS);
-
-        while (game.state_stack.current_state() != .Exit) {
-            const dt = rl.GetFrameTime();
-
-            {
-                rl.BeginDrawing();
-                defer rl.EndDrawing();
-                rl.ClearBackground(rl.BLACK);
-
-                try game.update(dt);
-                try game.draw();
-            }
-
-            if (rl.WindowShouldClose()) {
-                game.state_stack.push_state(.Exit);
-            }
-        }
+        game.run();
     }
 }

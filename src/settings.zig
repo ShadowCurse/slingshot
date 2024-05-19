@@ -3,6 +3,8 @@ const rl = @import("raylib.zig");
 
 const _game = @import("game.zig");
 const Game = _game.Game;
+const GameCamera = _game.GameCamera;
+const GameStateStack = _game.GameStateStack;
 const UI_ELEMENT_WIDTH = _game.UI_ELEMENT_WIDTH;
 const UI_ELEMENT_HEIGHT = _game.UI_ELEMENT_HEIGHT;
 
@@ -35,8 +37,8 @@ pub const Settings = struct {
     selected_resolution: i32 = 0,
     select_resolution_active: bool = false,
 
-    resolution_width: u32,
-    resolution_height: u32,
+    resolution_width: u32 = 0,
+    resolution_height: u32 = 0,
 
     pub fn update_selected_resolution(self: *Self) void {
         const selected_resolution: usize = @intCast(self.selected_resolution);
@@ -44,7 +46,7 @@ pub const Settings = struct {
         self.resolution_height = Self.RESOLUTIONS[selected_resolution][1];
     }
 
-    pub fn draw(self: *Self, game: *Game) !void {
+    pub fn draw(self: *Self, camera: *GameCamera, state_stack: *GameStateStack) !void {
         var rectangle = rl.Rectangle{
             .x = @as(f32, @floatFromInt(self.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH,
             .y = @as(f32, @floatFromInt(self.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
@@ -75,7 +77,7 @@ pub const Settings = struct {
         );
         if (apply_button != 0) {
             self.update_selected_resolution();
-            game.set_window_size();
+            self.set_window_size(camera);
             try self.save();
         }
 
@@ -85,8 +87,31 @@ pub const Settings = struct {
             "Back",
         );
         if (back_button != 0) {
-            game.state_stack.pop_state();
+            state_stack.pop_state();
         }
+    }
+
+    pub fn set_window_size(self: *Self, camera: *GameCamera) void {
+        const c = rl.Camera2D{
+            .offset = rl.Vector2{
+                .x = @as(f32, @floatFromInt(self.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(self.resolution_height)) / 2.0,
+            },
+            .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+            .rotation = 0.0,
+            .zoom = 1.0,
+        };
+        camera.camera = c;
+        // TODO is there a better workaround?
+        // Currently this is needed, because when
+        // only SetWindowSize is used, the inner viewport
+        // is not resized
+        rl.ToggleFullscreen();
+        rl.ToggleFullscreen();
+        rl.SetWindowSize(
+            @intCast(self.resolution_width),
+            @intCast(self.resolution_height),
+        );
     }
 
     pub fn save(self: *const Self) !void {
