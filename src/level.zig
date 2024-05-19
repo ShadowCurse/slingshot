@@ -35,6 +35,7 @@ pub const LevelSave = struct {
 pub const CurrentLevel = struct {
     path: ?[]const u8 = null,
     need_to_clean: bool = false,
+    need_to_restart: bool = false,
 };
 
 pub const Levels = struct {

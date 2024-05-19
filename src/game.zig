@@ -595,11 +595,58 @@ pub fn clean_level(iter: *flecs.iter_t) void {
     }
 }
 
+pub const RecreateLevelCtx = struct {
+    allocator: Allocator,
+    ball_query: *flecs.query_t,
+    anchor_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn deinit(self: *const Self) callconv(.C) void {
+        self.allocator.destroy(self);
+    }
+};
+pub fn recreate_level(iter: *flecs.iter_t) void {
+    const physics_world = flecs.singleton_get_mut(iter.world, PhysicsWorld).?;
+    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+
+    if (!current_level.need_to_restart) {
+        return;
+    }
+
+    current_level.need_to_restart = false;
+
+    const ctx: *const RecreateLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
+
+    const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
+    var anchor_iter = flecs.query_iter(iter.world, anchor_query);
+    while (flecs.query_next(&anchor_iter)) {
+        const anchors = flecs.field(&anchor_iter, Anchor, 1).?;
+        const anchor_params = flecs.field(&anchor_iter, AnchorParams, 2).?;
+        for (anchors, anchor_params) |*anchor, *params| {
+            anchor.deinit();
+            anchor.* = Anchor.new(physics_world.id, params.*);
+        }
+    }
+
+    const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
+    var ball_iter = flecs.query_iter(iter.world, ball_query);
+    while (flecs.query_next(&ball_iter)) {
+        const balls = flecs.field(&ball_iter, Ball, 1).?;
+        const ball_params = flecs.field(&ball_iter, BallParams, 2).?;
+        for (balls, ball_params) |*ball, *params| {
+            ball.deinit();
+            ball.* = Ball.new(physics_world.id, params.*);
+        }
+    }
+}
+
 pub fn process_keys(iter: *flecs.iter_t) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    // if (rl.IsKeyPressed(rl.KEY_R)) {
-    //     try self.restart();
-    // }
+    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+
+    if (rl.IsKeyPressed(rl.KEY_R)) {
+        current_level.need_to_restart = true;
+    }
 
     if (rl.IsKeyPressed(rl.KEY_ESCAPE)) {
         state_stack.push_state(.Paused);
@@ -805,6 +852,33 @@ pub const GameV2 = struct {
             // No need to clean ctx, query seems to be cleaned automatically.
 
             flecs.SYSTEM(ecs_world, "clean_level", flecs.OnLoad, &desc);
+        }
+        {
+            var desc = flecs.SYSTEM_DESC(recreate_level);
+
+            var ball_query: flecs.query_desc_t = .{};
+            ball_query.filter.terms[0].inout = .InOut;
+            ball_query.filter.terms[0].id = flecs.id(Ball);
+            ball_query.filter.terms[1].inout = .In;
+            ball_query.filter.terms[1].id = flecs.id(BallParams);
+            const bq = try flecs.query_init(ecs_world, &ball_query);
+
+            var anchor_query: flecs.query_desc_t = .{};
+            anchor_query.filter.terms[0].inout = .InOut;
+            anchor_query.filter.terms[0].id = flecs.id(Anchor);
+            anchor_query.filter.terms[1].inout = .In;
+            anchor_query.filter.terms[1].id = flecs.id(AnchorParams);
+            const aq = try flecs.query_init(ecs_world, &anchor_query);
+
+            var rl_ctx = try allocator.create(RecreateLevelCtx);
+            rl_ctx.allocator = allocator;
+            rl_ctx.ball_query = bq;
+            rl_ctx.anchor_query = aq;
+
+            desc.ctx = rl_ctx;
+            desc.ctx_free = @ptrCast(&RecreateLevelCtx.deinit);
+
+            flecs.SYSTEM(ecs_world, "recreate_level", flecs.OnLoad, &desc);
         }
 
         // Game
