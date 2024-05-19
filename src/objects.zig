@@ -77,9 +77,6 @@ pub const Ball = struct {
     shape_id: b2.b2ShapeId,
     circle: b2.b2Circle,
 
-    params: BallParams,
-    params_editor: ParamEditor(BallParams),
-
     const Self = @This();
 
     pub fn new(
@@ -108,8 +105,6 @@ pub const Ball = struct {
             .shape_def = shape_def,
             .shape_id = shape_id,
             .circle = circle,
-            .params = params,
-            .params_editor = ParamEditor(BallParams).new(&params),
         };
     }
 
@@ -125,11 +120,6 @@ pub const Ball = struct {
 
         b2.b2DestroyShape(self.shape_id);
         b2.b2DestroyBody(self.body_id);
-    }
-
-    pub fn recreate(self: *Self, world_id: b2.b2WorldId) void {
-        self.deinit();
-        self.* = Self.new(world_id, self.params);
     }
 
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
@@ -148,53 +138,6 @@ pub const Ball = struct {
 
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
-    }
-
-    pub fn draw(self: *const Self) void {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const max_velocity = 200.0;
-        const velocity = @min(Vector2.from_b2(b2.b2Body_GetLinearVelocity(self.body_id)).length() / max_velocity, 1.0);
-        const color = rl.Color{
-            .r = @as(
-                u8,
-                @intFromFloat(
-                    std.math.lerp(
-                        @as(f32, @floatFromInt(self.params.color.r)),
-                        @as(f32, @floatFromInt(self.params.fast_color.r)),
-                        velocity,
-                    ),
-                ),
-            ),
-            .g = @as(
-                u8,
-                @intFromFloat(
-                    std.math.lerp(
-                        @as(f32, @floatFromInt(self.params.color.g)),
-                        @as(f32, @floatFromInt(self.params.fast_color.g)),
-                        velocity,
-                    ),
-                ),
-            ),
-            .b = @as(
-                u8,
-                @intFromFloat(
-                    std.math.lerp(
-                        @as(f32, @floatFromInt(self.params.color.b)),
-                        @as(f32, @floatFromInt(self.params.fast_color.b)),
-                        velocity,
-                    ),
-                ),
-            ),
-            .a = 255,
-        };
-        rl.DrawCircleV(position.to_rl_as_pos(), self.circle.radius, color);
-    }
-
-    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.shape_id));
-        const rl_aabb_rect = aabb.to_rl_rect(position);
-        rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
     }
 
     pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {

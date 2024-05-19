@@ -16,11 +16,18 @@ const _settings = @import("settings.zig");
 const Settings = _settings.Settings;
 const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 
+const ParamEditor = @import("editor.zig").ParamEditor;
+
 const Object = objects.Object;
 const ObjectParams = objects.ObjectParams;
 const DebugDraw = objects.DebugDraw;
+const AABB = objects.AABB;
+
 const Arc = objects.Arc;
+
 const Ball = objects.Ball;
+const BallParams = objects.BallParams;
+
 const Anchor = objects.Anchor;
 const Rectangle = objects.Rectangle;
 const RectangleChain = objects.RectangleChain;
@@ -30,6 +37,8 @@ const Allocator = std.mem.Allocator;
 
 const TARGET_FPS = 80;
 const BACKGROUND_COLOR = rl.BLACK;
+const AABB_LINE_THICKNESS = 1.5;
+const AABB_COLOR = rl.SKYBLUE;
 
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
@@ -325,9 +334,45 @@ fn draw_win(iter: *flecs.iter_t) void {
     }
 }
 
-fn draw_balls(balls: []const Ball) void {
-    for (balls) |*ball| {
-        ball.draw();
+fn draw_balls(balls: []const Ball, params: []const BallParams) void {
+    for (balls, params) |*ball, *param| {
+        const position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
+        const max_velocity = 200.0;
+        const velocity = @min(Vector2.from_b2(b2.b2Body_GetLinearVelocity(ball.body_id)).length() / max_velocity, 1.0);
+        const color = rl.Color{
+            .r = @as(
+                u8,
+                @intFromFloat(
+                    std.math.lerp(
+                        @as(f32, @floatFromInt(param.color.r)),
+                        @as(f32, @floatFromInt(param.fast_color.r)),
+                        velocity,
+                    ),
+                ),
+            ),
+            .g = @as(
+                u8,
+                @intFromFloat(
+                    std.math.lerp(
+                        @as(f32, @floatFromInt(param.color.g)),
+                        @as(f32, @floatFromInt(param.fast_color.g)),
+                        velocity,
+                    ),
+                ),
+            ),
+            .b = @as(
+                u8,
+                @intFromFloat(
+                    std.math.lerp(
+                        @as(f32, @floatFromInt(param.color.b)),
+                        @as(f32, @floatFromInt(param.fast_color.b)),
+                        velocity,
+                    ),
+                ),
+            ),
+            .a = 255,
+        };
+        rl.DrawCircleV(position.to_rl_as_pos(), ball.circle.radius, color);
     }
 }
 
@@ -335,7 +380,10 @@ fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     if (state_stack.current_state() == .Editor) {
         for (balls) |*ball| {
-            ball.draw_aabb(rl.SKYBLUE);
+            const position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
+            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(ball.shape_id));
+            const rl_aabb_rect = aabb.to_rl_rect(position);
+            rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, AABB_COLOR);
         }
     }
 }
@@ -432,6 +480,8 @@ pub fn load_level(iter: *flecs.iter_t) void {
         Ball,
         Ball.new(physics_world.id, level_save.initial_ball_params),
     );
+    _ = flecs.set(iter.world, ball_id, BallParams, level_save.initial_ball_params);
+    _ = flecs.set(iter.world, ball_id, ParamEditor(BallParams), ParamEditor(BallParams).new(&level_save.initial_ball_params));
     _ = flecs.set(iter.world, ball_id, LevelObject, .{ .destruction_order = 1 });
 
     for (level_save.objects) |*obj| {
@@ -550,7 +600,9 @@ pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
     var ball_iter = flecs.query_iter(iter.world, ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
     const balls = flecs.field(&ball_iter, Ball, 1).?;
+    const ball_params = flecs.field(&ball_iter, BallParams, 2).?;
     const ball = balls[0];
+    const ball_param = ball_params[0];
     std.debug.assert(!flecs.query_next(&ball_iter));
 
     for (anchors) |*anchor| {
@@ -565,7 +617,7 @@ pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor) void {
             }
         } else {
             if (anchor.length_joint_id == null) {
-                if (self_position.sub(&ball_position).length() < anchor.params.radius + ball.params.radius) {
+                if (self_position.sub(&ball_position).length() < anchor.params.radius + ball_param.radius) {
                     var joint_def = b2.b2DefaultDistanceJointDef();
                     joint_def.bodyIdA = anchor.body_id;
                     joint_def.bodyIdB = ball.body_id;
@@ -646,7 +698,11 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, CurrentLevel);
 
         flecs.COMPONENT(ecs_world, LevelObject);
+
         flecs.COMPONENT(ecs_world, Ball);
+        flecs.COMPONENT(ecs_world, BallParams);
+        flecs.COMPONENT(ecs_world, ParamEditor(BallParams));
+
         flecs.COMPONENT(ecs_world, Anchor);
         flecs.COMPONENT(ecs_world, Rectangle);
         flecs.COMPONENT(ecs_world, RectangleChain);
@@ -706,6 +762,8 @@ pub const GameV2 = struct {
             var ball_query: flecs.query_desc_t = .{};
             ball_query.filter.terms[0].id = flecs.id(Ball);
             ball_query.filter.terms[0].inout = .In;
+            ball_query.filter.terms[1].id = flecs.id(BallParams);
+            ball_query.filter.terms[1].inout = .In;
             const q = try flecs.query_init(ecs_world, &ball_query);
             desc.ctx = q;
             // No need to clean ctx, query seems to be cleaned automatically.
