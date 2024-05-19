@@ -32,6 +32,8 @@ const Anchor = objects.Anchor;
 const AnchorParams = objects.AnchorParams;
 
 const Rectangle = objects.Rectangle;
+const RectangleParams = objects.RectangleParams;
+
 const RectangleChain = objects.RectangleChain;
 
 const Vector2 = @import("vector.zig");
@@ -432,9 +434,19 @@ fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor, params: []con
     }
 }
 
-fn draw_rectangles(rectangles: []const Rectangle) void {
-    for (rectangles) |*rect| {
-        rect.draw();
+fn draw_rectangles(rectangles: []const Rectangle, params: []const RectangleParams) void {
+    for (rectangles, params) |*rect, *param| {
+        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rect.body_id));
+        const body_angle = b2.b2Body_GetAngle(rect.body_id);
+        const rl_rect = rect.rectangle.rl_rect(body_position, body_angle);
+        const angle = rect.rectangle.angle + body_angle;
+        // raylib rotates in clock wise order
+        // we negeate degrees to chacnge it to ccw
+        const rl_angle = -(angle / std.math.pi * 180.0);
+        rl.DrawRectanglePro(rl_rect, rl.Vector2{
+            .x = 0.0,
+            .y = 0.0,
+        }, rl_angle, param.color);
     }
 }
 
@@ -442,7 +454,14 @@ fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     if (state_stack.current_state() == .Editor) {
         for (rectangles) |*rectangle| {
-            rectangle.draw_aabb(rl.SKYBLUE);
+            const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rectangle.body_id));
+            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.rectangle.shape_id));
+            const rl_aabb_rect = aabb.to_rl_rect(body_position);
+            rl.DrawRectangleLinesEx(
+                rl_aabb_rect,
+                AABB_LINE_THICKNESS,
+                AABB_COLOR,
+            );
         }
     }
 }
@@ -529,6 +548,8 @@ pub fn load_level(iter: *flecs.iter_t) void {
                     return;
                 };
                 _ = flecs.set(iter.world, n, Rectangle, rectangle);
+                _ = flecs.set(iter.world, n, RectangleParams, r);
+                _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&r));
                 _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
             },
             .RectangleChain => |r| {
@@ -739,6 +760,9 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, ParamEditor(AnchorParams));
 
         flecs.COMPONENT(ecs_world, Rectangle);
+        flecs.COMPONENT(ecs_world, RectangleParams);
+        flecs.COMPONENT(ecs_world, ParamEditor(RectangleParams));
+
         flecs.COMPONENT(ecs_world, RectangleChain);
 
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);

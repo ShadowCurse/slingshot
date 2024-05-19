@@ -484,9 +484,6 @@ pub const Rectangle = struct {
     body_id: b2.b2BodyId,
     rectangle: RectangleShape,
 
-    params: RectangleParams,
-    params_editor: ParamEditor(RectangleParams),
-
     const Self = @This();
 
     pub fn new(
@@ -515,8 +512,6 @@ pub const Rectangle = struct {
             .world_id = world_id,
             .body_id = body_id,
             .rectangle = rectangle,
-            .params = params,
-            .params_editor = ParamEditor(RectangleParams).new(&params),
         };
     }
 
@@ -534,11 +529,6 @@ pub const Rectangle = struct {
         b2.b2DestroyBody(self.body_id);
     }
 
-    pub fn recreate(self: *Self, world_id: b2.b2WorldId) !void {
-        self.deinit();
-        self.* = try Self.new(world_id, self.params);
-    }
-
     pub fn aabb_contains(self: *const Self, point: Vector2) bool {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.rectangle.shape_id));
@@ -551,43 +541,6 @@ pub const Rectangle = struct {
 
         const angle = b2.b2Body_GetAngle(self.body_id);
         b2.b2Body_SetTransform(self.body_id, position.to_b2(), angle);
-    }
-
-    pub fn update(
-        self: *Self,
-        game: *Game,
-        sensor_events: *const SensorEvents,
-    ) void {
-        for (sensor_events.begin_events) |be| {
-            if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(self.rectangle.shape_id))) {
-                game.state_stack.push_state(.Win);
-            }
-        }
-    }
-
-    pub fn draw(self: *const Self) void {
-        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const body_angle = b2.b2Body_GetAngle(self.body_id);
-        const rl_rect = self.rectangle.rl_rect(body_position, body_angle);
-        const angle = self.rectangle.angle + body_angle;
-        // raylib rotates in clock wise order
-        // we negeate degrees to chacnge it to ccw
-        const rl_angle = -(angle / std.math.pi * 180.0);
-        rl.DrawRectanglePro(rl_rect, rl.Vector2{
-            .x = 0.0,
-            .y = 0.0,
-        }, rl_angle, self.params.color);
-    }
-
-    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
-        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(self.rectangle.shape_id));
-        const rl_aabb_rect = aabb.to_rl_rect(body_position);
-        rl.DrawRectangleLinesEx(
-            rl_aabb_rect,
-            AABB_LINE_THICKNESS,
-            color,
-        );
     }
 
     pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) void {
