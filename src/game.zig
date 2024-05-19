@@ -101,7 +101,9 @@ pub const GameStateStack = struct {
     }
 };
 
-pub const LevelObject = struct {};
+pub const LevelObject = struct {
+    destruction_order: usize,
+};
 
 pub const GameCamera = struct {
     camera: rl.Camera2D,
@@ -430,14 +432,14 @@ pub fn load_level(iter: *flecs.iter_t) void {
         Ball,
         Ball.new(physics_world.id, level_save.initial_ball_params),
     );
-    _ = flecs.add(iter.world, ball_id, LevelObject);
+    _ = flecs.set(iter.world, ball_id, LevelObject, .{ .destruction_order = 1 });
 
     for (level_save.objects) |*obj| {
         switch (obj.*) {
             .Anchor => |r| {
                 const n = flecs.new_id(iter.world);
                 _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, r));
-                _ = flecs.add(iter.world, n, LevelObject);
+                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
             },
             .Rectangle => |r| {
                 const n = flecs.new_id(iter.world);
@@ -446,7 +448,7 @@ pub fn load_level(iter: *flecs.iter_t) void {
                     return;
                 };
                 _ = flecs.set(iter.world, n, Rectangle, rectangle);
-                _ = flecs.add(iter.world, n, LevelObject);
+                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
             },
             .RectangleChain => |r| {
                 const c = r.clone(allocator.*) catch {
@@ -462,7 +464,7 @@ pub fn load_level(iter: *flecs.iter_t) void {
 
                 const n = flecs.new_id(iter.world);
                 _ = flecs.set(iter.world, n, RectangleChain, rc);
-                _ = flecs.add(iter.world, n, LevelObject);
+                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
             },
             else => {},
         }
@@ -633,8 +635,6 @@ pub const GameV2 = struct {
 
         const ecs_world = flecs.init();
 
-        flecs.TAG(ecs_world, LevelObject);
-
         flecs.COMPONENT(ecs_world, Allocator);
         flecs.COMPONENT(ecs_world, Settings);
         flecs.COMPONENT(ecs_world, GameStateStack);
@@ -645,6 +645,7 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, Levels);
         flecs.COMPONENT(ecs_world, CurrentLevel);
 
+        flecs.COMPONENT(ecs_world, LevelObject);
         flecs.COMPONENT(ecs_world, Ball);
         flecs.COMPONENT(ecs_world, Anchor);
         flecs.COMPONENT(ecs_world, Rectangle);
@@ -668,8 +669,27 @@ pub const GameV2 = struct {
             var level_objects_query: flecs.query_desc_t = .{};
             level_objects_query.filter.terms[0].inout = .InOutNone;
             level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
+            level_objects_query.order_by_component = flecs.id(LevelObject);
+            const DestructionOrder = struct {
+                fn sort(
+                    e1: flecs.entity_t,
+                    ptr1: *const anyopaque,
+                    e2: flecs.entity_t,
+                    ptr2: *const anyopaque,
+                ) callconv(.C) i32 {
+                    _ = e2;
+                    _ = e1;
+                    const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
+                    const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
+                    return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
+                        @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
+                }
+            };
+            level_objects_query.order_by = &DestructionOrder.sort;
             const q = try flecs.query_init(ecs_world, &level_objects_query);
             desc.ctx = q;
+            // No need to clean ctx, query seems to be cleaned automatically.
+
             flecs.SYSTEM(ecs_world, "clean_level", flecs.OnLoad, &desc);
         }
 
