@@ -767,14 +767,21 @@ pub fn process_keys(iter: *flecs.iter_t) void {
 
 fn update_mouse_pos(iter: *flecs.iter_t) void {
     const game_camera = flecs.singleton_get(iter.world, GameCamera).?;
+    const editor_camera = flecs.singleton_get(iter.world, EditorCamera).?;
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const mouse_pos = flecs.singleton_get_mut(iter.world, MousePosition).?;
+
+    const camera = if (state_stack.current_state() == .Editor)
+        editor_camera.camera
+    else
+        game_camera.camera;
 
     const p = rl.GetMousePosition();
     mouse_pos.screen_position = Vector2.from_rl_pos(p);
     mouse_pos.world_position = Vector2.from_rl_pos(
         rl.GetScreenToWorld2D(
             p,
-            game_camera.camera,
+            camera,
         ),
     );
 }
