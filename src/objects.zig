@@ -166,6 +166,8 @@ pub const Anchor = struct {
     length_joint_id: ?b2.b2JointId,
     attached_body_id: ?b2.b2BodyId,
 
+    radius: f32,
+
     const Self = @This();
 
     pub fn new(
@@ -182,6 +184,7 @@ pub const Anchor = struct {
             .body_id = body_id,
             .length_joint_id = null,
             .attached_body_id = null,
+            .radius = params.radius,
         };
     }
 
@@ -205,12 +208,12 @@ pub const Anchor = struct {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
         const aabb = AABB.from_b2(b2.b2AABB{
             .lowerBound = (Vector2{
-                .x = -self.params.radius,
-                .y = -self.params.radius,
+                .x = -self.radius,
+                .y = -self.radius,
             }).add(&position).to_b2(),
             .upperBound = (Vector2{
-                .x = self.params.radius,
-                .y = self.params.radius,
+                .x = self.radius,
+                .y = self.radius,
             }).add(&position).to_b2(),
         });
         return aabb.contains(position, point);
@@ -698,17 +701,6 @@ pub const RectangleChain = struct {
                 .y = 0.0,
             }, rl_angle, self.params.color);
         }
-    }
-
-    pub fn draw_aabb(self: *const Self, color: rl.Color) void {
-        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(self.body_id));
-        const local_aabb = self.aabb();
-        const rl_aabb_rect = local_aabb.to_rl_rect(body_position);
-        rl.DrawRectangleLinesEx(
-            rl_aabb_rect,
-            AABB_LINE_THICKNESS,
-            color,
-        );
     }
 
     pub fn draw_editor(self: *Self, world_id: b2.b2WorldId) !void {

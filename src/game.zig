@@ -16,7 +16,9 @@ const _settings = @import("settings.zig");
 const Settings = _settings.Settings;
 const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 
-const ParamEditor = @import("editor.zig").ParamEditor;
+const _editor = @import("editor.zig");
+const ParamEditor = _editor.ParamEditor;
+const EDITOR_FLECS_INIT = _editor.FLECS_INIT;
 
 const Object = objects.Object;
 const ObjectParams = objects.ObjectParams;
@@ -385,18 +387,6 @@ fn draw_balls(balls: []const Ball, params: []const BallParams) void {
     }
 }
 
-fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    if (state_stack.current_state() == .Editor) {
-        for (balls) |*ball| {
-            const position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
-            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(ball.shape_id));
-            const rl_aabb_rect = aabb.to_rl_rect(position);
-            rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, AABB_COLOR);
-        }
-    }
-}
-
 fn draw_anchors(anchors: []const Anchor, params: []const AnchorParams) void {
     for (anchors, params) |*anchor, *param| {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
@@ -408,32 +398,6 @@ fn draw_anchors(anchors: []const Anchor, params: []const AnchorParams) void {
                 position.to_rl_as_pos(),
                 attached_body_position.to_rl_as_pos(),
                 param.color,
-            );
-        }
-    }
-}
-
-fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor, params: []const AnchorParams) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    if (state_stack.current_state() == .Editor) {
-        for (anchors, params) |*anchor, *param| {
-            const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
-            const aabb = AABB.from_b2(b2.b2AABB{
-                .lowerBound = (Vector2{
-                    .x = -param.radius,
-                    .y = -param.radius,
-                }).add(&position).to_b2(),
-                .upperBound = (Vector2{
-                    .x = param.radius,
-                    .y = param.radius,
-                }).add(&position).to_b2(),
-            });
-
-            const rl_aabb_rect = aabb.to_rl_rect(position);
-            rl.DrawRectangleLinesEx(
-                rl_aabb_rect,
-                AABB_LINE_THICKNESS,
-                AABB_COLOR,
             );
         }
     }
@@ -455,34 +419,9 @@ fn draw_rectangles(rectangles: []const Rectangle, params: []const RectangleParam
     }
 }
 
-fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    if (state_stack.current_state() == .Editor) {
-        for (rectangles) |*rectangle| {
-            const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rectangle.body_id));
-            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.rectangle.shape_id));
-            const rl_aabb_rect = aabb.to_rl_rect(body_position);
-            rl.DrawRectangleLinesEx(
-                rl_aabb_rect,
-                AABB_LINE_THICKNESS,
-                AABB_COLOR,
-            );
-        }
-    }
-}
-
 fn draw_rectangle_chains(rc: []const RectangleChain) void {
     for (rc) |*r| {
         r.draw();
-    }
-}
-
-fn draw_rectangle_chains_aabb(iter: *flecs.iter_t, rectangle_chains: []const RectangleChain) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    if (state_stack.current_state() == .Editor) {
-        for (rectangle_chains) |*rectangle_chain| {
-            rectangle_chain.draw_aabb(rl.SKYBLUE);
-        }
     }
 }
 
@@ -911,15 +850,12 @@ pub const GameV2 = struct {
 
         flecs.COMPONENT(ecs_world, Ball);
         flecs.COMPONENT(ecs_world, BallParams);
-        flecs.COMPONENT(ecs_world, ParamEditor(BallParams));
 
         flecs.COMPONENT(ecs_world, Anchor);
         flecs.COMPONENT(ecs_world, AnchorParams);
-        flecs.COMPONENT(ecs_world, ParamEditor(AnchorParams));
 
         flecs.COMPONENT(ecs_world, Rectangle);
         flecs.COMPONENT(ecs_world, RectangleParams);
-        flecs.COMPONENT(ecs_world, ParamEditor(RectangleParams));
 
         flecs.COMPONENT(ecs_world, RectangleChain);
 
@@ -1053,13 +989,9 @@ pub const GameV2 = struct {
 
         // Draw all game objects
         flecs.ADD_SYSTEM(ecs_world, "draw_balls", flecs.OnUpdate, draw_balls);
-        flecs.ADD_SYSTEM(ecs_world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
         flecs.ADD_SYSTEM(ecs_world, "draw_anchors", flecs.OnUpdate, draw_anchors);
-        flecs.ADD_SYSTEM(ecs_world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
-        flecs.ADD_SYSTEM(ecs_world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangle_chains", flecs.OnUpdate, draw_rectangle_chains);
-        flecs.ADD_SYSTEM(ecs_world, "draw_rectangle_chains_aabb", flecs.OnUpdate, draw_rectangle_chains_aabb);
 
         flecs.ADD_SYSTEM(ecs_world, "draw_mouse_pos", flecs.OnUpdate, draw_mouse_pos);
 
@@ -1102,6 +1034,8 @@ pub const GameV2 = struct {
         const levels = try Levels.init(allocator);
         _ = flecs.singleton_set(ecs_world, Levels, levels);
         _ = flecs.singleton_set(ecs_world, CurrentLevel, .{});
+
+        try EDITOR_FLECS_INIT(ecs_world, allocator);
 
         return Self{
             .allocator = allocator,
