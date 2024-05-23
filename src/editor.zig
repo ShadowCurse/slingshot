@@ -8,6 +8,7 @@ const Allocator = std.mem.Allocator;
 const _game = @import("game.zig");
 const MousePosition = _game.MousePosition;
 const GameStateStack = _game.GameStateStack;
+const PhysicsWorld = _game.PhysicsWorld;
 
 const _objects = @import("objects.zig");
 const AABB = _objects.AABB;
@@ -488,9 +489,15 @@ fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void
     }
 }
 
-fn draw_editor_ball(iter: *flecs.iter_t, editors: []ParamEditor(BallParams)) void {
+fn draw_editor_ball(
+    iter: *flecs.iter_t,
+    balls: []Ball,
+    params: []BallParams,
+    editors: []ParamEditor(BallParams),
+) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
     if (selected_entity.entity == null) {
         return;
@@ -499,14 +506,28 @@ fn draw_editor_ball(iter: *flecs.iter_t, editors: []ParamEditor(BallParams)) voi
     const selected = selected_entity.entity.?;
     for (iter.entities(), 0..) |e, i| {
         if (e == selected) {
-            _ = editors[i].draw(mouse_pos.screen_position);
+            const b = &balls[i];
+            const p = &params[i];
+            const editor = &editors[i];
+            if (editor.draw(mouse_pos.screen_position)) |new_param| {
+                const new_ball = Ball.new(physics_world.id, new_param);
+                p.* = new_param;
+                b.deinit();
+                b.* = new_ball;
+            }
         }
     }
 }
 
-pub fn draw_editor_anchor(iter: *flecs.iter_t, editors: []ParamEditor(AnchorParams)) void {
+pub fn draw_editor_anchor(
+    iter: *flecs.iter_t,
+    anchors: []Anchor,
+    params: []AnchorParams,
+    editors: []ParamEditor(AnchorParams),
+) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
     if (selected_entity.entity == null) {
         return;
@@ -515,14 +536,28 @@ pub fn draw_editor_anchor(iter: *flecs.iter_t, editors: []ParamEditor(AnchorPara
     const selected = selected_entity.entity.?;
     for (iter.entities(), 0..) |e, i| {
         if (e == selected) {
-            _ = editors[i].draw(mouse_pos.screen_position);
+            const a = &anchors[i];
+            const p = &params[i];
+            const editor = &editors[i];
+            if (editor.draw(mouse_pos.screen_position)) |new_param| {
+                const new_anchor = Anchor.new(physics_world.id, new_param);
+                p.* = new_param;
+                a.deinit();
+                a.* = new_anchor;
+            }
         }
     }
 }
 
-fn draw_editor_rectangle(iter: *flecs.iter_t, editors: []ParamEditor(RectangleParams)) void {
+fn draw_editor_rectangle(
+    iter: *flecs.iter_t,
+    rectangles: []Rectangle,
+    params: []RectangleParams,
+    editors: []ParamEditor(RectangleParams),
+) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
     if (selected_entity.entity == null) {
         return;
@@ -531,7 +566,15 @@ fn draw_editor_rectangle(iter: *flecs.iter_t, editors: []ParamEditor(RectanglePa
     const selected = selected_entity.entity.?;
     for (iter.entities(), 0..) |e, i| {
         if (e == selected) {
-            _ = editors[i].draw(mouse_pos.screen_position);
+            const r = &rectangles[i];
+            const p = &params[i];
+            const editor = &editors[i];
+            if (editor.draw(mouse_pos.screen_position)) |new_param| {
+                const new_rect = Rectangle.new(physics_world.id, new_param) catch return;
+                p.* = new_param;
+                r.deinit();
+                r.* = new_rect;
+            }
         }
     }
 }
