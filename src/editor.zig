@@ -404,6 +404,7 @@ fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
     if (state_stack.current_state() != .Editor) {
         return;
     }
+
     for (iter.entities(), balls) |e, *ball| {
         const position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
         const aabb = AABB.from_b2(b2.b2Shape_GetAABB(ball.shape_id));
@@ -423,36 +424,38 @@ fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
-    if (state_stack.current_state() == .Editor) {
-        for (iter.entities(), anchors) |e, *anchor| {
-            const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
-            const aabb = AABB.from_b2(b2.b2AABB{
-                .lowerBound = (Vector2{
-                    .x = -anchor.radius,
-                    .y = -anchor.radius,
-                }).add(&position).to_b2(),
-                .upperBound = (Vector2{
-                    .x = anchor.radius,
-                    .y = anchor.radius,
-                }).add(&position).to_b2(),
-            });
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
 
-            const rl_aabb_rect = aabb.to_rl_rect(position);
+    for (iter.entities(), anchors) |e, *anchor| {
+        const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
+        const aabb = AABB.from_b2(b2.b2AABB{
+            .lowerBound = (Vector2{
+                .x = -anchor.radius,
+                .y = -anchor.radius,
+            }).add(&position).to_b2(),
+            .upperBound = (Vector2{
+                .x = anchor.radius,
+                .y = anchor.radius,
+            }).add(&position).to_b2(),
+        });
 
-            const color = c: {
-                if (selected_entity.entity) |selected| {
-                    break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
-                } else {
-                    break :c AABB_COLOR;
-                }
-            };
+        const rl_aabb_rect = aabb.to_rl_rect(position);
 
-            rl.DrawRectangleLinesEx(
-                rl_aabb_rect,
-                AABB_LINE_THICKNESS,
-                color,
-            );
-        }
+        const color = c: {
+            if (selected_entity.entity) |selected| {
+                break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
+            } else {
+                break :c AABB_COLOR;
+            }
+        };
+
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
     }
 }
 
@@ -460,26 +463,28 @@ fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
-    if (state_stack.current_state() == .Editor) {
-        for (iter.entities(), rectangles) |e, *rectangle| {
-            const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rectangle.body_id));
-            const aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.rectangle.shape_id));
-            const rl_aabb_rect = aabb.to_rl_rect(body_position);
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
 
-            const color = c: {
-                if (selected_entity.entity) |selected| {
-                    break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
-                } else {
-                    break :c AABB_COLOR;
-                }
-            };
+    for (iter.entities(), rectangles) |e, *rectangle| {
+        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rectangle.body_id));
+        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.rectangle.shape_id));
+        const rl_aabb_rect = aabb.to_rl_rect(body_position);
 
-            rl.DrawRectangleLinesEx(
-                rl_aabb_rect,
-                AABB_LINE_THICKNESS,
-                color,
-            );
-        }
+        const color = c: {
+            if (selected_entity.entity) |selected| {
+                break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
+            } else {
+                break :c AABB_COLOR;
+            }
+        };
+
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
     }
 }
 
