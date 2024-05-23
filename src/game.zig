@@ -36,9 +36,6 @@ const AnchorParams = objects.AnchorParams;
 const Rectangle = objects.Rectangle;
 const RectangleParams = objects.RectangleParams;
 
-const RectangleChain = objects.RectangleChain;
-const RectangleChainParams = objects.RectangleChainParams;
-
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
@@ -419,12 +416,6 @@ fn draw_rectangles(rectangles: []const Rectangle, params: []const RectangleParam
     }
 }
 
-fn draw_rectangle_chains(rc: []const RectangleChain) void {
-    for (rc) |*r| {
-        r.draw();
-    }
-}
-
 fn draw_mouse_pos(iter: *flecs.iter_t) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     rl.DrawCircleV(mouse_pos.world_position.to_rl_as_pos(), 2.0, rl.YELLOW);
@@ -495,22 +486,6 @@ pub fn load_level(iter: *flecs.iter_t) void {
                 _ = flecs.set(iter.world, n, Rectangle, rectangle);
                 _ = flecs.set(iter.world, n, RectangleParams, r);
                 _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&r));
-                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
-            },
-            .RectangleChain => |r| {
-                const c = r.clone(allocator.*) catch {
-                    state_stack.push_state(.Exit);
-                    return;
-                };
-
-                const rc = RectangleChain.new(physics_world.id, allocator.*, c) catch {
-                    c.deinit(allocator.*);
-                    state_stack.push_state(.Exit);
-                    return;
-                };
-
-                const n = flecs.new_id(iter.world);
-                _ = flecs.set(iter.world, n, RectangleChain, rc);
                 _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
             },
             else => {},
@@ -590,7 +565,6 @@ pub const SaveLevelCtx = struct {
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
     rectangle_query: *flecs.query_t,
-    rectangle_chain_query: *flecs.query_t,
 
     const Self = @This();
     pub fn deinit(self: *const Self) callconv(.C) void {
@@ -643,18 +617,6 @@ pub fn save_level(iter: *flecs.iter_t) void {
         const rectangle_params = flecs.field(&rectangle_iter, RectangleParams, 1).?;
         for (rectangle_params) |*params| {
             objects_params.append(.{ .Rectangle = params.* }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const rectangle_chain_query: *flecs.query_t = @ptrCast(ctx.rectangle_chain_query);
-    var rectangle_chain_iter = flecs.query_iter(iter.world, rectangle_chain_query);
-    while (flecs.query_next(&rectangle_chain_iter)) {
-        const rectangle_chain_params = flecs.field(&rectangle_chain_iter, RectangleChainParams, 1).?;
-        for (rectangle_chain_params) |*params| {
-            objects_params.append(.{ .RectangleChain = params.* }) catch {
                 state_stack.push_state(.Exit);
                 return;
             };
@@ -857,8 +819,6 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, Rectangle);
         flecs.COMPONENT(ecs_world, RectangleParams);
 
-        flecs.COMPONENT(ecs_world, RectangleChain);
-
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
 
         flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.PreFrame, draw_start);
@@ -945,17 +905,11 @@ pub const GameV2 = struct {
             rectangle_query.filter.terms[0].id = flecs.id(RectangleParams);
             const rq = try flecs.query_init(ecs_world, &rectangle_query);
 
-            var rectangle_chain_query: flecs.query_desc_t = .{};
-            rectangle_chain_query.filter.terms[0].inout = .In;
-            rectangle_chain_query.filter.terms[0].id = flecs.id(RectangleChainParams);
-            const rcq = try flecs.query_init(ecs_world, &rectangle_chain_query);
-
             var s_ctx = try allocator.create(SaveLevelCtx);
             s_ctx.allocator = allocator;
             s_ctx.ball_query = bq;
             s_ctx.anchor_query = aq;
             s_ctx.rectangle_query = rq;
-            s_ctx.rectangle_chain_query = rcq;
 
             desc.ctx = s_ctx;
             desc.ctx_free = @ptrCast(&SaveLevelCtx.deinit);
@@ -991,7 +945,6 @@ pub const GameV2 = struct {
         flecs.ADD_SYSTEM(ecs_world, "draw_balls", flecs.OnUpdate, draw_balls);
         flecs.ADD_SYSTEM(ecs_world, "draw_anchors", flecs.OnUpdate, draw_anchors);
         flecs.ADD_SYSTEM(ecs_world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
-        flecs.ADD_SYSTEM(ecs_world, "draw_rectangle_chains", flecs.OnUpdate, draw_rectangle_chains);
 
         flecs.ADD_SYSTEM(ecs_world, "draw_mouse_pos", flecs.OnUpdate, draw_mouse_pos);
 

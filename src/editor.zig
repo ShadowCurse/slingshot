@@ -21,9 +21,6 @@ const AnchorParams = _objects.AnchorParams;
 const Rectangle = _objects.Rectangle;
 const RectangleParams = _objects.RectangleParams;
 
-const RectangleChain = _objects.RectangleChain;
-const RectangleChainParams = _objects.RectangleChainParams;
-
 const EDITOR_HEIGHT: f32 = 50.0;
 const LABEL_WIDTH: f32 = 50.0;
 const TEXT_BOX_WIDTH: f32 = 70.0;
@@ -640,32 +637,6 @@ fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void
     }
 }
 
-fn draw_rectangle_chains_aabb(iter: *flecs.iter_t, rectangle_chains: []const RectangleChain) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
-    if (state_stack.current_state() == .Editor) {
-        for (iter.entities(), rectangle_chains) |e, *rectangle_chain| {
-            const color = c: {
-                if (selected_entity.entity) |selected| {
-                    break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
-                } else {
-                    break :c AABB_COLOR;
-                }
-            };
-
-            const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rectangle_chain.body_id));
-            const local_aabb = rectangle_chain.aabb();
-            const rl_aabb_rect = local_aabb.to_rl_rect(body_position);
-            rl.DrawRectangleLinesEx(
-                rl_aabb_rect,
-                AABB_LINE_THICKNESS,
-                color,
-            );
-        }
-    }
-}
-
 fn draw_editor_ball(iter: *flecs.iter_t, editors: []ParamEditor(BallParams)) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
@@ -725,7 +696,6 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
     flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
     flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
-    flecs.ADD_SYSTEM(world, "draw_rectangle_chains_aabb", flecs.OnUpdate, draw_rectangle_chains_aabb);
 
     {
         var desc = flecs.SYSTEM_DESC(select_entity);
