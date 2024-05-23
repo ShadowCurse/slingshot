@@ -1,24 +1,26 @@
 {
-    "initial_ball_params": {
-        "position": {
-            "x": 0.0e+00,
-            "y": 1.0e+02
-        },
-        "radius": 1.0e+01,
-        "color": {
-            "r": 255,
-            "g": 255,
-            "b": 255,
-            "a": 255
-        },
-        "fast_color": {
-            "r": 255,
-            "g": 203,
-            "b": 0,
-            "a": 255
-        }
-    },
     "objects": [
+        {
+            "Ball": {
+                "position": {
+                    "x": 0.0e+00,
+                    "y": 1.0e+02
+                },
+                "radius": 1.0e+01,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                },
+                "fast_color": {
+                    "r": 255,
+                    "g": 203,
+                    "b": 0,
+                    "a": 255
+                }
+            }
+        },
         {
             "Anchor": {
                 "position": {
@@ -118,27 +120,23 @@
             }
         },
         {
-            "RectangleChain": {
+            "Rectangle": {
                 "position": {
                     "x": -2.0e+01,
                     "y": 0.0e+00
                 },
-                "points": [
-                    {
-                        "x": -2.8e+02,
-                        "y": 1.5e+02
-                    },
-                    {
-                        "x": 0.0e+00,
-                        "y": 0.0e+00
-                    },
-                    {
-                        "x": 0.0e+00,
-                        "y": -3.0e+02
-                    }
-                ],
+                "point_1": {
+                    "x": -2.8e+02,
+                    "y": 1.5e+02
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": 0.0e+00
+                },
                 "width": 1.0e+01,
-                "height_offset": 3.0e+00,
+                "height_offset": 0.3e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
                 "color": {
                     "r": 255,
                     "g": 255,
@@ -148,27 +146,75 @@
             }
         },
         {
-            "RectangleChain": {
+            "Rectangle": {
+                "position": {
+                    "x": -2.0e+01,
+                    "y": 0.0e+00
+                },
+                "point_1": {
+                    "x": 0.0e+00,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": -3.0e+02
+                },
+                "width": 1.0e+01,
+                "height_offset": 0.3e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
                 "position": {
                     "x": 2.0e+01,
                     "y": 0.0e+00
                 },
-                "points": [
-                    {
-                        "x": 2.8e+02,
-                        "y": 1.5e+02
-                    },
-                    {
-                        "x": 0.0e+00,
-                        "y": 0.0e+00
-                    },
-                    {
-                        "x": 0.0e+00,
-                        "y": -3.0e+02
-                    }
-                ],
+                "point_1": {
+                    "x": 2.8e+02,
+                    "y": 1.5e+02
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": 0.0e+00
+                },
                 "width": 1.0e+01,
-                "height_offset": 3.0e+00,
+                "height_offset": 0.3e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                }
+            }
+        },
+        {
+            "Rectangle": {
+                "position": {
+                    "x": 2.0e+01,
+                    "y": 0.0e+00
+                },
+                "point_1": {
+                    "x": 0.0e+00,
+                    "y": 0.0e+00
+                },
+                "point_2": {
+                    "x": 0.0e+00,
+                    "y": -3.0e+02
+                },
+                "width": 1.0e+01,
+                "height_offset": 0.3e+01,
+                "restitution": 0.0e+00,
+                "is_sensor": false,
                 "color": {
                     "r": 255,
                     "g": 255,
