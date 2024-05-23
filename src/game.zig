@@ -114,6 +114,8 @@ pub const GameStateStack = struct {
     }
 };
 
+pub const WinTarget = struct {};
+
 pub const LevelObject = struct {
     destruction_order: usize,
 };
@@ -320,7 +322,8 @@ pub fn draw_paused(iter: *flecs.iter_t) void {
 
 fn draw_win(iter: *flecs.iter_t) void {
     const settings = flecs.singleton_get(iter.world, Settings).?;
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
 
     if (state_stack.current_state() != .Win) {
         return;
@@ -337,8 +340,10 @@ fn draw_win(iter: *flecs.iter_t) void {
         "You won",
     );
     if (win_button != 0) {
-        std.log.info("Need to restart level", .{});
-        // try self.restart();
+        state_stack.pop_state();
+        state_stack.pop_state();
+        state_stack.pop_state();
+        current_level.need_to_clean = true;
     }
 }
 
@@ -487,6 +492,10 @@ pub fn load_level(iter: *flecs.iter_t) void {
                 _ = flecs.set(iter.world, n, RectangleParams, r);
                 _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&r));
                 _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
+
+                if (r.is_sensor) {
+                    _ = flecs.add(iter.world, n, WinTarget);
+                }
             },
             else => {},
         }
@@ -689,13 +698,15 @@ fn update_mouse_pos(iter: *flecs.iter_t) void {
 
 pub fn update_physics(iter: *flecs.iter_t) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const sensor_events = flecs.singleton_get_mut(iter.world, SensorEvents).?;
+    const physics_world = flecs.singleton_get_mut(iter.world, PhysicsWorld).?;
 
     if (state_stack.current_state() != .Running) {
         return;
     }
 
-    const physics_world = flecs.singleton_get_mut(iter.world, PhysicsWorld).?;
     b2.b2World_Step(physics_world.id, iter.delta_time, 4);
+    sensor_events.* = SensorEvents.new(physics_world.id);
 }
 
 pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor, anchor_params: []const AnchorParams) void {
@@ -755,6 +766,25 @@ pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor, anchor_params: []co
     }
 }
 
+pub fn check_win_contidion(iter: *flecs.iter_t) void {
+    const sensor_events = flecs.singleton_get(iter.world, SensorEvents).?;
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+
+    if (state_stack.current_state() == .Win) {
+        return;
+    }
+
+    const rectangles = flecs.field(iter, Rectangle, 1).?;
+
+    for (rectangles) |r| {
+        for (sensor_events.begin_events) |be| {
+            if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(r.rectangle.shape_id))) {
+                state_stack.push_state(.Win);
+            }
+        }
+    }
+}
+
 pub fn update_game_camera(iter: *flecs.iter_t, balls: []const Ball) void {
     const game_camera = flecs.singleton_get_mut(iter.world, GameCamera).?;
 
@@ -798,9 +828,12 @@ pub const GameV2 = struct {
 
         const ecs_world = flecs.init();
 
+        flecs.TAG(ecs_world, WinTarget);
+
         flecs.COMPONENT(ecs_world, Allocator);
         flecs.COMPONENT(ecs_world, Settings);
         flecs.COMPONENT(ecs_world, GameStateStack);
+        flecs.COMPONENT(ecs_world, SensorEvents);
         flecs.COMPONENT(ecs_world, GameCamera);
         flecs.COMPONENT(ecs_world, EditorCamera);
         flecs.COMPONENT(ecs_world, PhysicsWorld);
@@ -939,6 +972,15 @@ pub const GameV2 = struct {
             flecs.SYSTEM(ecs_world, "update_anchor", flecs.PreUpdate, &desc);
         }
 
+        {
+            var desc = flecs.SYSTEM_DESC(check_win_contidion);
+            desc.query.filter.terms[0].id = flecs.id(Rectangle);
+            desc.query.filter.terms[0].inout = .In;
+            desc.query.filter.terms[1].id = flecs.id(WinTarget);
+            desc.query.filter.terms[1].inout = .In;
+            flecs.SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, &desc);
+        }
+
         flecs.ADD_SYSTEM(ecs_world, "draw_game_start", flecs.PreUpdate, draw_game_start);
 
         // Draw all game objects
@@ -968,6 +1010,9 @@ pub const GameV2 = struct {
 
         const state_stack = GameStateStack.new(.MainMenu);
         _ = flecs.singleton_set(ecs_world, GameStateStack, state_stack);
+
+        const sensor_events = SensorEvents.new(physics_world);
+        _ = flecs.singleton_set(ecs_world, SensorEvents, sensor_events);
 
         const camera = rl.Camera2D{
             .offset = rl.Vector2{ .x = 0.0, .y = 0.0 },
