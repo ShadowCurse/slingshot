@@ -1,6 +1,3 @@
-[submodule "box2c"]
-	path = box2c
-	url = https://github.com/erincatto/box2c
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/raysan5/raylib
@@ -10,3 +7,6 @@
 [submodule "flecs"]
 	path = flecs
 	url = https://github.com/SanderMertens/flecs
+[submodule "box2c"]
+	path = box2c
+	url = https://github.com/erincatto/box2c
