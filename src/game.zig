@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const rl = @import("raylib.zig");
+const imgui = @import("imgui.zig");
 const b2 = @import("box2d.zig");
 const flecs = @import("flecs.zig");
 const objects = @import("objects.zig");
@@ -158,16 +159,19 @@ fn initial_setup(iter: *flecs.iter_t) void {
     rl.SetExitKey(rl.KEY_NULL);
     rl.GuiLoadStyleDefault();
     rl.SetTargetFPS(TARGET_FPS);
+    imgui.rlImGuiSetup(true);
 }
 
 fn draw_start(iter: *flecs.iter_t) void {
     _ = iter;
     rl.BeginDrawing();
     rl.ClearBackground(BACKGROUND_COLOR);
+    imgui.rlImGuiBegin();
 }
 
 fn draw_end(iter: *flecs.iter_t) void {
     _ = iter;
+    imgui.rlImGuiEnd();
     rl.EndDrawing();
 }
 
@@ -1045,6 +1049,7 @@ pub const GameV2 = struct {
     pub fn deinit(self: *Self) void {
         _ = flecs.fini(self.ecs_world);
         b2.b2DestroyWorld(self.physics_world);
+        imgui.rlImGuiShutdown();
     }
 
     pub fn run(self: *Self) void {

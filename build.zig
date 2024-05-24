@@ -16,6 +16,30 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    var env = std.process.getEnvMap(std.heap.page_allocator) catch |err| std.debug.panic("getEnvMap error: {any}", .{err});
+    defer env.deinit();
+
+    const imgui = b.addStaticLibrary(.{
+        .name = "imgui",
+        .target = target,
+        .optimize = optimize,
+    });
+    imgui.addIncludePath(.{ .path = "imgui" });
+    imgui.addIncludePath(.{ .path = "raylib/src/external/glfw/include" });
+    imgui.addIncludePath(.{ .path = env.get("INCLUDE_GL").? });
+    imgui.addCSourceFiles(.{
+        .files = &.{
+            "imgui/imgui.cpp",
+            "imgui/imgui_widgets.cpp",
+            "imgui/imgui_tables.cpp",
+            "imgui/imgui_draw.cpp",
+            "imgui/imgui_demo.cpp",
+            "imgui/backends/imgui_impl_glfw.cpp",
+        },
+        .flags = &.{},
+    });
+    imgui.linkLibCpp();
+
     const raylib_build = @import("raylib/src/build.zig");
     const raylib = raylib_build.addRaylib(
         b,
@@ -26,6 +50,21 @@ pub fn build(b: *std.Build) void {
             .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
+
+    const rl_imgui = b.addStaticLibrary(.{
+        .name = "rl_imgui",
+        .target = target,
+        .optimize = optimize,
+    });
+    rl_imgui.addIncludePath(.{ .path = "rlImGui" });
+    rl_imgui.addIncludePath(.{ .path = "raylib/src" });
+    rl_imgui.addIncludePath(.{ .path = "imgui" });
+    rl_imgui.addIncludePath(.{ .path = env.get("INCLUDE_CXX").? });
+    rl_imgui.addCSourceFile(.{
+        .file = .{ .path = "rlImGui/rlImGui.cpp" },
+        .flags = &.{},
+    });
+    rl_imgui.linkLibC();
 
     const box2c = b.addStaticLibrary(.{
         .name = "box2c",
@@ -144,9 +183,14 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         });
 
+        exe.linkLibrary(imgui);
+
         exe.addIncludePath(.{ .path = "raylib/src" });
         exe.addIncludePath(.{ .path = "raygui/src" });
         exe.linkLibrary(raylib);
+
+        exe.addIncludePath(.{ .path = "rlImGui" });
+        exe.linkLibrary(rl_imgui);
 
         exe.addIncludePath(.{ .path = "box2c/include" });
         exe.linkLibrary(box2c);
