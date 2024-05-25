@@ -167,8 +167,6 @@ fn draw_start(iter: *flecs.iter_t) void {
     rl.BeginDrawing();
     rl.ClearBackground(BACKGROUND_COLOR);
     imgui.rlImGuiBegin();
-    var b: bool = true;
-    imgui.igShowDemoWindow(&b);
 }
 
 fn draw_end(iter: *flecs.iter_t) void {
