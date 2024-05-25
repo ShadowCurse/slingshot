@@ -1,5 +1,6 @@
 const std = @import("std");
 const rl = @import("raylib.zig");
+const imgui = @import("imgui.zig");
 const b2 = @import("box2d.zig");
 const flecs = @import("flecs.zig");
 const Vector2 = @import("vector.zig");
@@ -36,53 +37,18 @@ pub const SelectedEntity = struct {
 };
 
 pub const EditorBool = struct {
-    text_buffer: [Self.TEXT_LEN:0]u8 = .{0} ** Self.TEXT_LEN,
     state: bool,
 
     const Self = @This();
-    const TEXT_LEN: u32 = 8;
-    const HEIGHT: f32 = EDITOR_HEIGHT;
-    const WIDTH: f32 = LABEL_WIDTH + TEXT_BOX_WIDTH;
 
     pub fn new(value: *const bool) Self {
-        var text_buffer: [Self.TEXT_LEN:0]u8 = .{0} ** Self.TEXT_LEN;
-        _ = std.fmt.bufPrintZ(&text_buffer, "{}", .{value.*}) catch unreachable;
         return Self{
-            .text_buffer = text_buffer,
             .state = value.*,
         };
     }
 
-    pub fn draw(self: *Self, label: [:0]const u8, position: Vector2, mouse_position: Vector2) bool {
-        _ = mouse_position;
-        const rl_position = position.to_rl_as_pos();
-
-        const label_rect = rl.Rectangle{
-            .x = rl_position.x,
-            .y = rl_position.y,
-            .width = LABEL_WIDTH,
-            .height = EDITOR_HEIGHT,
-        };
-        _ = rl.GuiLabel(
-            label_rect,
-            label.ptr,
-        );
-
-        const switch_state = rl.GuiButton(
-            rl.Rectangle{
-                .x = rl_position.x,
-                .y = rl_position.y,
-                .width = Self.WIDTH,
-                .height = EDITOR_HEIGHT,
-            },
-            &self.text_buffer,
-        );
-
-        if (switch_state == 1) {
-            self.state = !self.state;
-        }
-
-        return switch_state == 1;
+    pub fn draw(self: *Self, label: [:0]const u8) bool {
+        return imgui.igCheckbox(label, &self.state);
     }
 
     pub fn get_value(self: *const Self) ?bool {
@@ -91,149 +57,102 @@ pub const EditorBool = struct {
 };
 
 pub const EditorF32 = struct {
-    text_buffer: [Self.TEXT_LEN]u8 = .{0} ** Self.TEXT_LEN,
+    state: f32,
+
+    const STEP: f32 = 0.01;
+    const MIN: f32 = -1000.0;
+    const MAX: f32 = 1000.0;
+    const FORMAT: [:0]const u8 = "%.3f";
 
     const Self = @This();
-    const TEXT_LEN: u32 = 8;
-    const HEIGHT: f32 = EDITOR_HEIGHT;
-    const WIDTH: f32 = LABEL_WIDTH + TEXT_BOX_WIDTH;
 
     pub fn new(value: *const f32) Self {
-        var text_buffer: [Self.TEXT_LEN]u8 = .{0} ** Self.TEXT_LEN;
-        _ = std.fmt.bufPrint(&text_buffer, "{d:.1}", .{value.*}) catch unreachable;
         return Self{
-            .text_buffer = text_buffer,
+            .state = value.*,
         };
     }
 
-    pub fn draw(self: *Self, label: [:0]const u8, position: Vector2, mouse_position: Vector2) bool {
-        const rl_position = position.to_rl_as_pos();
-        const rl_mouse_position = mouse_position.to_rl_as_pos();
-
-        const label_rect = rl.Rectangle{
-            .x = rl_position.x,
-            .y = rl_position.y,
-            .width = LABEL_WIDTH,
-            .height = EDITOR_HEIGHT,
-        };
-        _ = rl.GuiLabel(
-            label_rect,
-            label.ptr,
+    pub fn draw(self: *Self, label: [:0]const u8) bool {
+        return imgui.igDragFloat(
+            label,
+            &self.state,
+            Self.STEP,
+            Self.MIN,
+            Self.MAX,
+            Self.FORMAT,
+            0,
         );
-
-        const text_box_rect =
-            rl.Rectangle{
-            .x = rl_position.x + LABEL_WIDTH,
-            .y = rl_position.y,
-            .width = TEXT_BOX_WIDTH,
-            .height = EDITOR_HEIGHT,
-        };
-        const editable = rl.CheckCollisionPointRec(rl_mouse_position, text_box_rect);
-        const interacted = rl.GuiTextBox(
-            text_box_rect,
-            &self.text_buffer,
-            self.text_buffer.len,
-            editable,
-        );
-        return interacted == 1;
     }
 
     pub fn get_value(self: *const Self) ?f32 {
-        const s = std.mem.sliceTo(&self.text_buffer, 0);
-        const value = std.fmt.parseFloat(f32, s) catch |err| {
-            std.log.info("invalid width: {s}, err: {}", .{ s, err });
-            return null;
-        };
-        return value;
+        return self.state;
     }
 };
 
 pub const EditorVector2 = struct {
-    x_editor: EditorF32,
-    y_editor: EditorF32,
+    state: [2]f32,
+
+    const STEP: f32 = 0.01;
+    const MIN: f32 = -1000.0;
+    const MAX: f32 = 1000.0;
+    const FORMAT: [:0]const u8 = "%.3f";
 
     const Self = @This();
-    const HEIGHT: f32 = EditorF32.HEIGHT * 3.0;
-    const WIDTH: f32 = EditorF32.WIDTH;
 
-    pub fn new(vector: *const Vector2) Self {
+    pub fn new(value: *const Vector2) Self {
         return Self{
-            .x_editor = EditorF32.new(&vector.x),
-            .y_editor = EditorF32.new(&vector.y),
+            .state = .{ value.x, value.y },
         };
     }
 
-    pub fn draw(self: *Self, label: [:0]const u8, position: Vector2, mouse_position: Vector2) bool {
-        const rl_position = position.to_rl_as_pos();
-        _ = rl.GuiLabel(
-            rl.Rectangle{
-                .x = rl_position.x,
-                .y = rl_position.y,
-                .width = EditorF32.WIDTH,
-                .height = EDITOR_HEIGHT,
-            },
-            label.ptr,
+    pub fn draw(self: *Self, label: [:0]const u8) bool {
+        return imgui.igDragFloat2(
+            label,
+            &self.state,
+            Self.STEP,
+            Self.MIN,
+            Self.MAX,
+            Self.FORMAT,
+            0,
         );
-        return self.x_editor.draw("x", position.sub(&Vector2{ .x = 0.0, .y = EditorF32.HEIGHT }), mouse_position) or
-            self.y_editor.draw("y", position.sub(&Vector2{ .x = 0.0, .y = EditorF32.HEIGHT * 2.0 }), mouse_position);
     }
 
     pub fn get_value(self: *const Self) ?Vector2 {
-        const x = self.x_editor.get_value() orelse return null;
-        const y = self.y_editor.get_value() orelse return null;
-        return Vector2{ .x = x, .y = y };
+        return Vector2{ .x = self.state[0], .y = self.state[1] };
     }
 };
 
 pub const EditorColor = struct {
-    color: rl.Color = rl.WHITE,
+    state: [4]f32,
 
     const Self = @This();
-    const HEIGHT: f32 = EDITOR_HEIGHT * 2.0;
-    const WIDTH: f32 = LABEL_WIDTH + COLOR_PICKER_WIDTH;
 
-    pub fn new(color: *const rl.Color) Self {
+    pub fn new(value: *const rl.Color) Self {
         return Self{
-            .color = color.*,
+            .state = .{
+                @as(f32, @floatFromInt(value.r)) / 255.0,
+                @as(f32, @floatFromInt(value.g)) / 255.0,
+                @as(f32, @floatFromInt(value.b)) / 255.0,
+                @as(f32, @floatFromInt(value.a)) / 255.0,
+            },
         };
     }
 
-    pub fn draw(self: *Self, label: [:0]const u8, position: Vector2, mouse_position: Vector2) bool {
-        _ = mouse_position;
-        const rl_position = position.to_rl_as_pos();
-        _ = rl.GuiLabel(
-            rl.Rectangle{
-                .x = rl_position.x,
-                .y = rl_position.y,
-                .width = LABEL_WIDTH,
-                .height = EDITOR_HEIGHT,
-            },
-            label.ptr,
+    pub fn draw(self: *Self, label: [:0]const u8) bool {
+        return imgui.igColorEdit4(
+            label,
+            &self.state,
+            0,
         );
-        _ = rl.GuiColorPicker(
-            rl.Rectangle{
-                .x = rl_position.x + LABEL_WIDTH,
-                .y = rl_position.y,
-                .width = COLOR_PICKER_WIDTH,
-                .height = EDITOR_HEIGHT,
-            },
-            label.ptr,
-            &self.color,
-        );
-        const interacted = rl.GuiButton(
-            rl.Rectangle{
-                .x = rl_position.x,
-                .y = rl_position.y + EDITOR_HEIGHT,
-                .width = Self.WIDTH,
-                .height = EDITOR_HEIGHT,
-            },
-            "Apply",
-        );
-        return interacted == 1;
     }
 
     pub fn get_value(self: *const Self) ?rl.Color {
-        return self.color;
+        return rl.Color{
+            .r = @intFromFloat(self.state[0] * 255.0),
+            .g = @intFromFloat(self.state[1] * 255.0),
+            .b = @intFromFloat(self.state[2] * 255.0),
+            .a = @intFromFloat(self.state[3] * 255.0),
+        };
     }
 };
 
@@ -252,21 +171,26 @@ pub fn ParamEditor(comptime T: type) type {
             return Self{ .inner = inner };
         }
 
-        pub fn draw(self: *Self, mouse_position: Vector2) ?T {
+        pub fn draw(self: *Self) ?T {
+            const type_name = @typeName(T);
             const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
-            var p = Vector2.ZERO;
             var interacted = false;
-            inline for (type_fields) |field| {
-                // converts []const u8 that @typeInfo contains to [:0]const u8 for raylib
-                const field_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{field.name});
-                interacted = interacted or field.type.draw(&@field(self.inner, field.name), field_name, p, mouse_position);
-                p.y -= field.type.HEIGHT;
+            var open = true;
+            if (imgui.igBegin(type_name, &open, 0)) {
+                defer imgui.igEnd();
+
+                inline for (type_fields) |field| {
+                    // converts []const u8 that @typeInfo contains to [:0]const u8 for imgui
+                    const field_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{field.name});
+                    interacted = interacted or field.type.draw(&@field(self.inner, field.name), field_name);
+                }
+                if (interacted) {
+                    return self.get_value();
+                } else {
+                    return null;
+                }
             }
-            if (interacted) {
-                return self.get_value();
-            } else {
-                return null;
-            }
+            return null;
         }
 
         pub fn get_value(self: *const Self) ?T {
@@ -318,7 +242,7 @@ fn ParamEditorInner(comptime T: type) type {
                     .type = EditorVector2,
                     .default_value = null,
                     .is_comptime = false,
-                    .alignment = @alignOf(EditorColor),
+                    .alignment = @alignOf(EditorVector2),
                 };
             },
             else => {},
@@ -495,7 +419,6 @@ fn draw_editor_ball(
     params: []BallParams,
     editors: []ParamEditor(BallParams),
 ) void {
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
@@ -509,7 +432,7 @@ fn draw_editor_ball(
             const b = &balls[i];
             const p = &params[i];
             const editor = &editors[i];
-            if (editor.draw(mouse_pos.screen_position)) |new_param| {
+            if (editor.draw()) |new_param| {
                 const new_ball = Ball.new(physics_world.id, new_param);
                 p.* = new_param;
                 b.deinit();
@@ -525,7 +448,6 @@ pub fn draw_editor_anchor(
     params: []AnchorParams,
     editors: []ParamEditor(AnchorParams),
 ) void {
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
@@ -539,7 +461,7 @@ pub fn draw_editor_anchor(
             const a = &anchors[i];
             const p = &params[i];
             const editor = &editors[i];
-            if (editor.draw(mouse_pos.screen_position)) |new_param| {
+            if (editor.draw()) |new_param| {
                 const new_anchor = Anchor.new(physics_world.id, new_param);
                 p.* = new_param;
                 a.deinit();
@@ -555,7 +477,6 @@ fn draw_editor_rectangle(
     params: []RectangleParams,
     editors: []ParamEditor(RectangleParams),
 ) void {
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
@@ -569,7 +490,7 @@ fn draw_editor_rectangle(
             const r = &rectangles[i];
             const p = &params[i];
             const editor = &editors[i];
-            if (editor.draw(mouse_pos.screen_position)) |new_param| {
+            if (editor.draw()) |new_param| {
                 const new_rect = Rectangle.new(physics_world.id, new_param) catch return;
                 p.* = new_param;
                 r.deinit();
