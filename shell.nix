@@ -7,9 +7,6 @@ pkgs.mkShell {
   export INCLUDE_GL="${pkgs.lib.makeIncludePath [
     pkgs.libGL
   ]}"
-  export INCLUDE_CXX="${pkgs.lib.makeIncludePath [
-    pkgs.libcxx
-  ]}/c++/v1"
   '';
   buildInputs = with pkgs; [
     zip
