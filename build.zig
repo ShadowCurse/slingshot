@@ -24,21 +24,36 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    imgui.addIncludePath(.{ .path = "imgui" });
+    imgui.addIncludePath(.{ .path = "cimgui/imgui" });
     imgui.addIncludePath(.{ .path = "raylib/src/external/glfw/include" });
     imgui.addIncludePath(.{ .path = env.get("INCLUDE_GL").? });
     imgui.addCSourceFiles(.{
         .files = &.{
-            "imgui/imgui.cpp",
-            "imgui/imgui_widgets.cpp",
-            "imgui/imgui_tables.cpp",
-            "imgui/imgui_draw.cpp",
-            "imgui/imgui_demo.cpp",
-            "imgui/backends/imgui_impl_glfw.cpp",
+            "cimgui/imgui/imgui.cpp",
+            "cimgui/imgui/imgui_widgets.cpp",
+            "cimgui/imgui/imgui_tables.cpp",
+            "cimgui/imgui/imgui_draw.cpp",
+            "cimgui/imgui/imgui_demo.cpp",
+            "cimgui/imgui/backends/imgui_impl_glfw.cpp",
         },
         .flags = &.{},
     });
     imgui.linkLibCpp();
+
+    const cimgui = b.addStaticLibrary(.{
+        .name = "cimgui",
+        .target = target,
+        .optimize = optimize,
+    });
+    cimgui.addIncludePath(.{ .path = "cimgui" });
+    cimgui.addIncludePath(.{ .path = "cimgui/imgui" });
+    cimgui.addCSourceFiles(.{
+        .files = &.{
+            "cimgui/cimgui.cpp",
+        },
+        .flags = &.{},
+    });
+    cimgui.linkLibCpp();
 
     const raylib_build = @import("raylib/src/build.zig");
     const raylib = raylib_build.addRaylib(
@@ -58,13 +73,12 @@ pub fn build(b: *std.Build) void {
     });
     rl_imgui.addIncludePath(.{ .path = "rlImGui" });
     rl_imgui.addIncludePath(.{ .path = "raylib/src" });
-    rl_imgui.addIncludePath(.{ .path = "imgui" });
-    rl_imgui.addIncludePath(.{ .path = env.get("INCLUDE_CXX").? });
+    rl_imgui.addIncludePath(.{ .path = "cimgui/imgui" });
     rl_imgui.addCSourceFile(.{
         .file = .{ .path = "rlImGui/rlImGui.cpp" },
         .flags = &.{},
     });
-    rl_imgui.linkLibC();
+    rl_imgui.linkLibCpp();
 
     const box2c = b.addStaticLibrary(.{
         .name = "box2c",
@@ -184,6 +198,10 @@ pub fn build(b: *std.Build) void {
         });
 
         exe.linkLibrary(imgui);
+
+        exe.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
+        exe.addIncludePath(.{ .path = "cimgui" });
+        exe.linkLibrary(cimgui);
 
         exe.addIncludePath(.{ .path = "raylib/src" });
         exe.addIncludePath(.{ .path = "raygui/src" });
