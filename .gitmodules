@@ -10,3 +10,9 @@
 [submodule "box2c"]
 	path = box2c
 	url = https://github.com/erincatto/box2c
+[submodule "cimgui"]
+	path = cimgui
+	url = https://github.com/cimgui/cimgui
+[submodule "rlImGui"]
+	path = rlImGui
+	url = https://github.com/raylib-extras/rlImGui
