@@ -5,10 +5,12 @@ zig-out/
 /build/
 /build-*/
 /docgen_tmp/
-raylib/
-raygui/
 box2c/
+cimgui/
 flecs/
+raygui/
+raylib/
+rlImGui/
 emsdk/
 .envrc
 .direnv
