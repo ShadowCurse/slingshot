@@ -18,6 +18,7 @@ const Settings = _settings.Settings;
 const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 
 const _editor = @import("editor.zig");
+const EditorLevel = _editor.EditorLevel;
 const ParamEditor = _editor.ParamEditor;
 const EditorCamera = _editor.EditorCamera;
 const EDITOR_FLECS_INIT = _editor.FLECS_INIT;
@@ -254,12 +255,17 @@ fn draw_level_selection(iter: *flecs.iter_t) void {
     const levels = flecs.singleton_get_mut(iter.world, Levels).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
 
     if (state_stack.current_state() != .LevelSelection) {
         return;
     }
 
     levels.draw(settings, state_stack, current_level);
+
+    if (current_level.load_path) |path| {
+        @memcpy(editor_level.level_path[0..path.len], path);
+    }
 }
 
 fn draw_settings(iter: *flecs.iter_t) void {
@@ -433,12 +439,12 @@ pub fn load_level(iter: *flecs.iter_t) void {
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
 
-    if (current_level.path == null) {
+    if (current_level.load_path == null) {
         return;
     }
 
-    const path = current_level.path.?;
-    current_level.path = null;
+    const path = current_level.load_path.?;
+    current_level.load_path = null;
 
     std.log.debug("Loading level from path: {s}", .{path});
 
@@ -502,7 +508,9 @@ pub fn load_level(iter: *flecs.iter_t) void {
         }
     }
 
-    state_stack.push_state(.Running);
+    if (state_stack.current_state() != .Running) {
+        state_stack.push_state(.Running);
+    }
 }
 
 pub fn clean_level(iter: *flecs.iter_t) void {
@@ -586,11 +594,14 @@ pub fn save_level(iter: *flecs.iter_t) void {
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
 
-    if (!current_level.need_to_save) {
+    if (current_level.save_path == null) {
         return;
     }
 
-    current_level.need_to_save = false;
+    const path = current_level.save_path.?;
+    current_level.save_path = null;
+
+    std.log.debug("Saving level to path: {s}", .{path});
 
     const ctx: *const SaveLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
 
@@ -637,13 +648,10 @@ pub fn save_level(iter: *flecs.iter_t) void {
         .objects = objects_params.items,
     };
 
-    std.log.debug("Saving level to: {s}", .{DEFAULT_SAVE_PATH});
-
-    var file = std.fs.cwd().createFile(DEFAULT_SAVE_PATH, .{}) catch {
+    var file = std.fs.cwd().createFile(path, .{}) catch {
         state_stack.push_state(.Exit);
         return;
     };
-
     defer file.close();
 
     const options = std.json.StringifyOptions{
@@ -837,16 +845,6 @@ pub const GameV2 = struct {
 
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
 
-        flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.PreFrame, draw_start);
-
-        {
-            var desc = flecs.SYSTEM_DESC(load_level);
-            desc.query.filter.terms[0].inout = .Out;
-            desc.query.filter.terms[0].id = flecs.Wildcard;
-            desc.query.filter.terms[0].src.flags = flecs.IsEntity;
-            desc.query.filter.terms[0].src.id = 0;
-            flecs.SYSTEM(ecs_world, "load_level", flecs.OnLoad, &desc);
-        }
         {
             var desc = flecs.SYSTEM_DESC(clean_level);
 
@@ -874,7 +872,15 @@ pub const GameV2 = struct {
             desc.ctx = q;
             // No need to clean ctx, query seems to be cleaned automatically.
 
-            flecs.SYSTEM(ecs_world, "clean_level", flecs.OnLoad, &desc);
+            flecs.SYSTEM(ecs_world, "clean_level", flecs.PreFrame, &desc);
+        }
+        {
+            var desc = flecs.SYSTEM_DESC(load_level);
+            desc.query.filter.terms[0].inout = .Out;
+            desc.query.filter.terms[0].id = flecs.Wildcard;
+            desc.query.filter.terms[0].src.flags = flecs.IsEntity;
+            desc.query.filter.terms[0].src.id = 0;
+            flecs.SYSTEM(ecs_world, "load_level", flecs.PreFrame, &desc);
         }
         {
             var desc = flecs.SYSTEM_DESC(recreate_level);
@@ -901,7 +907,7 @@ pub const GameV2 = struct {
             desc.ctx = rl_ctx;
             desc.ctx_free = @ptrCast(&RecreateLevelCtx.deinit);
 
-            flecs.SYSTEM(ecs_world, "recreate_level", flecs.OnLoad, &desc);
+            flecs.SYSTEM(ecs_world, "recreate_level", flecs.PreFrame, &desc);
         }
         {
             var desc = flecs.SYSTEM_DESC(save_level);
@@ -930,8 +936,10 @@ pub const GameV2 = struct {
             desc.ctx = s_ctx;
             desc.ctx_free = @ptrCast(&SaveLevelCtx.deinit);
 
-            flecs.SYSTEM(ecs_world, "save_level", flecs.OnLoad, &desc);
+            flecs.SYSTEM(ecs_world, "save_level", flecs.PreFrame, &desc);
         }
+
+        flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 
         // Game
         flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics);

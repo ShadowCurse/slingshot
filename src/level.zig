@@ -32,10 +32,10 @@ pub const LevelSave = struct {
 };
 
 pub const CurrentLevel = struct {
-    path: ?[]const u8 = null,
+    load_path: ?[]const u8 = null,
+    save_path: ?[]const u8 = null,
     need_to_clean: bool = false,
     need_to_restart: bool = false,
-    need_to_save: bool = false,
 };
 
 pub const Levels = struct {
@@ -173,7 +173,7 @@ pub const Levels = struct {
         if (load != 0) {
             if (self.active != -1) {
                 const i: usize = @intCast(self.active);
-                current_level.path = self.levels.items[i].path;
+                current_level.load_path = self.levels.items[i].path;
             }
         }
 

@@ -11,6 +11,9 @@ const MousePosition = _game.MousePosition;
 const GameStateStack = _game.GameStateStack;
 const PhysicsWorld = _game.PhysicsWorld;
 
+const _level = @import("level.zig");
+const CurrentLevel = _level.CurrentLevel;
+
 const _objects = @import("objects.zig");
 const AABB = _objects.AABB;
 
@@ -38,6 +41,10 @@ pub const SelectedEntity = struct {
 
 pub const EditorCamera = struct {
     camera: rl.Camera2D,
+};
+
+pub const EditorLevel = struct {
+    level_path: [256]u8 = .{0} ** 256,
 };
 
 pub const EditorBool = struct {
@@ -522,12 +529,47 @@ fn draw_editor_rectangle(
     }
 }
 
+fn draw_editor_level(iter: *flecs.iter_t) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
+    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    var open = true;
+    if (imgui.igBegin("LevelEditor", &open, 0)) {
+        defer imgui.igEnd();
+
+        _ = imgui.igInputText(
+            "Save path",
+            &editor_level.level_path,
+            editor_level.level_path.len,
+            0,
+            null,
+            null,
+        );
+        const slice = std.mem.sliceTo(&editor_level.level_path, 0);
+        if (imgui.igButton("Save level", .{ .x = 0.0, .y = 0.0 })) {
+            current_level.save_path = slice;
+        }
+        if (imgui.igButton("Load level", .{ .x = 0.0, .y = 0.0 })) {
+            current_level.load_path = slice;
+            current_level.need_to_clean = true;
+            state_stack.pop_state();
+        }
+    }
+}
+
 pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
+    flecs.COMPONENT(world, EditorLevel);
     flecs.COMPONENT(world, SelectedEntity);
     flecs.COMPONENT(world, ParamEditor(BallParams));
     flecs.COMPONENT(world, ParamEditor(AnchorParams));
     flecs.COMPONENT(world, ParamEditor(RectangleParams));
 
+    _ = flecs.singleton_set(world, EditorLevel, .{});
     _ = flecs.singleton_set(world, SelectedEntity, .{});
 
     const camera = rl.Camera2D{
@@ -573,6 +615,7 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
     flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
 
+    flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
     flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
     flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
     flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
