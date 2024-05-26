@@ -36,6 +36,10 @@ pub const SelectedEntity = struct {
     entity: ?flecs.entity_t = null,
 };
 
+pub const EditorCamera = struct {
+    camera: rl.Camera2D,
+};
+
 pub const EditorBool = struct {
     state: bool,
 
@@ -256,6 +260,24 @@ fn ParamEditorInner(comptime T: type) type {
             .is_tuple = false,
         },
     });
+}
+
+fn update_editor_camera(iter: *flecs.iter_t) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const editor_camera = flecs.singleton_get_mut(iter.world, EditorCamera).?;
+
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
+        const delta = rl.GetMouseDelta();
+        editor_camera.camera.target.x -= delta.x;
+        editor_camera.camera.target.y -= delta.y;
+    }
+
+    const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
+    editor_camera.camera.zoom += mouse_wheel_move;
 }
 
 const SelectEntityCtx = struct {
@@ -507,6 +529,16 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.COMPONENT(world, ParamEditor(RectangleParams));
 
     _ = flecs.singleton_set(world, SelectedEntity, .{});
+
+    const camera = rl.Camera2D{
+        .offset = rl.Vector2{ .x = 0.0, .y = 0.0 },
+        .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+        .rotation = 0.0,
+        .zoom = 1.0,
+    };
+    _ = flecs.singleton_set(world, EditorCamera, .{ .camera = camera });
+
+    flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
 
     flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
     flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);

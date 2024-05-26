@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 
 const _editor = @import("editor.zig");
 const ParamEditor = _editor.ParamEditor;
+const EditorCamera = _editor.EditorCamera;
 const EDITOR_FLECS_INIT = _editor.FLECS_INIT;
 
 const Object = objects.Object;
@@ -122,10 +123,6 @@ pub const LevelObject = struct {
 };
 
 pub const GameCamera = struct {
-    camera: rl.Camera2D,
-};
-
-pub const EditorCamera = struct {
     camera: rl.Camera2D,
 };
 
@@ -799,24 +796,6 @@ pub fn update_game_camera(iter: *flecs.iter_t, balls: []const Ball) void {
     game_camera.camera.target.y = p.to_rl_as_pos().y;
 }
 
-pub fn update_editor_camera(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const editor_camera = flecs.singleton_get_mut(iter.world, EditorCamera).?;
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
-
-    if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
-        const delta = rl.GetMouseDelta();
-        editor_camera.camera.target.x -= delta.x;
-        editor_camera.camera.target.y -= delta.y;
-    }
-
-    const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
-    editor_camera.camera.zoom += mouse_wheel_move;
-}
-
 pub const GameV2 = struct {
     allocator: Allocator,
 
@@ -959,7 +938,6 @@ pub const GameV2 = struct {
         flecs.ADD_SYSTEM(ecs_world, "process_keys", flecs.PreUpdate, process_keys);
         flecs.ADD_SYSTEM(ecs_world, "update_mouse_pos", flecs.PreUpdate, update_mouse_pos);
         flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera);
-        flecs.ADD_SYSTEM(ecs_world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
 
         {
             var desc = flecs.SYSTEM_DESC(update_anchor);
@@ -1025,7 +1003,6 @@ pub const GameV2 = struct {
             .zoom = 1.0,
         };
         _ = flecs.singleton_set(ecs_world, GameCamera, .{ .camera = camera });
-        _ = flecs.singleton_set(ecs_world, EditorCamera, .{ .camera = camera });
 
         _ = flecs.singleton_set(ecs_world, PhysicsWorld, .{ .id = physics_world });
         _ = flecs.singleton_set(ecs_world, MousePosition, .{
