@@ -539,11 +539,6 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     _ = flecs.singleton_set(world, EditorCamera, .{ .camera = camera });
 
     flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
-
-    flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
-    flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
-    flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
-
     {
         var desc = flecs.SYSTEM_DESC(select_entity);
 
@@ -571,8 +566,12 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
         desc.ctx = s_ctx;
         desc.ctx_free = @ptrCast(&SelectEntityCtx.deinit);
 
-        flecs.SYSTEM(world, "select_entity", flecs.OnLoad, &desc);
+        flecs.SYSTEM(world, "select_entity", flecs.PreUpdate, &desc);
     }
+
+    flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
+    flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
+    flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
 
     flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
     flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
