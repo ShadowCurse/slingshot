@@ -7,9 +7,10 @@ const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
 const _game = @import("game.zig");
+const LevelObject = _game.LevelObject;
+const PhysicsWorld = _game.PhysicsWorld;
 const MousePosition = _game.MousePosition;
 const GameStateStack = _game.GameStateStack;
-const PhysicsWorld = _game.PhysicsWorld;
 
 const _level = @import("level.zig");
 const CurrentLevel = _level.CurrentLevel;
@@ -530,6 +531,7 @@ fn draw_editor_rectangle(
 }
 
 fn draw_editor_level(iter: *flecs.iter_t) void {
+    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
@@ -558,6 +560,43 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
             current_level.load_path = slice;
             current_level.need_to_clean = true;
             state_stack.pop_state();
+        }
+
+        imgui.igSeparatorText("Adding objects");
+        if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
+            const ball_params = .{};
+            const n = flecs.new_id(iter.world);
+            _ = flecs.set(
+                iter.world,
+                n,
+                Ball,
+                Ball.new(physics_world.id, ball_params),
+            );
+            _ = flecs.set(iter.world, n, BallParams, ball_params);
+            _ = flecs.set(iter.world, n, ParamEditor(BallParams), ParamEditor(BallParams).new(&ball_params));
+            _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
+        }
+
+        if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
+            const anchor_params = .{};
+            const n = flecs.new_id(iter.world);
+            _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, anchor_params));
+            _ = flecs.set(iter.world, n, AnchorParams, anchor_params);
+            _ = flecs.set(iter.world, n, ParamEditor(AnchorParams), ParamEditor(AnchorParams).new(&anchor_params));
+            _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
+        }
+
+        if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
+            const rectangle_params = .{};
+            const n = flecs.new_id(iter.world);
+            const rectangle = Rectangle.new(physics_world.id, rectangle_params) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+            _ = flecs.set(iter.world, n, Rectangle, rectangle);
+            _ = flecs.set(iter.world, n, RectangleParams, rectangle_params);
+            _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&rectangle_params));
+            _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
         }
     }
 }
