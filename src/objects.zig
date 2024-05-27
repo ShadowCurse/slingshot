@@ -52,13 +52,25 @@ pub const AABB = struct {
     }
 
     pub fn to_rl_rect(self: *const Self, position: Vector2) rl.Rectangle {
-        const rl_position = position.add(&self.center().sub(&position)).to_rl_as_pos();
+        const top_left = (Vector2{
+            .x = self.aabb.lowerBound.x,
+            .y = self.aabb.upperBound.y,
+        }).add(&position).to_rl_as_pos();
+        const width = self.aabb.upperBound.x - self.aabb.lowerBound.x;
+        const height = self.aabb.upperBound.y - self.aabb.lowerBound.y;
         return rl.Rectangle{
-            .x = rl_position.x - (self.aabb.upperBound.x - self.aabb.lowerBound.x) / 2.0,
-            .y = rl_position.y - (self.aabb.upperBound.y - self.aabb.lowerBound.y) / 2.0,
-            .width = self.aabb.upperBound.x - self.aabb.lowerBound.x,
-            .height = self.aabb.upperBound.y - self.aabb.lowerBound.y,
+            .x = top_left.x,
+            .y = top_left.y,
+            .width = width,
+            .height = height,
         };
+    }
+
+    pub fn move(self: *Self, offset: Vector2) void {
+        self.aabb.lowerBound.x += offset.x;
+        self.aabb.lowerBound.y += offset.y;
+        self.aabb.upperBound.x += offset.x;
+        self.aabb.upperBound.y += offset.y;
     }
 
     pub fn center(self: *const Self) Vector2 {
@@ -66,7 +78,7 @@ pub const AABB = struct {
     }
 
     pub fn contains(self: *const Self, position: Vector2, point: Vector2) bool {
-        const self_position = position.add(&self.center().sub(&position));
+        const self_position = self.center().add(&position);
         const self_half_extends = Vector2.from_b2(b2.b2AABB_Extents(self.aabb));
         const left = self_position.x - self_half_extends.x;
         const right = self_position.x + self_half_extends.x;
@@ -541,7 +553,9 @@ pub fn create_rectangle(
     _ = flecs.set(ecs_world, n, ShapeId, .{ .id = shape_id });
     _ = flecs.set(ecs_world, n, RectangleShape, rectangle);
 
-    const aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
+    var aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
+    // move aabb back to 0,0
+    aabb.move(params.position.mul(-1));
     _ = flecs.set(ecs_world, n, AABB, aabb);
 
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 0 });

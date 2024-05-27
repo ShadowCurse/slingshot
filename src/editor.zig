@@ -354,9 +354,8 @@ fn draw_balls_aabb(
     iter: *flecs.iter_t,
     aabbs: []const AABB,
     positions: []const Position,
-    tags: []const BallTag,
+    // tags: []const BallTag,
 ) void {
-    _ = tags;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
@@ -381,9 +380,8 @@ fn draw_anchors_aabb(
     iter: *flecs.iter_t,
     aabbs: []const AABB,
     positions: []const Position,
-    tags: []const AnchorTag,
+    // tags: []const AnchorTag,
 ) void {
-    _ = tags;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
@@ -414,9 +412,8 @@ fn draw_rectangles_aabb(
     iter: *flecs.iter_t,
     aabbs: []const AABB,
     positions: []const Position,
-    tags: []const RectangleTag,
+    // tags: []const RectangleTag,
 ) void {
-    _ = tags;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
@@ -605,9 +602,6 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
 pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.COMPONENT(world, EditorLevel);
     flecs.COMPONENT(world, SelectedEntity);
-    // flecs.COMPONENT(world, ParamEditor(BallParams));
-    // flecs.COMPONENT(world, ParamEditor(AnchorParams));
-    // flecs.COMPONENT(world, ParamEditor(RectangleParams));
 
     _ = flecs.singleton_set(world, EditorLevel, .{});
     _ = flecs.singleton_set(world, SelectedEntity, .{});
@@ -663,9 +657,24 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
         flecs.SYSTEM(world, "select_entity", flecs.PreUpdate, &desc);
     }
 
-    // flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
-    // flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
-    // flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
+    {
+        var desc = flecs.SYSTEM_DESC(draw_balls_aabb);
+        desc.query.filter.terms[2].id = flecs.id(BallTag);
+        desc.query.filter.terms[2].inout = .In;
+        flecs.SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, &desc);
+    }
+    {
+        var desc = flecs.SYSTEM_DESC(draw_anchors_aabb);
+        desc.query.filter.terms[2].id = flecs.id(AnchorTag);
+        desc.query.filter.terms[2].inout = .In;
+        flecs.SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, &desc);
+    }
+    {
+        var desc = flecs.SYSTEM_DESC(draw_rectangles_aabb);
+        desc.query.filter.terms[2].id = flecs.id(RectangleTag);
+        desc.query.filter.terms[2].inout = .In;
+        flecs.SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, &desc);
+    }
 
     // flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
     // flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
