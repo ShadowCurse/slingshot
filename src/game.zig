@@ -4,7 +4,6 @@ const rl = @import("raylib.zig");
 const imgui = @import("imgui.zig");
 const b2 = @import("box2d.zig");
 const flecs = @import("flecs.zig");
-const objects = @import("objects.zig");
 
 const _level = @import("level.zig");
 const Level = _level.Level;
@@ -19,25 +18,34 @@ const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 
 const _editor = @import("editor.zig");
 const EditorLevel = _editor.EditorLevel;
-const ParamEditor = _editor.ParamEditor;
 const EditorCamera = _editor.EditorCamera;
 const EDITOR_FLECS_INIT = _editor.FLECS_INIT;
 
-const Object = objects.Object;
-const ObjectParams = objects.ObjectParams;
-const DebugDraw = objects.DebugDraw;
-const AABB = objects.AABB;
+const _objects = @import("objects.zig");
+const Object = _objects.Object;
+const ObjectParams = _objects.ObjectParams;
+const OBJECTS_FLECS_INIT_COMPONENTS = _objects.FLECS_INIT_COMPONENTS;
+const OBJECTS_FLECS_INIT_SYSTEMS = _objects.FLECS_INIT_SYSTEMS;
 
-const Arc = objects.Arc;
+const BodyId = _objects.BodyId;
+const ShapeId = _objects.ShapeId;
+const Position = _objects.Position;
 
-const Ball = objects.Ball;
-const BallParams = objects.BallParams;
+const create_spawner = _objects.create_spawner;
+const SpawnerTag = _objects.SpawnerTag;
 
-const Anchor = objects.Anchor;
-const AnchorParams = objects.AnchorParams;
+const create_ball = _objects.create_ball;
+const BallTag = _objects.BallTag;
+const BallAttachment = _objects.BallAttachment;
 
-const Rectangle = objects.Rectangle;
-const RectangleParams = objects.RectangleParams;
+const create_anchor = _objects.create_anchor;
+const AnchorTag = _objects.AnchorTag;
+
+const JointTag = _objects.JointTag;
+const JointId = _objects.JointId;
+
+const create_rectangle = _objects.create_rectangle;
+const RectangleTag = _objects.RectangleTag;
 
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
@@ -77,6 +85,7 @@ pub const GameState = enum {
     MainMenu,
     LevelSelection,
     Settings,
+    LevelLoaded,
     Running,
     Paused,
     Editor,
@@ -354,80 +363,6 @@ fn draw_win(iter: *flecs.iter_t) void {
     }
 }
 
-fn draw_balls(balls: []const Ball, params: []const BallParams) void {
-    for (balls, params) |*ball, *param| {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
-        const max_velocity = 200.0;
-        const velocity = @min(Vector2.from_b2(b2.b2Body_GetLinearVelocity(ball.body_id)).length() / max_velocity, 1.0);
-        const color = rl.Color{
-            .r = @as(
-                u8,
-                @intFromFloat(
-                    std.math.lerp(
-                        @as(f32, @floatFromInt(param.color.r)),
-                        @as(f32, @floatFromInt(param.fast_color.r)),
-                        velocity,
-                    ),
-                ),
-            ),
-            .g = @as(
-                u8,
-                @intFromFloat(
-                    std.math.lerp(
-                        @as(f32, @floatFromInt(param.color.g)),
-                        @as(f32, @floatFromInt(param.fast_color.g)),
-                        velocity,
-                    ),
-                ),
-            ),
-            .b = @as(
-                u8,
-                @intFromFloat(
-                    std.math.lerp(
-                        @as(f32, @floatFromInt(param.color.b)),
-                        @as(f32, @floatFromInt(param.fast_color.b)),
-                        velocity,
-                    ),
-                ),
-            ),
-            .a = 255,
-        };
-        rl.DrawCircleV(position.to_rl_as_pos(), ball.circle.radius, color);
-    }
-}
-
-fn draw_anchors(anchors: []const Anchor, params: []const AnchorParams) void {
-    for (anchors, params) |*anchor, *param| {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
-        rl.DrawCircleV(position.to_rl_as_pos(), param.radius, param.color);
-
-        if (anchor.attached_body_id) |id| {
-            const attached_body_position = Vector2.from_b2(b2.b2Body_GetPosition(id));
-            rl.DrawLineV(
-                position.to_rl_as_pos(),
-                attached_body_position.to_rl_as_pos(),
-                param.color,
-            );
-        }
-    }
-}
-
-fn draw_rectangles(rectangles: []const Rectangle, params: []const RectangleParams) void {
-    for (rectangles, params) |*rect, *param| {
-        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rect.body_id));
-        const body_angle = b2.b2Body_GetAngle(rect.body_id);
-        const rl_rect = rect.rectangle.rl_rect(body_position, body_angle);
-        const angle = rect.rectangle.angle + body_angle;
-        // raylib rotates in clock wise order
-        // we negeate degrees to chacnge it to ccw
-        const rl_angle = -(angle / std.math.pi * 180.0);
-        rl.DrawRectanglePro(rl_rect, rl.Vector2{
-            .x = 0.0,
-            .y = 0.0,
-        }, rl_angle, param.color);
-    }
-}
-
 fn draw_mouse_pos(iter: *flecs.iter_t) void {
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     rl.DrawCircleV(mouse_pos.world_position.to_rl_as_pos(), 2.0, rl.YELLOW);
@@ -470,47 +405,62 @@ pub fn load_level(iter: *flecs.iter_t) void {
 
     for (level_save.objects) |*obj| {
         switch (obj.*) {
-            .Ball => |r| {
-                const n = flecs.new_id(iter.world);
-                _ = flecs.set(
-                    iter.world,
-                    n,
-                    Ball,
-                    Ball.new(physics_world.id, r),
-                );
-                _ = flecs.set(iter.world, n, BallParams, r);
-                _ = flecs.set(iter.world, n, ParamEditor(BallParams), ParamEditor(BallParams).new(&r));
-                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
+            .Spawner => |*r| {
+                create_spawner(iter.world, r);
             },
-            .Anchor => |r| {
-                const n = flecs.new_id(iter.world);
-                _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, r));
-                _ = flecs.set(iter.world, n, AnchorParams, r);
-                _ = flecs.set(iter.world, n, ParamEditor(AnchorParams), ParamEditor(AnchorParams).new(&r));
-                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
+            .Ball => |*r| {
+                create_ball(iter.world, physics_world.id, r);
             },
-            .Rectangle => |r| {
-                const n = flecs.new_id(iter.world);
-                const rectangle = Rectangle.new(physics_world.id, r) catch {
+            .Anchor => |*r| {
+                create_anchor(iter.world, physics_world.id, r);
+            },
+            .Rectangle => |*r| {
+                create_rectangle(iter.world, physics_world.id, r) catch {
                     state_stack.push_state(.Exit);
                     return;
                 };
-                _ = flecs.set(iter.world, n, Rectangle, rectangle);
-                _ = flecs.set(iter.world, n, RectangleParams, r);
-                _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&r));
-                _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
-
-                if (r.is_sensor) {
-                    _ = flecs.add(iter.world, n, WinTarget);
-                }
             },
-            else => {},
         }
     }
 
-    if (state_stack.current_state() != .Running) {
-        state_stack.push_state(.Running);
+    state_stack.push_state(.LevelLoaded);
+}
+
+pub const StartLevelCtx = struct {
+    allocator: Allocator,
+    ball_query: *flecs.query_t,
+    spawner_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn deinit(self: *const Self) callconv(.C) void {
+        self.allocator.destroy(self);
     }
+};
+pub fn start_level(iter: *flecs.iter_t) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+
+    if (state_stack.current_state() != .LevelLoaded) {
+        return;
+    }
+
+    const ctx: *const StartLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
+
+    const ball_query: *flecs.query_t = ctx.ball_query;
+    var ball_iter = flecs.query_iter(iter.world, ball_query);
+    std.debug.assert(flecs.query_next(&ball_iter));
+    const ball_body = flecs.field(&ball_iter, BodyId, 1).?[0];
+    std.debug.assert(!flecs.query_next(&ball_iter));
+
+    const spawner_query: *flecs.query_t = ctx.spawner_query;
+    var spawner_iter = flecs.query_iter(iter.world, spawner_query);
+    std.debug.assert(flecs.query_next(&spawner_iter));
+    const spawner_position = flecs.field(&spawner_iter, Position, 1).?[0];
+    std.debug.assert(!flecs.query_next(&spawner_iter));
+
+    b2.b2Body_SetTransform(ball_body.id, spawner_position.value.to_b2(), 0.0);
+
+    state_stack.pop_state();
+    state_stack.push_state(.Running);
 }
 
 pub fn clean_level(iter: *flecs.iter_t) void {
@@ -536,7 +486,7 @@ pub fn clean_level(iter: *flecs.iter_t) void {
 pub const RecreateLevelCtx = struct {
     allocator: Allocator,
     ball_query: *flecs.query_t,
-    anchor_query: *flecs.query_t,
+    joint_query: *flecs.query_t,
 
     const Self = @This();
     pub fn deinit(self: *const Self) callconv(.C) void {
@@ -544,7 +494,6 @@ pub const RecreateLevelCtx = struct {
     }
 };
 pub fn recreate_level(iter: *flecs.iter_t) void {
-    const physics_world = flecs.singleton_get_mut(iter.world, PhysicsWorld).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
 
     if (!current_level.need_to_restart) {
@@ -555,113 +504,115 @@ pub fn recreate_level(iter: *flecs.iter_t) void {
 
     const ctx: *const RecreateLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
 
-    const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
-    var anchor_iter = flecs.query_iter(iter.world, anchor_query);
-    while (flecs.query_next(&anchor_iter)) {
-        const anchors = flecs.field(&anchor_iter, Anchor, 1).?;
-        const anchor_params = flecs.field(&anchor_iter, AnchorParams, 2).?;
-        for (anchors, anchor_params) |*anchor, *params| {
-            anchor.deinit();
-            anchor.* = Anchor.new(physics_world.id, params.*);
+    const joint_query: *flecs.query_t = ctx.joint_query;
+    var joint_iter = flecs.query_iter(iter.world, joint_query);
+    while (flecs.query_next(&joint_iter)) {
+        const joint_ids = flecs.field(&joint_iter, JointId, 1).?;
+        for (joint_iter.entities(), joint_ids) |e, joint_id| {
+            b2.b2DestroyJoint(joint_id.id);
+            _ = flecs.delete(iter.world, e);
         }
     }
 
-    const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
+    const ball_query: *flecs.query_t = ctx.ball_query;
     var ball_iter = flecs.query_iter(iter.world, ball_query);
-    while (flecs.query_next(&ball_iter)) {
-        const balls = flecs.field(&ball_iter, Ball, 1).?;
-        const ball_params = flecs.field(&ball_iter, BallParams, 2).?;
-        for (balls, ball_params) |*ball, *params| {
-            ball.deinit();
-            ball.* = Ball.new(physics_world.id, params.*);
-        }
-    }
-}
+    std.debug.assert(flecs.query_next(&ball_iter));
+    const ball_body_id = &flecs.field(&ball_iter, BodyId, 1).?[0];
+    var ball_attachment = &flecs.field(&ball_iter, BallAttachment, 2).?[0];
+    std.debug.assert(!flecs.query_next(&ball_iter));
 
-pub const SaveLevelCtx = struct {
-    allocator: Allocator,
-    ball_query: *flecs.query_t,
-    anchor_query: *flecs.query_t,
-    rectangle_query: *flecs.query_t,
+    b2.b2Body_SetLinearVelocity(ball_body_id.id, Vector2.ZERO.to_b2());
+    ball_attachment.attached = false;
 
-    const Self = @This();
-    pub fn deinit(self: *const Self) callconv(.C) void {
-        self.allocator.destroy(self);
-    }
-};
-pub fn save_level(iter: *flecs.iter_t) void {
-    const allocator = flecs.singleton_get_mut(iter.world, Allocator).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-
-    if (current_level.save_path == null) {
-        return;
-    }
-
-    const path = current_level.save_path.?;
-    current_level.save_path = null;
-
-    std.log.debug("Saving level to path: {s}", .{path});
-
-    const ctx: *const SaveLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
-
-    var objects_params = std.ArrayList(ObjectParams).init(allocator.*);
-    defer objects_params.deinit();
-
-    const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
-    var ball_iter = flecs.query_iter(iter.world, ball_query);
-    while (flecs.query_next(&ball_iter)) {
-        const ball_params = flecs.field(&ball_iter, BallParams, 1).?;
-        for (ball_params) |*params| {
-            objects_params.append(.{ .Ball = params.* }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
-    var anchor_iter = flecs.query_iter(iter.world, anchor_query);
-    while (flecs.query_next(&anchor_iter)) {
-        const anchor_params = flecs.field(&anchor_iter, AnchorParams, 1).?;
-        for (anchor_params) |*params| {
-            objects_params.append(.{ .Anchor = params.* }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const rectangle_query: *flecs.query_t = @ptrCast(ctx.rectangle_query);
-    var rectangle_iter = flecs.query_iter(iter.world, rectangle_query);
-    while (flecs.query_next(&rectangle_iter)) {
-        const rectangle_params = flecs.field(&rectangle_iter, RectangleParams, 1).?;
-        for (rectangle_params) |*params| {
-            objects_params.append(.{ .Rectangle = params.* }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const save_state = LevelSave{
-        .objects = objects_params.items,
-    };
-
-    var file = std.fs.cwd().createFile(path, .{}) catch {
-        state_stack.push_state(.Exit);
-        return;
-    };
-    defer file.close();
-
-    const options = std.json.StringifyOptions{
-        .whitespace = .indent_4,
-    };
-    std.json.stringify(save_state, options, file.writer()) catch {
-        state_stack.push_state(.Exit);
-        return;
-    };
+    state_stack.pop_state();
+    state_stack.push_state(.LevelLoaded);
 }
+
+// pub const SaveLevelCtx = struct {
+//     allocator: Allocator,
+//     ball_query: *flecs.query_t,
+//     anchor_query: *flecs.query_t,
+//     rectangle_query: *flecs.query_t,
+//
+//     const Self = @This();
+//     pub fn deinit(self: *const Self) callconv(.C) void {
+//         self.allocator.destroy(self);
+//     }
+// };
+// pub fn save_level(iter: *flecs.iter_t) void {
+//     const allocator = flecs.singleton_get_mut(iter.world, Allocator).?;
+//     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+//     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+//
+//     if (current_level.save_path == null) {
+//         return;
+//     }
+//
+//     const path = current_level.save_path.?;
+//     current_level.save_path = null;
+//
+//     std.log.debug("Saving level to path: {s}", .{path});
+//
+//     const ctx: *const SaveLevelCtx = @alignCast(@ptrCast(iter.ctx.?));
+//
+//     var objects_params = std.ArrayList(ObjectParams).init(allocator.*);
+//     defer objects_params.deinit();
+//
+//     const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
+//     var ball_iter = flecs.query_iter(iter.world, ball_query);
+//     while (flecs.query_next(&ball_iter)) {
+//         const ball_params = flecs.field(&ball_iter, BallParams, 1).?;
+//         for (ball_params) |*params| {
+//             objects_params.append(.{ .Ball = params.* }) catch {
+//                 state_stack.push_state(.Exit);
+//                 return;
+//             };
+//         }
+//     }
+//
+//     const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
+//     var anchor_iter = flecs.query_iter(iter.world, anchor_query);
+//     while (flecs.query_next(&anchor_iter)) {
+//         const anchor_params = flecs.field(&anchor_iter, AnchorParams, 1).?;
+//         for (anchor_params) |*params| {
+//             objects_params.append(.{ .Anchor = params.* }) catch {
+//                 state_stack.push_state(.Exit);
+//                 return;
+//             };
+//         }
+//     }
+//
+//     const rectangle_query: *flecs.query_t = @ptrCast(ctx.rectangle_query);
+//     var rectangle_iter = flecs.query_iter(iter.world, rectangle_query);
+//     while (flecs.query_next(&rectangle_iter)) {
+//         const rectangle_params = flecs.field(&rectangle_iter, RectangleParams, 1).?;
+//         for (rectangle_params) |*params| {
+//             objects_params.append(.{ .Rectangle = params.* }) catch {
+//                 state_stack.push_state(.Exit);
+//                 return;
+//             };
+//         }
+//     }
+//
+//     const save_state = LevelSave{
+//         .objects = objects_params.items,
+//     };
+//
+//     var file = std.fs.cwd().createFile(path, .{}) catch {
+//         state_stack.push_state(.Exit);
+//         return;
+//     };
+//     defer file.close();
+//
+//     const options = std.json.StringifyOptions{
+//         .whitespace = .indent_4,
+//     };
+//     std.json.stringify(save_state, options, file.writer()) catch {
+//         state_stack.push_state(.Exit);
+//         return;
+//     };
+// }
 
 pub fn process_keys(iter: *flecs.iter_t) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
@@ -718,64 +669,12 @@ pub fn update_physics(iter: *flecs.iter_t) void {
     sensor_events.* = SensorEvents.new(physics_world.id);
 }
 
-pub fn update_anchor(iter: *flecs.iter_t, anchors: []Anchor, anchor_params: []const AnchorParams) void {
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
-
-    const ball_query: *flecs.query_t = @ptrCast(iter.ctx.?);
-    var ball_iter = flecs.query_iter(iter.world, ball_query);
-    std.debug.assert(flecs.query_next(&ball_iter));
-    const balls = flecs.field(&ball_iter, Ball, 1).?;
-    const ball_params = flecs.field(&ball_iter, BallParams, 2).?;
-    const ball = balls[0];
-    const ball_param = ball_params[0];
-    std.debug.assert(!flecs.query_next(&ball_iter));
-
-    for (anchors, anchor_params) |*anchor, *anchor_param| {
-        const self_position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
-        const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
-
-        if (rl.IsKeyDown(rl.KEY_SPACE)) {
-            if (anchor.length_joint_id) |id| {
-                b2.b2DestroyJoint(id);
-                anchor.length_joint_id = null;
-                anchor.attached_body_id = null;
-            }
-        } else {
-            if (anchor.length_joint_id == null) {
-                if (self_position.sub(&ball_position).length() < anchor_param.radius + ball_param.radius) {
-                    var joint_def = b2.b2DefaultDistanceJointDef();
-                    joint_def.bodyIdA = anchor.body_id;
-                    joint_def.bodyIdB = ball.body_id;
-                    joint_def.length = 0.0;
-                    joint_def.minLength = anchor_param.min_length;
-                    joint_def.maxLength = anchor_param.max_length;
-                    joint_def.dampingRatio = anchor_param.damping_ratio;
-                    joint_def.hertz = anchor_param.hertz;
-
-                    const joint_id = b2.b2CreateDistanceJoint(physics_world.*.id, &joint_def);
-                    anchor.length_joint_id = joint_id;
-                    anchor.attached_body_id = ball.body_id;
-                }
-            } else {
-                if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
-                    const to_mouse = mouse_pos.world_position
-                        .sub(&self_position)
-                        .normalized()
-                        .mul(anchor_param.pull_force);
-                    b2.b2Body_SetLinearVelocity(ball.body_id, to_mouse.to_b2());
-                }
-            }
-        }
-    }
-}
-
-pub fn check_win_contidion(iter: *flecs.iter_t) void {
+pub fn check_win_contidion(
+    iter: *flecs.iter_t,
+    shapes: []const ShapeId,
+    // tags: []const RectangleTag,
+    // win_targets: []const WinTarget,
+) void {
     const sensor_events = flecs.singleton_get(iter.world, SensorEvents).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
 
@@ -783,22 +682,28 @@ pub fn check_win_contidion(iter: *flecs.iter_t) void {
         return;
     }
 
-    const rectangles = flecs.field(iter, Rectangle, 1).?;
-
-    for (rectangles) |r| {
+    for (shapes) |shape| {
         for (sensor_events.begin_events) |be| {
-            if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(r.rectangle.shape_id))) {
+            if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(shape.id))) {
                 state_stack.push_state(.Win);
             }
         }
     }
 }
 
-pub fn update_game_camera(iter: *flecs.iter_t, balls: []const Ball) void {
+pub fn update_game_camera(
+    iter: *flecs.iter_t,
+    positions: []const Position,
+    // tags: []const BallTag,
+) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     const game_camera = flecs.singleton_get_mut(iter.world, GameCamera).?;
 
-    const ball = balls[0];
-    const ball_pos = ball.get_position();
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    const ball_pos = positions[0].value;
     const camera_pos = Vector2.from_rl_pos(game_camera.camera.target);
     const p = ball_pos.lerp(&camera_pos, iter.delta_time);
     game_camera.camera.target.y = p.to_rl_as_pos().y;
@@ -819,6 +724,8 @@ pub const GameV2 = struct {
 
         const ecs_world = flecs.init();
 
+        try OBJECTS_FLECS_INIT_COMPONENTS(ecs_world, allocator);
+
         flecs.TAG(ecs_world, WinTarget);
 
         flecs.COMPONENT(ecs_world, Allocator);
@@ -834,46 +741,68 @@ pub const GameV2 = struct {
 
         flecs.COMPONENT(ecs_world, LevelObject);
 
-        flecs.COMPONENT(ecs_world, Ball);
-        flecs.COMPONENT(ecs_world, BallParams);
-
-        flecs.COMPONENT(ecs_world, Anchor);
-        flecs.COMPONENT(ecs_world, AnchorParams);
-
-        flecs.COMPONENT(ecs_world, Rectangle);
-        flecs.COMPONENT(ecs_world, RectangleParams);
+        try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
 
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
 
+        // {
+        //     var desc = flecs.SYSTEM_DESC(clean_level);
+        //
+        //     var level_objects_query: flecs.query_desc_t = .{};
+        //     level_objects_query.filter.terms[0].inout = .InOutNone;
+        //     level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
+        //     level_objects_query.order_by_component = flecs.id(LevelObject);
+        //     const DestructionOrder = struct {
+        //         fn sort(
+        //             e1: flecs.entity_t,
+        //             ptr1: *const anyopaque,
+        //             e2: flecs.entity_t,
+        //             ptr2: *const anyopaque,
+        //         ) callconv(.C) i32 {
+        //             _ = e2;
+        //             _ = e1;
+        //             const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
+        //             const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
+        //             return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
+        //                 @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
+        //         }
+        //     };
+        //     level_objects_query.order_by = &DestructionOrder.sort;
+        //     const q = try flecs.query_init(ecs_world, &level_objects_query);
+        //     desc.ctx = q;
+        //     // No need to clean ctx, query seems to be cleaned automatically.
+        //
+        //     flecs.SYSTEM(ecs_world, "clean_level", flecs.PreFrame, &desc);
+        // }
+
         {
-            var desc = flecs.SYSTEM_DESC(clean_level);
+            var desc = flecs.SYSTEM_DESC(start_level);
 
-            var level_objects_query: flecs.query_desc_t = .{};
-            level_objects_query.filter.terms[0].inout = .InOutNone;
-            level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
-            level_objects_query.order_by_component = flecs.id(LevelObject);
-            const DestructionOrder = struct {
-                fn sort(
-                    e1: flecs.entity_t,
-                    ptr1: *const anyopaque,
-                    e2: flecs.entity_t,
-                    ptr2: *const anyopaque,
-                ) callconv(.C) i32 {
-                    _ = e2;
-                    _ = e1;
-                    const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
-                    const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
-                    return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
-                        @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
-                }
-            };
-            level_objects_query.order_by = &DestructionOrder.sort;
-            const q = try flecs.query_init(ecs_world, &level_objects_query);
-            desc.ctx = q;
-            // No need to clean ctx, query seems to be cleaned automatically.
+            var ball_query: flecs.query_desc_t = .{};
+            ball_query.filter.terms[0].inout = .In;
+            ball_query.filter.terms[0].id = flecs.id(BodyId);
+            ball_query.filter.terms[1].inout = .In;
+            ball_query.filter.terms[1].id = flecs.id(BallTag);
+            const bq = try flecs.query_init(ecs_world, &ball_query);
 
-            flecs.SYSTEM(ecs_world, "clean_level", flecs.PreFrame, &desc);
+            var spawner_query: flecs.query_desc_t = .{};
+            spawner_query.filter.terms[0].inout = .In;
+            spawner_query.filter.terms[0].id = flecs.id(Position);
+            spawner_query.filter.terms[1].inout = .In;
+            spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
+            const sq = try flecs.query_init(ecs_world, &spawner_query);
+
+            var rl_ctx = try allocator.create(StartLevelCtx);
+            rl_ctx.allocator = allocator;
+            rl_ctx.ball_query = bq;
+            rl_ctx.spawner_query = sq;
+
+            desc.ctx = rl_ctx;
+            desc.ctx_free = @ptrCast(&StartLevelCtx.deinit);
+
+            flecs.SYSTEM(ecs_world, "start_level", flecs.PreFrame, &desc);
         }
+
         {
             var desc = flecs.SYSTEM_DESC(load_level);
             desc.query.filter.terms[0].inout = .Out;
@@ -886,58 +815,56 @@ pub const GameV2 = struct {
             var desc = flecs.SYSTEM_DESC(recreate_level);
 
             var ball_query: flecs.query_desc_t = .{};
-            ball_query.filter.terms[0].inout = .InOut;
-            ball_query.filter.terms[0].id = flecs.id(Ball);
-            ball_query.filter.terms[1].inout = .In;
-            ball_query.filter.terms[1].id = flecs.id(BallParams);
+            ball_query.filter.terms[0].inout = .In;
+            ball_query.filter.terms[0].id = flecs.id(BodyId);
+            ball_query.filter.terms[1].inout = .InOut;
+            ball_query.filter.terms[1].id = flecs.id(BallAttachment);
             const bq = try flecs.query_init(ecs_world, &ball_query);
 
-            var anchor_query: flecs.query_desc_t = .{};
-            anchor_query.filter.terms[0].inout = .InOut;
-            anchor_query.filter.terms[0].id = flecs.id(Anchor);
-            anchor_query.filter.terms[1].inout = .In;
-            anchor_query.filter.terms[1].id = flecs.id(AnchorParams);
-            const aq = try flecs.query_init(ecs_world, &anchor_query);
+            var joint_query: flecs.query_desc_t = .{};
+            joint_query.filter.terms[0].inout = .In;
+            joint_query.filter.terms[0].id = flecs.id(JointId);
+            const jq = try flecs.query_init(ecs_world, &joint_query);
 
             var rl_ctx = try allocator.create(RecreateLevelCtx);
             rl_ctx.allocator = allocator;
             rl_ctx.ball_query = bq;
-            rl_ctx.anchor_query = aq;
+            rl_ctx.joint_query = jq;
 
             desc.ctx = rl_ctx;
             desc.ctx_free = @ptrCast(&RecreateLevelCtx.deinit);
 
             flecs.SYSTEM(ecs_world, "recreate_level", flecs.PreFrame, &desc);
         }
-        {
-            var desc = flecs.SYSTEM_DESC(save_level);
-
-            var ball_query: flecs.query_desc_t = .{};
-            ball_query.filter.terms[0].inout = .In;
-            ball_query.filter.terms[0].id = flecs.id(BallParams);
-            const bq = try flecs.query_init(ecs_world, &ball_query);
-
-            var anchor_query: flecs.query_desc_t = .{};
-            anchor_query.filter.terms[0].inout = .In;
-            anchor_query.filter.terms[0].id = flecs.id(AnchorParams);
-            const aq = try flecs.query_init(ecs_world, &anchor_query);
-
-            var rectangle_query: flecs.query_desc_t = .{};
-            rectangle_query.filter.terms[0].inout = .In;
-            rectangle_query.filter.terms[0].id = flecs.id(RectangleParams);
-            const rq = try flecs.query_init(ecs_world, &rectangle_query);
-
-            var s_ctx = try allocator.create(SaveLevelCtx);
-            s_ctx.allocator = allocator;
-            s_ctx.ball_query = bq;
-            s_ctx.anchor_query = aq;
-            s_ctx.rectangle_query = rq;
-
-            desc.ctx = s_ctx;
-            desc.ctx_free = @ptrCast(&SaveLevelCtx.deinit);
-
-            flecs.SYSTEM(ecs_world, "save_level", flecs.PreFrame, &desc);
-        }
+        // {
+        //     var desc = flecs.SYSTEM_DESC(save_level);
+        //
+        //     var ball_query: flecs.query_desc_t = .{};
+        //     ball_query.filter.terms[0].inout = .In;
+        //     ball_query.filter.terms[0].id = flecs.id(BallParams);
+        //     const bq = try flecs.query_init(ecs_world, &ball_query);
+        //
+        //     var anchor_query: flecs.query_desc_t = .{};
+        //     anchor_query.filter.terms[0].inout = .In;
+        //     anchor_query.filter.terms[0].id = flecs.id(AnchorParams);
+        //     const aq = try flecs.query_init(ecs_world, &anchor_query);
+        //
+        //     var rectangle_query: flecs.query_desc_t = .{};
+        //     rectangle_query.filter.terms[0].inout = .In;
+        //     rectangle_query.filter.terms[0].id = flecs.id(RectangleParams);
+        //     const rq = try flecs.query_init(ecs_world, &rectangle_query);
+        //
+        //     var s_ctx = try allocator.create(SaveLevelCtx);
+        //     s_ctx.allocator = allocator;
+        //     s_ctx.ball_query = bq;
+        //     s_ctx.anchor_query = aq;
+        //     s_ctx.rectangle_query = rq;
+        //
+        //     desc.ctx = s_ctx;
+        //     desc.ctx_free = @ptrCast(&SaveLevelCtx.deinit);
+        //
+        //     flecs.SYSTEM(ecs_world, "save_level", flecs.PreFrame, &desc);
+        // }
 
         flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 
@@ -945,38 +872,24 @@ pub const GameV2 = struct {
         flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics);
         flecs.ADD_SYSTEM(ecs_world, "process_keys", flecs.PreUpdate, process_keys);
         flecs.ADD_SYSTEM(ecs_world, "update_mouse_pos", flecs.PreUpdate, update_mouse_pos);
-        flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera);
 
         {
-            var desc = flecs.SYSTEM_DESC(update_anchor);
-
-            var ball_query: flecs.query_desc_t = .{};
-            ball_query.filter.terms[0].id = flecs.id(Ball);
-            ball_query.filter.terms[0].inout = .In;
-            ball_query.filter.terms[1].id = flecs.id(BallParams);
-            ball_query.filter.terms[1].inout = .In;
-            const q = try flecs.query_init(ecs_world, &ball_query);
-            desc.ctx = q;
-            // No need to clean ctx, query seems to be cleaned automatically.
-
-            flecs.SYSTEM(ecs_world, "update_anchor", flecs.PreUpdate, &desc);
+            var desc = flecs.SYSTEM_DESC(update_game_camera);
+            desc.query.filter.terms[1].id = flecs.id(BallTag);
+            desc.query.filter.terms[1].inout = .In;
+            flecs.SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, &desc);
         }
 
         {
             var desc = flecs.SYSTEM_DESC(check_win_contidion);
-            desc.query.filter.terms[0].id = flecs.id(Rectangle);
-            desc.query.filter.terms[0].inout = .In;
+            desc.query.filter.terms[1].id = flecs.id(RectangleTag);
+            desc.query.filter.terms[1].inout = .In;
             desc.query.filter.terms[1].id = flecs.id(WinTarget);
             desc.query.filter.terms[1].inout = .In;
             flecs.SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, &desc);
         }
 
         flecs.ADD_SYSTEM(ecs_world, "draw_game_start", flecs.PreUpdate, draw_game_start);
-
-        // Draw all game objects
-        flecs.ADD_SYSTEM(ecs_world, "draw_balls", flecs.OnUpdate, draw_balls);
-        flecs.ADD_SYSTEM(ecs_world, "draw_anchors", flecs.OnUpdate, draw_anchors);
-        flecs.ADD_SYSTEM(ecs_world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
 
         flecs.ADD_SYSTEM(ecs_world, "draw_mouse_pos", flecs.OnUpdate, draw_mouse_pos);
 

@@ -17,15 +17,10 @@ const CurrentLevel = _level.CurrentLevel;
 
 const _objects = @import("objects.zig");
 const AABB = _objects.AABB;
-
-const Ball = _objects.Ball;
-const BallParams = _objects.BallParams;
-
-const Anchor = _objects.Anchor;
-const AnchorParams = _objects.AnchorParams;
-
-const Rectangle = _objects.Rectangle;
-const RectangleParams = _objects.RectangleParams;
+const Position = _objects.Position;
+const BallTag = _objects.BallTag;
+const AnchorTag = _objects.AnchorTag;
+const RectangleTag = _objects.RectangleTag;
 
 const EDITOR_HEIGHT: f32 = 50.0;
 const LABEL_WIDTH: f32 = 50.0;
@@ -319,9 +314,10 @@ fn select_entity(iter: *flecs.iter_t) void {
     const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
     var ball_iter = flecs.query_iter(iter.world, ball_query);
     while (flecs.query_next(&ball_iter)) {
-        const balls = flecs.field(&ball_iter, Ball, 1).?;
-        for (ball_iter.entities(), balls) |e, b| {
-            if (b.aabb_contains(mouse_pos.world_position)) {
+        const aabbs = flecs.field(&ball_iter, AABB, 1).?;
+        const positions = flecs.field(&ball_iter, Position, 2).?;
+        for (ball_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
                 selected = e;
             }
         }
@@ -330,9 +326,10 @@ fn select_entity(iter: *flecs.iter_t) void {
     const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
     var anchor_iter = flecs.query_iter(iter.world, anchor_query);
     while (flecs.query_next(&anchor_iter)) {
-        const anchors = flecs.field(&anchor_iter, Anchor, 1).?;
-        for (anchor_iter.entities(), anchors) |e, b| {
-            if (b.aabb_contains(mouse_pos.world_position)) {
+        const aabbs = flecs.field(&anchor_iter, AABB, 1).?;
+        const positions = flecs.field(&anchor_iter, Position, 2).?;
+        for (anchor_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
                 selected = e;
             }
         }
@@ -341,9 +338,10 @@ fn select_entity(iter: *flecs.iter_t) void {
     const rectangle_query: *flecs.query_t = @ptrCast(ctx.rectangle_query);
     var rectangle_iter = flecs.query_iter(iter.world, rectangle_query);
     while (flecs.query_next(&rectangle_iter)) {
-        const rectangles = flecs.field(&rectangle_iter, Rectangle, 1).?;
-        for (rectangle_iter.entities(), rectangles) |e, b| {
-            if (b.aabb_contains(mouse_pos.world_position)) {
+        const aabbs = flecs.field(&rectangle_iter, AABB, 1).?;
+        const positions = flecs.field(&rectangle_iter, Position, 2).?;
+        for (rectangle_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
                 selected = e;
             }
         }
@@ -352,7 +350,13 @@ fn select_entity(iter: *flecs.iter_t) void {
     selected_entity.entity = selected;
 }
 
-fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
+fn draw_balls_aabb(
+    iter: *flecs.iter_t,
+    aabbs: []const AABB,
+    positions: []const Position,
+    tags: []const BallTag,
+) void {
+    _ = tags;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
@@ -360,10 +364,8 @@ fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
         return;
     }
 
-    for (iter.entities(), balls) |e, *ball| {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(ball.body_id));
-        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(ball.shape_id));
-        const rl_aabb_rect = aabb.to_rl_rect(position);
+    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
         const color = c: {
             if (selected_entity.entity) |selected| {
                 break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
@@ -375,7 +377,13 @@ fn draw_balls_aabb(iter: *flecs.iter_t, balls: []const Ball) void {
     }
 }
 
-fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor) void {
+fn draw_anchors_aabb(
+    iter: *flecs.iter_t,
+    aabbs: []const AABB,
+    positions: []const Position,
+    tags: []const AnchorTag,
+) void {
+    _ = tags;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
@@ -383,20 +391,8 @@ fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor) void {
         return;
     }
 
-    for (iter.entities(), anchors) |e, *anchor| {
-        const position = Vector2.from_b2(b2.b2Body_GetPosition(anchor.body_id));
-        const aabb = AABB.from_b2(b2.b2AABB{
-            .lowerBound = (Vector2{
-                .x = -anchor.radius,
-                .y = -anchor.radius,
-            }).add(&position).to_b2(),
-            .upperBound = (Vector2{
-                .x = anchor.radius,
-                .y = anchor.radius,
-            }).add(&position).to_b2(),
-        });
-
-        const rl_aabb_rect = aabb.to_rl_rect(position);
+    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
 
         const color = c: {
             if (selected_entity.entity) |selected| {
@@ -414,7 +410,13 @@ fn draw_anchors_aabb(iter: *flecs.iter_t, anchors: []const Anchor) void {
     }
 }
 
-fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void {
+fn draw_rectangles_aabb(
+    iter: *flecs.iter_t,
+    aabbs: []const AABB,
+    positions: []const Position,
+    tags: []const RectangleTag,
+) void {
+    _ = tags;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
@@ -422,10 +424,8 @@ fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void
         return;
     }
 
-    for (iter.entities(), rectangles) |e, *rectangle| {
-        const body_position = Vector2.from_b2(b2.b2Body_GetPosition(rectangle.body_id));
-        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(rectangle.rectangle.shape_id));
-        const rl_aabb_rect = aabb.to_rl_rect(body_position);
+    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
 
         const color = c: {
             if (selected_entity.entity) |selected| {
@@ -443,95 +443,96 @@ fn draw_rectangles_aabb(iter: *flecs.iter_t, rectangles: []const Rectangle) void
     }
 }
 
-fn draw_editor_ball(
-    iter: *flecs.iter_t,
-    balls: []Ball,
-    params: []BallParams,
-    editors: []ParamEditor(BallParams),
-) void {
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-
-    if (selected_entity.entity == null) {
-        return;
-    }
-
-    const selected = selected_entity.entity.?;
-    for (iter.entities(), 0..) |e, i| {
-        if (e == selected) {
-            const b = &balls[i];
-            const p = &params[i];
-            const editor = &editors[i];
-            if (editor.draw()) |new_param| {
-                const new_ball = Ball.new(physics_world.id, new_param);
-                p.* = new_param;
-                b.deinit();
-                b.* = new_ball;
-            }
-        }
-    }
-}
-
-pub fn draw_editor_anchor(
-    iter: *flecs.iter_t,
-    anchors: []Anchor,
-    params: []AnchorParams,
-    editors: []ParamEditor(AnchorParams),
-) void {
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-
-    if (selected_entity.entity == null) {
-        return;
-    }
-
-    const selected = selected_entity.entity.?;
-    for (iter.entities(), 0..) |e, i| {
-        if (e == selected) {
-            const a = &anchors[i];
-            const p = &params[i];
-            const editor = &editors[i];
-            if (editor.draw()) |new_param| {
-                const new_anchor = Anchor.new(physics_world.id, new_param);
-                p.* = new_param;
-                a.deinit();
-                a.* = new_anchor;
-            }
-        }
-    }
-}
-
-fn draw_editor_rectangle(
-    iter: *flecs.iter_t,
-    rectangles: []Rectangle,
-    params: []RectangleParams,
-    editors: []ParamEditor(RectangleParams),
-) void {
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-
-    if (selected_entity.entity == null) {
-        return;
-    }
-
-    const selected = selected_entity.entity.?;
-    for (iter.entities(), 0..) |e, i| {
-        if (e == selected) {
-            const r = &rectangles[i];
-            const p = &params[i];
-            const editor = &editors[i];
-            if (editor.draw()) |new_param| {
-                const new_rect = Rectangle.new(physics_world.id, new_param) catch return;
-                p.* = new_param;
-                r.deinit();
-                r.* = new_rect;
-            }
-        }
-    }
-}
+// fn draw_editor_ball(
+//     iter: *flecs.iter_t,
+//     balls: []Ball,
+//     params: []BallParams,
+//     editors: []ParamEditor(BallParams),
+// ) void {
+//     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+//     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
+//
+//     if (selected_entity.entity == null) {
+//         return;
+//     }
+//
+//     const selected = selected_entity.entity.?;
+//     for (iter.entities(), 0..) |e, i| {
+//         if (e == selected) {
+//             const b = &balls[i];
+//             const p = &params[i];
+//             const editor = &editors[i];
+//             if (editor.draw()) |new_param| {
+//                 const new_ball = Ball.new(physics_world.id, new_param);
+//                 p.* = new_param;
+//                 b.deinit();
+//                 b.* = new_ball;
+//             }
+//         }
+//     }
+// }
+//
+// pub fn draw_editor_anchor(
+//     iter: *flecs.iter_t,
+//     anchors: []Anchor,
+//     params: []AnchorParams,
+//     editors: []ParamEditor(AnchorParams),
+// ) void {
+//     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+//     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
+//
+//     if (selected_entity.entity == null) {
+//         return;
+//     }
+//
+//     const selected = selected_entity.entity.?;
+//     for (iter.entities(), 0..) |e, i| {
+//         if (e == selected) {
+//             const a = &anchors[i];
+//             const p = &params[i];
+//             const editor = &editors[i];
+//             if (editor.draw()) |new_param| {
+//                 const new_anchor = Anchor.new(physics_world.id, new_param);
+//                 p.* = new_param;
+//                 a.deinit();
+//                 a.* = new_anchor;
+//             }
+//         }
+//     }
+// }
+//
+// fn draw_editor_rectangle(
+//     iter: *flecs.iter_t,
+//     rectangles: []Rectangle,
+//     params: []RectangleParams,
+//     editors: []ParamEditor(RectangleParams),
+// ) void {
+//     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+//     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
+//
+//     if (selected_entity.entity == null) {
+//         return;
+//     }
+//
+//     const selected = selected_entity.entity.?;
+//     for (iter.entities(), 0..) |e, i| {
+//         if (e == selected) {
+//             const r = &rectangles[i];
+//             const p = &params[i];
+//             const editor = &editors[i];
+//             if (editor.draw()) |new_param| {
+//                 const new_rect = Rectangle.new(physics_world.id, new_param) catch return;
+//                 p.* = new_param;
+//                 r.deinit();
+//                 r.* = new_rect;
+//             }
+//         }
+//     }
+// }
 
 fn draw_editor_level(iter: *flecs.iter_t) void {
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
+    _ = physics_world;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
@@ -562,51 +563,51 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
             state_stack.pop_state();
         }
 
-        imgui.igSeparatorText("Adding objects");
-        if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
-            const ball_params = .{};
-            const n = flecs.new_id(iter.world);
-            _ = flecs.set(
-                iter.world,
-                n,
-                Ball,
-                Ball.new(physics_world.id, ball_params),
-            );
-            _ = flecs.set(iter.world, n, BallParams, ball_params);
-            _ = flecs.set(iter.world, n, ParamEditor(BallParams), ParamEditor(BallParams).new(&ball_params));
-            _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
-        }
-
-        if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
-            const anchor_params = .{};
-            const n = flecs.new_id(iter.world);
-            _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, anchor_params));
-            _ = flecs.set(iter.world, n, AnchorParams, anchor_params);
-            _ = flecs.set(iter.world, n, ParamEditor(AnchorParams), ParamEditor(AnchorParams).new(&anchor_params));
-            _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
-        }
-
-        if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
-            const rectangle_params = .{};
-            const n = flecs.new_id(iter.world);
-            const rectangle = Rectangle.new(physics_world.id, rectangle_params) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-            _ = flecs.set(iter.world, n, Rectangle, rectangle);
-            _ = flecs.set(iter.world, n, RectangleParams, rectangle_params);
-            _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&rectangle_params));
-            _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
-        }
+        // imgui.igSeparatorText("Adding objects");
+        // if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
+        //     const ball_params = .{};
+        //     const n = flecs.new_id(iter.world);
+        //     _ = flecs.set(
+        //         iter.world,
+        //         n,
+        //         Ball,
+        //         Ball.new(physics_world.id, ball_params),
+        //     );
+        //     _ = flecs.set(iter.world, n, BallParams, ball_params);
+        //     _ = flecs.set(iter.world, n, ParamEditor(BallParams), ParamEditor(BallParams).new(&ball_params));
+        //     _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
+        // }
+        //
+        // if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
+        //     const anchor_params = .{};
+        //     const n = flecs.new_id(iter.world);
+        //     _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, anchor_params));
+        //     _ = flecs.set(iter.world, n, AnchorParams, anchor_params);
+        //     _ = flecs.set(iter.world, n, ParamEditor(AnchorParams), ParamEditor(AnchorParams).new(&anchor_params));
+        //     _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
+        // }
+        //
+        // if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
+        //     const rectangle_params = .{};
+        //     const n = flecs.new_id(iter.world);
+        //     const rectangle = Rectangle.new(physics_world.id, rectangle_params) catch {
+        //         state_stack.push_state(.Exit);
+        //         return;
+        //     };
+        //     _ = flecs.set(iter.world, n, Rectangle, rectangle);
+        //     _ = flecs.set(iter.world, n, RectangleParams, rectangle_params);
+        //     _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&rectangle_params));
+        //     _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
+        // }
     }
 }
 
 pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.COMPONENT(world, EditorLevel);
     flecs.COMPONENT(world, SelectedEntity);
-    flecs.COMPONENT(world, ParamEditor(BallParams));
-    flecs.COMPONENT(world, ParamEditor(AnchorParams));
-    flecs.COMPONENT(world, ParamEditor(RectangleParams));
+    // flecs.COMPONENT(world, ParamEditor(BallParams));
+    // flecs.COMPONENT(world, ParamEditor(AnchorParams));
+    // flecs.COMPONENT(world, ParamEditor(RectangleParams));
 
     _ = flecs.singleton_set(world, EditorLevel, .{});
     _ = flecs.singleton_set(world, SelectedEntity, .{});
@@ -625,17 +626,29 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
 
         var ball_query: flecs.query_desc_t = .{};
         ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[0].id = flecs.id(Ball);
+        ball_query.filter.terms[0].id = flecs.id(AABB);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(Position);
+        ball_query.filter.terms[2].inout = .In;
+        ball_query.filter.terms[2].id = flecs.id(BallTag);
         const bq = try flecs.query_init(world, &ball_query);
 
         var anchor_query: flecs.query_desc_t = .{};
         anchor_query.filter.terms[0].inout = .In;
-        anchor_query.filter.terms[0].id = flecs.id(Anchor);
+        anchor_query.filter.terms[0].id = flecs.id(AABB);
+        anchor_query.filter.terms[1].inout = .In;
+        anchor_query.filter.terms[1].id = flecs.id(Position);
+        anchor_query.filter.terms[2].inout = .In;
+        anchor_query.filter.terms[2].id = flecs.id(AnchorTag);
         const aq = try flecs.query_init(world, &anchor_query);
 
         var rectangle_query: flecs.query_desc_t = .{};
         rectangle_query.filter.terms[0].inout = .In;
-        rectangle_query.filter.terms[0].id = flecs.id(Rectangle);
+        rectangle_query.filter.terms[0].id = flecs.id(AABB);
+        rectangle_query.filter.terms[1].inout = .In;
+        rectangle_query.filter.terms[1].id = flecs.id(Position);
+        rectangle_query.filter.terms[2].inout = .In;
+        rectangle_query.filter.terms[2].id = flecs.id(RectangleTag);
         const rq = try flecs.query_init(world, &rectangle_query);
 
         var s_ctx = try allocator.create(SelectEntityCtx);
@@ -650,12 +663,12 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
         flecs.SYSTEM(world, "select_entity", flecs.PreUpdate, &desc);
     }
 
-    flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
-    flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
-    flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
+    // flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnUpdate, draw_balls_aabb);
+    // flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnUpdate, draw_anchors_aabb);
+    // flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnUpdate, draw_rectangles_aabb);
 
-    flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
-    flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
-    flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
-    flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
+    // flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
+    // flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
+    // flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
+    // flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
 }
