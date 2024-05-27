@@ -18,8 +18,11 @@ const CurrentLevel = _level.CurrentLevel;
 const _objects = @import("objects.zig");
 const AABB = _objects.AABB;
 const Position = _objects.Position;
+const create_ball = _objects.create_ball;
 const BallTag = _objects.BallTag;
+const create_anchor = _objects.create_anchor;
 const AnchorTag = _objects.AnchorTag;
+const create_rectangle = _objects.create_rectangle;
 const RectangleTag = _objects.RectangleTag;
 
 const EDITOR_HEIGHT: f32 = 50.0;
@@ -529,7 +532,6 @@ fn draw_rectangles_aabb(
 
 fn draw_editor_level(iter: *flecs.iter_t) void {
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-    _ = physics_world;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
@@ -560,42 +562,21 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
             state_stack.pop_state();
         }
 
-        // imgui.igSeparatorText("Adding objects");
-        // if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
-        //     const ball_params = .{};
-        //     const n = flecs.new_id(iter.world);
-        //     _ = flecs.set(
-        //         iter.world,
-        //         n,
-        //         Ball,
-        //         Ball.new(physics_world.id, ball_params),
-        //     );
-        //     _ = flecs.set(iter.world, n, BallParams, ball_params);
-        //     _ = flecs.set(iter.world, n, ParamEditor(BallParams), ParamEditor(BallParams).new(&ball_params));
-        //     _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
-        // }
-        //
-        // if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
-        //     const anchor_params = .{};
-        //     const n = flecs.new_id(iter.world);
-        //     _ = flecs.set(iter.world, n, Anchor, Anchor.new(physics_world.id, anchor_params));
-        //     _ = flecs.set(iter.world, n, AnchorParams, anchor_params);
-        //     _ = flecs.set(iter.world, n, ParamEditor(AnchorParams), ParamEditor(AnchorParams).new(&anchor_params));
-        //     _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 0 });
-        // }
-        //
-        // if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
-        //     const rectangle_params = .{};
-        //     const n = flecs.new_id(iter.world);
-        //     const rectangle = Rectangle.new(physics_world.id, rectangle_params) catch {
-        //         state_stack.push_state(.Exit);
-        //         return;
-        //     };
-        //     _ = flecs.set(iter.world, n, Rectangle, rectangle);
-        //     _ = flecs.set(iter.world, n, RectangleParams, rectangle_params);
-        //     _ = flecs.set(iter.world, n, ParamEditor(RectangleParams), ParamEditor(RectangleParams).new(&rectangle_params));
-        //     _ = flecs.set(iter.world, n, LevelObject, .{ .destruction_order = 1 });
-        // }
+        imgui.igSeparatorText("Adding objects");
+        if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
+            create_ball(iter.world, physics_world.id, &.{});
+        }
+
+        if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
+            create_anchor(iter.world, physics_world.id, &.{});
+        }
+
+        if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
+            create_rectangle(iter.world, physics_world.id, &.{}) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
     }
 }
 
@@ -676,7 +657,7 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
         flecs.SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, &desc);
     }
 
-    // flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
+    flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
     // flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
     // flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
     // flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
