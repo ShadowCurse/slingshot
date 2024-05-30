@@ -125,6 +125,14 @@ pub const SpawnerTag = struct {};
 
 pub const SpawnerParams = struct {
     position: Vector2 = Vector2.ZERO,
+
+    const Self = @This();
+
+    pub fn new(position: *const Position) Self {
+        return Self{
+            .position = position.value,
+        };
+    }
 };
 
 pub fn create_spawner(ecs_world: *flecs.world_t, params: *const SpawnerParams) void {
@@ -147,8 +155,17 @@ pub const BallAttachment = struct {
 
 // Used only for serialization/deserialization
 pub const BallParams = struct {
-    radius: f32 = 10.0,
     color: rl.Color = rl.WHITE,
+    radius: f32 = 10.0,
+
+    const Self = @This();
+
+    pub fn new(color: *const Color, shape: *const BallShape) Self {
+        return Self{
+            .color = color.value,
+            .radius = shape.radius,
+        };
+    }
 };
 
 pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, params: *const BallParams) void {
@@ -217,15 +234,36 @@ pub const AnchoraJointParams = struct {
 };
 
 pub const AnchorParams = struct {
+    color: rl.Color = rl.GREEN,
     position: Vector2 = Vector2.ZERO,
     radius: f32 = 10.0,
-    color: rl.Color = rl.GREEN,
 
     min_length: f32 = 0.0,
     max_length: f32 = 100.0,
     damping_ratio: f32 = 0.5,
     hertz: f32 = 1.0,
     pull_force: f32 = 200.0,
+
+    const Self = @This();
+
+    pub fn new(
+        color: *const Color,
+        position: *const Position,
+        shape: *const AnchorShape,
+        joint_params: *const AnchoraJointParams,
+    ) Self {
+        return Self{
+            .position = position.value,
+            .radius = shape.radius,
+            .color = color.value,
+
+            .min_length = joint_params.min_length,
+            .max_length = joint_params.max_length,
+            .damping_ratio = joint_params.damping_ratio,
+            .hertz = joint_params.hertz,
+            .pull_force = joint_params.pull_force,
+        };
+    }
 };
 
 pub fn create_anchor(
@@ -534,14 +572,31 @@ pub const RectangleShape = struct {
 };
 
 pub const RectangleParams = struct {
+    color: rl.Color = rl.WHITE,
     position: Vector2 = Vector2.ZERO,
+
     point_1: Vector2 = Vector2.X,
     point_2: Vector2 = Vector2.NEG_X,
     width: f32 = 10.0,
     height_offset: f32 = 10.0,
     restitution: f32 = 0.0,
     is_sensor: bool = false,
-    color: rl.Color = rl.WHITE,
+
+    const Self = @This();
+
+    pub fn new(color: *const Color, position: *const Position, shape: *const RectangleShape) Self {
+        return Self{
+            .color = color.value,
+            .position = position.value,
+
+            .point_1 = shape.point_1,
+            .point_2 = shape.point_2,
+            .width = shape.width,
+            .height_offset = shape.height_offset,
+            .restitution = shape.restitution,
+            .is_sensor = shape.is_sensor,
+        };
+    }
 };
 
 pub fn create_rectangle(
