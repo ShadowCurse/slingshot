@@ -115,7 +115,12 @@ pub const AABB = struct {
     }
 };
 
-fn update_positions(bodies: []const BodyId, positions: []Position) void {
+fn update_positions(iter: *flecs.iter_t, bodies: []const BodyId, positions: []Position) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
     for (bodies, positions) |*body, *position| {
         position.value = Vector2.from_b2(b2.b2Body_GetPosition(body.id));
     }
@@ -203,13 +208,27 @@ pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, param
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
-fn draw_balls(positions: []const Position, shapes: []const BallShape, colors: []const Color) void {
+fn draw_balls(iter: *flecs.iter_t, positions: []const Position, shapes: []const BallShape, colors: []const Color) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
     for (positions, shapes, colors) |*position, *shape, *color| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
     }
 }
 
-fn update_balls(attachments: []BallAttachment) void {
+fn update_balls(iter: *flecs.iter_t, attachments: []BallAttachment) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
     for (attachments) |*a| {
         if (rl.IsKeyDown(rl.KEY_SPACE)) {
             a.should_attach = false;
@@ -309,7 +328,16 @@ pub fn create_anchor(
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
-fn draw_anchors(positions: []const Position, shapes: []const AnchorShape, colors: []const Color) void {
+fn draw_anchors(iter: *flecs.iter_t, positions: []const Position, shapes: []const AnchorShape, colors: []const Color) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
     for (positions, shapes, colors) |*position, *shape, *color| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
     }
@@ -324,12 +352,12 @@ fn update_anchors_try_attach(
     joint_params: []const AnchoraJointParams,
     // Not AnchorJointId
 ) void {
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-
     if (state_stack.current_state() != .Running) {
         return;
     }
+
+    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
 
     const ball_query: *flecs.query_t = @ptrCast(iter.ctx.?);
     var ball_iter = flecs.query_iter(iter.world, ball_query);
@@ -419,7 +447,16 @@ pub fn create_joint(
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 0 });
 }
 
-fn draw_joints(ids: []const JointId, colors: []const Color) void {
+fn draw_joints(iter: *flecs.iter_t, ids: []const JointId, colors: []const Color) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
     for (ids, colors) |*id, *color| {
         const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(id.attached_body_id));
         const anchor_position = Vector2.from_b2(b2.b2Body_GetPosition(id.attached_anchor_id));
@@ -436,12 +473,12 @@ fn update_joints(
     joint_ids: []const JointId,
     joint_stengths: []const JointStrength,
 ) void {
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-
     if (state_stack.current_state() != .Running) {
         return;
     }
+
+    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
 
     const ball_query: *flecs.query_t = @ptrCast(iter.ctx.?);
     var ball_iter = flecs.query_iter(iter.world, ball_query);
@@ -645,10 +682,20 @@ pub fn create_rectangle(
 }
 
 fn draw_rectangles(
+    iter: *flecs.iter_t,
     positions: []const Position,
     shapes: []const RectangleShape,
     colors: []const Color,
 ) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
     for (positions, shapes, colors) |*position, *shape, *color| {
         // const body_angle = b2.b2Body_GetAngle(rect.body_id);
         const body_angle = 0.0;
@@ -744,8 +791,6 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
 
         flecs.SYSTEM(world, "update_joints", flecs.OnUpdate, &desc);
     }
-
-    // flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
 
     flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
