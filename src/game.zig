@@ -514,9 +514,7 @@ pub fn recreate_level(iter: *flecs.iter_t) void {
     const joint_query: *flecs.query_t = ctx.joint_query;
     var joint_iter = flecs.query_iter(iter.world, joint_query);
     while (flecs.query_next(&joint_iter)) {
-        const joint_ids = flecs.field(&joint_iter, JointId, 1).?;
-        for (joint_iter.entities(), joint_ids) |e, joint_id| {
-            b2.b2DestroyJoint(joint_id.id);
+        for (joint_iter.entities()) |e| {
             _ = flecs.delete(iter.world, e);
         }
     }
@@ -857,7 +855,7 @@ pub const GameV2 = struct {
 
             var joint_query: flecs.query_desc_t = .{};
             joint_query.filter.terms[0].inout = .In;
-            joint_query.filter.terms[0].id = flecs.id(JointId);
+            joint_query.filter.terms[0].id = flecs.id(JointTag);
             const jq = try flecs.query_init(ecs_world, &joint_query);
 
             var rl_ctx = try allocator.create(RecreateLevelCtx);
