@@ -352,6 +352,28 @@ fn select_entity(iter: *flecs.iter_t) void {
     selected_entity.entity = selected;
 }
 
+fn drag_selected_entity(
+    iter: *flecs.iter_t,
+) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+    if (!rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
+        return;
+    }
+
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const selected = selected_entity.entity.?;
+    const body = if (flecs.get(iter.world, selected, BodyId)) |bi| bi else return;
+    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
+    b2.b2Body_SetTransform(body.id, mouse_pos.world_position.to_b2(), 0.0);
+}
+
 fn draw_balls_aabb(
     iter: *flecs.iter_t,
     aabbs: []const AABB,
@@ -800,6 +822,7 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
 
         flecs.SYSTEM(world, "select_entity", flecs.PreUpdate, &desc);
     }
+    flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
     {
         var desc = flecs.SYSTEM_DESC(draw_balls_aabb);

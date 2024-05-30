@@ -117,7 +117,10 @@ pub const AABB = struct {
 
 fn update_positions(iter: *flecs.iter_t, bodies: []const BodyId, positions: []Position) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .Running) {
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor))
+    {
         return;
     }
 
