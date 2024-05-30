@@ -268,12 +268,12 @@ fn ParamEditorInner(comptime T: type) type {
 }
 
 fn update_editor_camera(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const editor_camera = flecs.singleton_get_mut(iter.world, EditorCamera).?;
-
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     if (state_stack.current_state() != .Editor) {
         return;
     }
+
+    const editor_camera = flecs.singleton_get_mut(iter.world, EditorCamera).?;
 
     if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
         const delta = rl.GetMouseDelta();
@@ -297,10 +297,7 @@ const SelectEntityCtx = struct {
     }
 };
 fn select_entity(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
-    const selected_entity = flecs.singleton_get_mut(iter.world, SelectedEntity).?;
-
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     if (state_stack.current_state() != .Editor) {
         return;
     }
@@ -308,6 +305,9 @@ fn select_entity(iter: *flecs.iter_t) void {
     if (!rl.IsKeyPressed(rl.KEY_S)) {
         return;
     }
+
+    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
+    const selected_entity = flecs.singleton_get_mut(iter.world, SelectedEntity).?;
 
     const ctx: *const SelectEntityCtx = @alignCast(@ptrCast(iter.ctx.?));
 
@@ -358,12 +358,12 @@ fn draw_balls_aabb(
     positions: []const Position,
     // tags: []const BallTag,
 ) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     if (state_stack.current_state() != .Editor) {
         return;
     }
+
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
     for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -416,12 +416,12 @@ fn draw_rectangles_aabb(
     positions: []const Position,
     // tags: []const RectangleTag,
 ) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     if (state_stack.current_state() != .Editor) {
         return;
     }
+
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
 
     for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -451,8 +451,12 @@ fn draw_editor_ball(
     body_ids: []const BodyId,
     shape_ids: []const ShapeId,
 ) void {
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
 
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -523,8 +527,12 @@ pub fn draw_editor_anchor(
     shapes: []AnchorShape,
     body_ids: []const BodyId,
 ) void {
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
 
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -589,8 +597,12 @@ fn draw_editor_rectangle(
     body_ids: []const BodyId,
     shape_ids: []const ShapeId,
 ) void {
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
 
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -682,14 +694,14 @@ fn draw_editor_rectangle(
 }
 
 fn draw_editor_level(iter: *flecs.iter_t) void {
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-
     if (state_stack.current_state() != .Editor) {
         return;
     }
+
+    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
+    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
+    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
 
     var open = true;
     if (imgui.igBegin("LevelEditor", &open, 0)) {
