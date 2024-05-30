@@ -437,7 +437,7 @@ pub const RectangleShape = struct {
     ///  |       p2       |
     ///  |               |
     /// 0-----------------1
-    fn new(
+    pub fn new(
         point_1: Vector2,
         point_2: Vector2,
         width: f32,

@@ -17,13 +17,22 @@ const CurrentLevel = _level.CurrentLevel;
 
 const _objects = @import("objects.zig");
 const AABB = _objects.AABB;
+const BodyId = _objects.BodyId;
+const ShapeId = _objects.ShapeId;
+const Color = _objects.Color;
 const Position = _objects.Position;
+
 const create_ball = _objects.create_ball;
 const BallTag = _objects.BallTag;
+const BallShape = _objects.BallShape;
+
 const create_anchor = _objects.create_anchor;
 const AnchorTag = _objects.AnchorTag;
+const AnchorShape = _objects.AnchorShape;
+
 const create_rectangle = _objects.create_rectangle;
 const RectangleTag = _objects.RectangleTag;
+const RectangleShape = _objects.RectangleShape;
 
 const EDITOR_HEIGHT: f32 = 50.0;
 const LABEL_WIDTH: f32 = 50.0;
@@ -181,26 +190,16 @@ pub fn ParamEditor(comptime T: type) type {
             return Self{ .inner = inner };
         }
 
-        pub fn draw(self: *Self) ?T {
-            const type_name = @typeName(T);
+        pub fn draw(self: *Self) bool {
             const type_fields = comptime @typeInfo(ParamEditorInner(T)).Struct.fields;
             var interacted = false;
-            var open = true;
-            if (imgui.igBegin(type_name, &open, 0)) {
-                defer imgui.igEnd();
 
-                inline for (type_fields) |field| {
-                    // converts []const u8 that @typeInfo contains to [:0]const u8 for imgui
-                    const field_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{field.name});
-                    interacted = interacted or field.type.draw(&@field(self.inner, field.name), field_name);
-                }
-                if (interacted) {
-                    return self.get_value();
-                } else {
-                    return null;
-                }
+            inline for (type_fields) |field| {
+                // converts []const u8 that @typeInfo contains to [:0]const u8 for imgui
+                const field_name: [:0]const u8 = std.fmt.comptimePrint("{s}", .{field.name});
+                interacted = interacted or field.type.draw(&@field(self.inner, field.name), field_name);
             }
-            return null;
+            return interacted;
         }
 
         pub fn get_value(self: *const Self) ?T {
@@ -443,92 +442,244 @@ fn draw_rectangles_aabb(
     }
 }
 
-// fn draw_editor_ball(
-//     iter: *flecs.iter_t,
-//     balls: []Ball,
-//     params: []BallParams,
-//     editors: []ParamEditor(BallParams),
-// ) void {
-//     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-//     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-//
-//     if (selected_entity.entity == null) {
-//         return;
-//     }
-//
-//     const selected = selected_entity.entity.?;
-//     for (iter.entities(), 0..) |e, i| {
-//         if (e == selected) {
-//             const b = &balls[i];
-//             const p = &params[i];
-//             const editor = &editors[i];
-//             if (editor.draw()) |new_param| {
-//                 const new_ball = Ball.new(physics_world.id, new_param);
-//                 p.* = new_param;
-//                 b.deinit();
-//                 b.* = new_ball;
-//             }
-//         }
-//     }
-// }
-//
-// pub fn draw_editor_anchor(
-//     iter: *flecs.iter_t,
-//     anchors: []Anchor,
-//     params: []AnchorParams,
-//     editors: []ParamEditor(AnchorParams),
-// ) void {
-//     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-//     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-//
-//     if (selected_entity.entity == null) {
-//         return;
-//     }
-//
-//     const selected = selected_entity.entity.?;
-//     for (iter.entities(), 0..) |e, i| {
-//         if (e == selected) {
-//             const a = &anchors[i];
-//             const p = &params[i];
-//             const editor = &editors[i];
-//             if (editor.draw()) |new_param| {
-//                 const new_anchor = Anchor.new(physics_world.id, new_param);
-//                 p.* = new_param;
-//                 a.deinit();
-//                 a.* = new_anchor;
-//             }
-//         }
-//     }
-// }
-//
-// fn draw_editor_rectangle(
-//     iter: *flecs.iter_t,
-//     rectangles: []Rectangle,
-//     params: []RectangleParams,
-//     editors: []ParamEditor(RectangleParams),
-// ) void {
-//     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-//     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-//
-//     if (selected_entity.entity == null) {
-//         return;
-//     }
-//
-//     const selected = selected_entity.entity.?;
-//     for (iter.entities(), 0..) |e, i| {
-//         if (e == selected) {
-//             const r = &rectangles[i];
-//             const p = &params[i];
-//             const editor = &editors[i];
-//             if (editor.draw()) |new_param| {
-//                 const new_rect = Rectangle.new(physics_world.id, new_param) catch return;
-//                 p.* = new_param;
-//                 r.deinit();
-//                 r.* = new_rect;
-//             }
-//         }
-//     }
-// }
+fn draw_editor_ball(
+    iter: *flecs.iter_t,
+    colors: []Color,
+    positions: []Position,
+    aabbs: []AABB,
+    shapes: []BallShape,
+    body_ids: []const BodyId,
+    shape_ids: []const ShapeId,
+) void {
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const LocalCtx = struct {
+        // used to detect when entity is first
+        // selected for editors initialization.
+        var current_entity: flecs.entity_t = 0;
+        var editor_color: EditorColor = undefined;
+        var editor_position: EditorVector2 = undefined;
+        var editor_radius: EditorF32 = undefined;
+    };
+
+    const selected = selected_entity.entity.?;
+
+    for (iter.entities(), 0..) |e, i| {
+        if (e == selected) {
+            const color = &colors[i];
+            const position = &positions[i];
+            const aabb = &aabbs[i];
+            const shape = &shapes[i];
+            const body_id = &body_ids[i];
+            const shape_id = &shape_ids[i];
+
+            if (LocalCtx.current_entity != selected) {
+                LocalCtx.editor_color = EditorColor.new(&color.value);
+                LocalCtx.editor_position = EditorVector2.new(&position.value);
+                LocalCtx.editor_radius = EditorF32.new(&shape.radius);
+            }
+
+            var open = true;
+            if (imgui.igBegin("EditorBall", &open, 0)) {
+                defer imgui.igEnd();
+
+                if (LocalCtx.editor_color.draw("color")) {
+                    if (LocalCtx.editor_color.get_value()) |v| {
+                        color.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_position.draw("position")) {
+                    if (LocalCtx.editor_position.get_value()) |v| {
+                        position.value = v;
+                        b2.b2Body_SetTransform(body_id.id, v.to_b2(), 0.0);
+                    }
+                }
+
+                if (LocalCtx.editor_radius.draw("radius")) {
+                    if (LocalCtx.editor_radius.get_value()) |v| {
+                        shape.radius = v;
+                        const circle = b2.b2Circle{
+                            .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
+                            .radius = v,
+                        };
+                        b2.b2Shape_SetCircle(shape_id.id, &circle);
+                        aabb.* = AABB.from_b2(b2.b2Shape_GetAABB(shape_id.id));
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn draw_editor_anchor(
+    iter: *flecs.iter_t,
+    colors: []Color,
+    positions: []Position,
+    shapes: []AnchorShape,
+    body_ids: []const BodyId,
+) void {
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const LocalCtx = struct {
+        // used to detect when entity is first
+        // selected for editors initialization.
+        var current_entity: flecs.entity_t = 0;
+        var editor_color: EditorColor = undefined;
+        var editor_position: EditorVector2 = undefined;
+        var editor_radius: EditorF32 = undefined;
+    };
+
+    const selected = selected_entity.entity.?;
+
+    for (iter.entities(), 0..) |e, i| {
+        if (e == selected) {
+            const color = &colors[i];
+            const position = &positions[i];
+            const shape = &shapes[i];
+            const body_id = &body_ids[i];
+
+            if (LocalCtx.current_entity != selected) {
+                LocalCtx.editor_color = EditorColor.new(&color.value);
+                LocalCtx.editor_position = EditorVector2.new(&position.value);
+                LocalCtx.editor_radius = EditorF32.new(&shape.radius);
+            }
+
+            var open = true;
+            if (imgui.igBegin("EditorAnchor", &open, 0)) {
+                defer imgui.igEnd();
+
+                if (LocalCtx.editor_color.draw("color")) {
+                    if (LocalCtx.editor_color.get_value()) |v| {
+                        color.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_position.draw("position")) {
+                    if (LocalCtx.editor_position.get_value()) |v| {
+                        position.value = v;
+                        b2.b2Body_SetTransform(body_id.id, v.to_b2(), 0.0);
+                    }
+                }
+
+                if (LocalCtx.editor_radius.draw("radius")) {
+                    if (LocalCtx.editor_radius.get_value()) |v| {
+                        shape.radius = v;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn draw_editor_rectangle(
+    iter: *flecs.iter_t,
+    colors: []Color,
+    positions: []Position,
+    aabbs: []AABB,
+    shapes: []RectangleShape,
+    body_ids: []const BodyId,
+    shape_ids: []const ShapeId,
+) void {
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const LocalCtx = struct {
+        const ShapeParams = struct {
+            point_1: Vector2,
+            point_2: Vector2,
+            width: f32,
+            height_offset: f32,
+            restitution: f32,
+            is_sensor: bool,
+        };
+        // used to detect when entity is first
+        // selected for editors initialization.
+        var current_entity: flecs.entity_t = 0;
+        var editor_color: EditorColor = undefined;
+        var editor_position: EditorVector2 = undefined;
+        var editor_shape: ParamEditor(ShapeParams) = undefined;
+    };
+
+    const selected = selected_entity.entity.?;
+
+    for (iter.entities(), 0..) |e, i| {
+        if (e == selected) {
+            const color = &colors[i];
+            const position = &positions[i];
+            const aabb = &aabbs[i];
+            const shape = &shapes[i];
+            const body_id = &body_ids[i];
+            const shape_id = &shape_ids[i];
+
+            if (LocalCtx.current_entity != selected) {
+                LocalCtx.editor_color = EditorColor.new(&color.value);
+                LocalCtx.editor_position = EditorVector2.new(&position.value);
+                const shape_params = LocalCtx.ShapeParams{
+                    .point_1 = shape.point_1,
+                    .point_2 = shape.point_2,
+                    .width = shape.width,
+                    .height_offset = shape.height_offset,
+                    .restitution = shape.restitution,
+                    .is_sensor = shape.is_sensor,
+                };
+                LocalCtx.editor_shape = ParamEditor(LocalCtx.ShapeParams).new(&shape_params);
+            }
+
+            var open = true;
+            if (imgui.igBegin("EditorAnchor", &open, 0)) {
+                defer imgui.igEnd();
+
+                if (LocalCtx.editor_color.draw("color")) {
+                    if (LocalCtx.editor_color.get_value()) |v| {
+                        color.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_position.draw("position")) {
+                    if (LocalCtx.editor_position.get_value()) |v| {
+                        position.value = v;
+                        b2.b2Body_SetTransform(body_id.id, v.to_b2(), 0.0);
+                    }
+                }
+
+                if (LocalCtx.editor_shape.draw()) {
+                    if (LocalCtx.editor_shape.get_value()) |v| {
+                        const rectangle = RectangleShape.new(
+                            v.point_1,
+                            v.point_2,
+                            v.width,
+                            v.height_offset,
+                            v.restitution,
+                            v.is_sensor,
+                        ) catch return;
+                        shape.* = rectangle;
+                        b2.b2Shape_SetPolygon(shape_id.id, &rectangle.shape);
+                        b2.b2Shape_SetRestitution(shape_id.id, v.restitution);
+                        b2.b2Shape_EnableSensorEvents(shape_id.id, v.is_sensor);
+
+                        var new_aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id.id));
+                        // move aabb back to 0,0
+                        new_aabb.move(position.value.mul(-1));
+
+                        aabb.* = new_aabb;
+                    }
+                }
+            }
+        }
+    }
+}
 
 fn draw_editor_level(iter: *flecs.iter_t) void {
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
@@ -658,7 +809,7 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
     }
 
     flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
-    // flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
-    // flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
-    // flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
+    flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
+    flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
+    flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
 }
