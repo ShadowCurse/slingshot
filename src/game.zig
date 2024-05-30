@@ -745,35 +745,35 @@ pub const GameV2 = struct {
 
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
 
-        // {
-        //     var desc = flecs.SYSTEM_DESC(clean_level);
-        //
-        //     var level_objects_query: flecs.query_desc_t = .{};
-        //     level_objects_query.filter.terms[0].inout = .InOutNone;
-        //     level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
-        //     level_objects_query.order_by_component = flecs.id(LevelObject);
-        //     const DestructionOrder = struct {
-        //         fn sort(
-        //             e1: flecs.entity_t,
-        //             ptr1: *const anyopaque,
-        //             e2: flecs.entity_t,
-        //             ptr2: *const anyopaque,
-        //         ) callconv(.C) i32 {
-        //             _ = e2;
-        //             _ = e1;
-        //             const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
-        //             const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
-        //             return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
-        //                 @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
-        //         }
-        //     };
-        //     level_objects_query.order_by = &DestructionOrder.sort;
-        //     const q = try flecs.query_init(ecs_world, &level_objects_query);
-        //     desc.ctx = q;
-        //     // No need to clean ctx, query seems to be cleaned automatically.
-        //
-        //     flecs.SYSTEM(ecs_world, "clean_level", flecs.PreFrame, &desc);
-        // }
+        {
+            var desc = flecs.SYSTEM_DESC(clean_level);
+
+            var level_objects_query: flecs.query_desc_t = .{};
+            level_objects_query.filter.terms[0].inout = .InOutNone;
+            level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
+            level_objects_query.order_by_component = flecs.id(LevelObject);
+            const DestructionOrder = struct {
+                fn sort(
+                    e1: flecs.entity_t,
+                    ptr1: *const anyopaque,
+                    e2: flecs.entity_t,
+                    ptr2: *const anyopaque,
+                ) callconv(.C) i32 {
+                    _ = e2;
+                    _ = e1;
+                    const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
+                    const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
+                    return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
+                        @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
+                }
+            };
+            level_objects_query.order_by = &DestructionOrder.sort;
+            const q = try flecs.query_init(ecs_world, &level_objects_query);
+            desc.ctx = q;
+            // No need to clean ctx, query seems to be cleaned automatically.
+
+            flecs.SYSTEM(ecs_world, "clean_level", flecs.PreFrame, &desc);
+        }
 
         {
             var desc = flecs.SYSTEM_DESC(start_level);

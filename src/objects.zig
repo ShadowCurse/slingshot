@@ -17,10 +17,28 @@ const AABB_LINE_THICKNESS = 1.5;
 
 pub const BodyId = struct {
     id: b2.b2BodyId,
+
+    const Self = @This();
+
+    pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
+        b2.b2DestroyBody(self.id);
+    }
 };
 
 pub const ShapeId = struct {
     id: b2.b2ShapeId,
+
+    // we don't need to clean shapes
+    // because they are deleated with body
 };
 
 pub const Position = struct {
@@ -113,6 +131,7 @@ pub fn create_spawner(ecs_world: *flecs.world_t, params: *const SpawnerParams) v
     const n = flecs.new_id(ecs_world);
     _ = flecs.add(ecs_world, n, SpawnerTag);
     _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
+    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
 pub const BallTag = struct {};
@@ -165,11 +184,6 @@ pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, param
     _ = flecs.set(ecs_world, n, AABB, aabb);
 
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
-}
-
-pub fn destroy_ball(body: *const BodyId, shape: *const ShapeId) void {
-    b2.b2DestroyShape(shape.id);
-    b2.b2DestroyBody(body.id);
 }
 
 fn draw_balls(positions: []const Position, shapes: []const BallShape, colors: []const Color) void {
@@ -257,10 +271,6 @@ pub fn create_anchor(
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
-pub fn destroy_anchor(body: *const BodyId) void {
-    b2.b2DestroyBody(body.id);
-}
-
 fn draw_anchors(positions: []const Position, shapes: []const AnchorShape, colors: []const Color) void {
     for (positions, shapes, colors) |*position, *shape, *color| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
@@ -317,6 +327,21 @@ pub const JointId = struct {
     id: b2.b2JointId,
     attached_body_id: b2.b2BodyId,
     attached_anchor_id: b2.b2BodyId,
+
+    const Self = @This();
+
+    pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
+        b2.b2DestroyJoint(self.id);
+    }
 };
 
 pub const JointStrength = struct {
@@ -389,7 +414,6 @@ fn update_joints(
     for (iter.entities(), joint_ids, joint_stengths) |e, *joint_id, *joint_stength| {
         if (rl.IsKeyDown(rl.KEY_SPACE)) {
             ball_attachment.attached = false;
-            b2.b2DestroyJoint(joint_id.id);
             _ = flecs.delete(iter.world, e);
         }
 
@@ -565,12 +589,11 @@ pub fn create_rectangle(
     }
 }
 
-pub fn destroy_rectangle(body: *const BodyId, shape: *const ShapeId) void {
-    b2.b2DestroyShape(shape.id);
-    b2.b2DestroyBody(body.id);
-}
-
-fn draw_rectangles(positions: []const Position, shapes: []const RectangleShape, colors: []const Color) void {
+fn draw_rectangles(
+    positions: []const Position,
+    shapes: []const RectangleShape,
+    colors: []const Color,
+) void {
     for (positions, shapes, colors) |*position, *shape, *color| {
         // const body_angle = b2.b2Body_GetAngle(rect.body_id);
         const body_angle = 0.0;
