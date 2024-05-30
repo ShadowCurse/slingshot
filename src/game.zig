@@ -644,25 +644,28 @@ pub fn save_level(iter: *flecs.iter_t) void {
 
 pub fn process_keys(iter: *flecs.iter_t) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
-
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-
-    if (rl.IsKeyPressed(rl.KEY_R)) {
-        current_level.need_to_restart = true;
-    }
+    const current_state = state_stack.current_state();
 
     if (rl.IsKeyPressed(rl.KEY_ESCAPE)) {
-        state_stack.push_state(.Paused);
+        if (current_state == .Running) {
+            state_stack.push_state(.Paused);
+        } else if (current_state == .Paused) {
+            state_stack.pop_state();
+        }
     }
 
     if (rl.IsKeyPressed(rl.KEY_E)) {
-        if (state_stack.current_state() == .Running) {
+        if (current_state == .Running) {
             state_stack.push_state(.Editor);
-        } else if (state_stack.current_state() == .Editor) {
+        } else if (current_state == .Editor) {
             state_stack.pop_state();
+        }
+    }
+
+    if (current_state == .Running) {
+        const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+        if (rl.IsKeyPressed(rl.KEY_R)) {
+            current_level.need_to_restart = true;
         }
     }
 }
