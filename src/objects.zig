@@ -212,7 +212,13 @@ pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, param
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
-fn draw_balls(iter: *flecs.iter_t, positions: []const Position, shapes: []const BallShape, colors: []const Color) void {
+fn draw_balls(
+    iter: *flecs.iter_t,
+    positions: []const Position,
+    bodies: []const BodyId,
+    shapes: []const BallShape,
+    colors: []const Color,
+) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -222,8 +228,16 @@ fn draw_balls(iter: *flecs.iter_t, positions: []const Position, shapes: []const 
         return;
     }
 
-    for (positions, shapes, colors) |*position, *shape, *color| {
+    for (positions, bodies, shapes, colors) |*position, *body, *shape, *color| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
+
+        const velocity = Vector2.from_b2(b2.b2Body_GetLinearVelocity(body.id)).div(2.0);
+        const target = position.value.add(&velocity);
+        rl.DrawLineV(
+            position.value.to_rl_as_pos(),
+            target.to_rl_as_pos(),
+            color.value,
+        );
     }
 }
 
