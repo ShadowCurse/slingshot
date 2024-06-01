@@ -23,12 +23,13 @@ const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
 const _editor = @import("editor.zig");
 const EditorLevel = _editor.EditorLevel;
 const EditorCamera = _editor.EditorCamera;
-const EDITOR_FLECS_INIT = _editor.FLECS_INIT;
+const EDITOR_FLECS_INIT_SYSTEMS = _editor.FLECS_INIT_SYSTEMS;
+const EDITOR_FLECS_INIT_COMPONENTS = _editor.FLECS_INIT_COMPONENTS;
 
 const _objects = @import("objects.zig");
 const ObjectParams = _objects.ObjectParams;
-const OBJECTS_FLECS_INIT_COMPONENTS = _objects.FLECS_INIT_COMPONENTS;
 const OBJECTS_FLECS_INIT_SYSTEMS = _objects.FLECS_INIT_SYSTEMS;
+const OBJECTS_FLECS_INIT_COMPONENTS = _objects.FLECS_INIT_COMPONENTS;
 
 const Color = _objects.Color;
 const BodyId = _objects.BodyId;
@@ -610,6 +611,7 @@ pub const GameV2 = struct {
         const ecs_world = flecs.init();
 
         try UI_FLECS_INIT_COMPONENTS(ecs_world, allocator);
+        try EDITOR_FLECS_INIT_COMPONENTS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_COMPONENTS(ecs_world, allocator);
 
         flecs.TAG(ecs_world, WinTarget);
@@ -619,15 +621,41 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, GameStateStack);
         flecs.COMPONENT(ecs_world, SensorEvents);
         flecs.COMPONENT(ecs_world, GameCamera);
-        flecs.COMPONENT(ecs_world, EditorCamera);
         flecs.COMPONENT(ecs_world, PhysicsWorld);
         flecs.COMPONENT(ecs_world, MousePosition);
         flecs.COMPONENT(ecs_world, Levels);
         flecs.COMPONENT(ecs_world, CurrentLevel);
-
         flecs.COMPONENT(ecs_world, LevelObject);
 
+        _ = flecs.singleton_set(ecs_world, Allocator, allocator);
+        _ = flecs.singleton_set(ecs_world, Settings, .{});
+
+        const state_stack = GameStateStack.new(.MainMenu);
+        _ = flecs.singleton_set(ecs_world, GameStateStack, state_stack);
+
+        const sensor_events = SensorEvents.new(physics_world);
+        _ = flecs.singleton_set(ecs_world, SensorEvents, sensor_events);
+
+        const camera = rl.Camera2D{
+            .offset = rl.Vector2{ .x = 0.0, .y = 0.0 },
+            .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+            .rotation = 0.0,
+            .zoom = 1.0,
+        };
+        _ = flecs.singleton_set(ecs_world, GameCamera, .{ .camera = camera });
+
+        _ = flecs.singleton_set(ecs_world, PhysicsWorld, .{ .id = physics_world });
+        _ = flecs.singleton_set(ecs_world, MousePosition, .{
+            .world_position = Vector2.ZERO,
+            .screen_position = Vector2.ZERO,
+        });
+
+        const levels = try Levels.init(allocator);
+        _ = flecs.singleton_set(ecs_world, Levels, levels);
+        _ = flecs.singleton_set(ecs_world, CurrentLevel, .{});
+
         try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator);
+        try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
 
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
@@ -809,35 +837,6 @@ pub const GameV2 = struct {
         // Other
         flecs.ADD_SYSTEM(ecs_world, "window_should_close", flecs.PostFrame, window_should_close);
         flecs.ADD_SYSTEM(ecs_world, "check_exit", flecs.PostFrame, check_exit);
-
-        _ = flecs.singleton_set(ecs_world, Allocator, allocator);
-        _ = flecs.singleton_set(ecs_world, Settings, .{});
-
-        const state_stack = GameStateStack.new(.MainMenu);
-        _ = flecs.singleton_set(ecs_world, GameStateStack, state_stack);
-
-        const sensor_events = SensorEvents.new(physics_world);
-        _ = flecs.singleton_set(ecs_world, SensorEvents, sensor_events);
-
-        const camera = rl.Camera2D{
-            .offset = rl.Vector2{ .x = 0.0, .y = 0.0 },
-            .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-            .rotation = 0.0,
-            .zoom = 1.0,
-        };
-        _ = flecs.singleton_set(ecs_world, GameCamera, .{ .camera = camera });
-
-        _ = flecs.singleton_set(ecs_world, PhysicsWorld, .{ .id = physics_world });
-        _ = flecs.singleton_set(ecs_world, MousePosition, .{
-            .world_position = Vector2.ZERO,
-            .screen_position = Vector2.ZERO,
-        });
-
-        const levels = try Levels.init(allocator);
-        _ = flecs.singleton_set(ecs_world, Levels, levels);
-        _ = flecs.singleton_set(ecs_world, CurrentLevel, .{});
-
-        try EDITOR_FLECS_INIT(ecs_world, allocator);
 
         return Self{
             .allocator = allocator,

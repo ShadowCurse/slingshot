@@ -766,8 +766,10 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
     }
 }
 
-pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
+pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
+    _ = allocator;
     flecs.COMPONENT(world, EditorLevel);
+    flecs.COMPONENT(world, EditorCamera);
     flecs.COMPONENT(world, SelectedEntity);
 
     _ = flecs.singleton_set(world, EditorLevel, .{});
@@ -780,7 +782,9 @@ pub fn FLECS_INIT(world: *flecs.world_t, allocator: Allocator) !void {
         .zoom = 1.0,
     };
     _ = flecs.singleton_set(world, EditorCamera, .{ .camera = camera });
+}
 
+pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
     {
         var desc = flecs.SYSTEM_DESC(select_entity);
