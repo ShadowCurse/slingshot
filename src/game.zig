@@ -155,19 +155,7 @@ pub const MousePosition = struct {
     screen_position: Vector2,
 };
 
-fn initial_setup(iter: *flecs.iter_t) void {
-    const allocator = flecs.singleton_get(iter.world, Allocator).?;
-    const game_camera = flecs.singleton_get_mut(iter.world, GameCamera).?;
-
-    const settings = Settings.load(allocator.*, DEFAULT_SETTINGS_PATH) catch {
-        flecs.quit(iter.world);
-        return;
-    };
-    _ = flecs.singleton_set(iter.world, Settings, settings);
-
-    game_camera.camera.offset.x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0;
-    game_camera.camera.offset.y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0;
-
+fn initial_setup(settings: *const Settings) void {
     rl.InitWindow(
         @intCast(settings.resolution_width),
         @intCast(settings.resolution_height),
@@ -610,6 +598,10 @@ pub const GameV2 = struct {
 
         const ecs_world = flecs.init();
 
+        const settings = try Settings.load(allocator, DEFAULT_SETTINGS_PATH);
+
+        initial_setup(&settings);
+
         try UI_FLECS_INIT_COMPONENTS(ecs_world, allocator);
         try EDITOR_FLECS_INIT_COMPONENTS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_COMPONENTS(ecs_world, allocator);
@@ -628,7 +620,7 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, LevelObject);
 
         _ = flecs.singleton_set(ecs_world, Allocator, allocator);
-        _ = flecs.singleton_set(ecs_world, Settings, .{});
+        _ = flecs.singleton_set(ecs_world, Settings, settings);
 
         const state_stack = GameStateStack.new(.MainMenu);
         _ = flecs.singleton_set(ecs_world, GameStateStack, state_stack);
@@ -637,7 +629,10 @@ pub const GameV2 = struct {
         _ = flecs.singleton_set(ecs_world, SensorEvents, sensor_events);
 
         const camera = rl.Camera2D{
-            .offset = rl.Vector2{ .x = 0.0, .y = 0.0 },
+            .offset = rl.Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+            },
             .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
             .rotation = 0.0,
             .zoom = 1.0,
@@ -657,8 +652,6 @@ pub const GameV2 = struct {
         try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
-
-        flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
 
         {
             var desc = flecs.SYSTEM_DESC(clean_level);
