@@ -7,8 +7,10 @@ const rl = @import("deps/raylib.zig");
 
 const _game = @import("game.zig");
 const GameStateStack = _game.GameStateStack;
-const UI_ELEMENT_WIDTH = _game.UI_ELEMENT_WIDTH;
-const UI_ELEMENT_HEIGHT = _game.UI_ELEMENT_HEIGHT;
+
+const _ui = @import("ui.zig");
+const UI_ELEMENT_WIDTH = _ui.UI_ELEMENT_WIDTH;
+const UI_ELEMENT_HEIGHT = _ui.UI_ELEMENT_HEIGHT;
 
 const _objects = @import("objects.zig");
 const ObjectParams = _objects.ObjectParams;

@@ -6,6 +6,10 @@ const imgui = @import("deps/imgui.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
 
+const _ui = @import("ui.zig");
+const UI_FLECS_INIT_SYSTEMS = _ui.FLECS_INIT_SYSTEMS;
+const UI_FLECS_INIT_COMPONENTS = _ui.FLECS_INIT_COMPONENTS;
+
 const _level = @import("level.zig");
 const Levels = _level.Levels;
 const LevelSave = _level.LevelSave;
@@ -22,7 +26,6 @@ const EditorCamera = _editor.EditorCamera;
 const EDITOR_FLECS_INIT = _editor.FLECS_INIT;
 
 const _objects = @import("objects.zig");
-const Object = _objects.Object;
 const ObjectParams = _objects.ObjectParams;
 const OBJECTS_FLECS_INIT_COMPONENTS = _objects.FLECS_INIT_COMPONENTS;
 const OBJECTS_FLECS_INIT_SYSTEMS = _objects.FLECS_INIT_SYSTEMS;
@@ -63,9 +66,6 @@ const TARGET_FPS = 80;
 const BACKGROUND_COLOR = rl.BLACK;
 const AABB_LINE_THICKNESS = 1.5;
 const AABB_COLOR = rl.SKYBLUE;
-
-pub const UI_ELEMENT_WIDTH = 300.0;
-pub const UI_ELEMENT_HEIGHT = 100.0;
 
 pub const SensorEvents = struct {
     begin_events: []b2.b2SensorBeginTouchEvent,
@@ -219,156 +219,6 @@ fn check_exit(iter: *flecs.iter_t) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     if (state_stack.current_state() == .Exit) {
         flecs.quit(iter.world);
-    }
-}
-
-fn draw_main_menu(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .MainMenu) {
-        return;
-    }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const levels = flecs.singleton_get_mut(iter.world, Levels).?;
-
-    var rectangle = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT,
-    };
-    const start_button = rl.GuiButton(
-        rectangle,
-        "Start",
-    );
-    if (start_button != 0) {
-        levels.scan() catch {
-            state_stack.push_state(.Exit);
-            return;
-        };
-        state_stack.push_state(.LevelSelection);
-    }
-
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const settings_button = rl.GuiButton(
-        rectangle,
-        "Settings",
-    );
-    if (settings_button != 0) {
-        state_stack.push_state(.Settings);
-    }
-
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const exit_button = rl.GuiButton(
-        rectangle,
-        "Exit",
-    );
-    if (exit_button != 0) {
-        state_stack.push_state(.Exit);
-    }
-}
-
-fn draw_level_selection(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .LevelSelection) {
-        return;
-    }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const levels = flecs.singleton_get_mut(iter.world, Levels).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
-
-    levels.draw(settings, state_stack, current_level);
-
-    if (current_level.load_path) |path| {
-        @memcpy(editor_level.level_path[0..path.len], path);
-    }
-}
-
-fn draw_settings(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .Settings) {
-        return;
-    }
-
-    const camera = flecs.singleton_get_mut(iter.world, GameCamera).?;
-    const settings = flecs.singleton_get_mut(iter.world, Settings).?;
-
-    settings.draw(camera, state_stack) catch {
-        state_stack.push_state(.Exit);
-    };
-}
-
-pub fn draw_paused(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .Paused) {
-        return;
-    }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-
-    var rectangle = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT,
-    };
-    const resume_button = rl.GuiButton(
-        rectangle,
-        "Resume",
-    );
-    if (resume_button != 0) {
-        state_stack.pop_state();
-    }
-
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const settings_button = rl.GuiButton(
-        rectangle,
-        "Settings",
-    );
-    if (settings_button != 0) {
-        state_stack.push_state(.Settings);
-    }
-
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const main_menu_button = rl.GuiButton(
-        rectangle,
-        "Main menu",
-    );
-    if (main_menu_button != 0) {
-        state_stack.pop_state();
-        state_stack.pop_state();
-        state_stack.pop_state();
-        current_level.need_to_clean = true;
-    }
-}
-
-fn draw_win(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
-    if (state_stack.current_state() != .Win) {
-        return;
-    }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-
-    const win_button_rect = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-        .width = 100.0,
-        .height = 100.0,
-    };
-    const win_button = rl.GuiButton(
-        win_button_rect,
-        "You won",
-    );
-    if (win_button != 0) {
-        state_stack.pop_state();
-        state_stack.pop_state();
-        state_stack.pop_state();
-        current_level.need_to_clean = true;
     }
 }
 
@@ -759,6 +609,7 @@ pub const GameV2 = struct {
 
         const ecs_world = flecs.init();
 
+        try UI_FLECS_INIT_COMPONENTS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_COMPONENTS(ecs_world, allocator);
 
         flecs.TAG(ecs_world, WinTarget);
@@ -776,6 +627,7 @@ pub const GameV2 = struct {
 
         flecs.COMPONENT(ecs_world, LevelObject);
 
+        try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
 
         flecs.ADD_SYSTEM(ecs_world, "initial_setup", flecs.OnStart, initial_setup);
@@ -951,11 +803,6 @@ pub const GameV2 = struct {
         flecs.ADD_SYSTEM(ecs_world, "draw_game_end", flecs.PostUpdate, draw_game_end);
 
         // UI
-        flecs.ADD_SYSTEM(ecs_world, "draw_main_menu", flecs.PreStore, draw_main_menu);
-        flecs.ADD_SYSTEM(ecs_world, "draw_level_selection", flecs.PreStore, draw_level_selection);
-        flecs.ADD_SYSTEM(ecs_world, "draw_settings", flecs.PreStore, draw_settings);
-        flecs.ADD_SYSTEM(ecs_world, "draw_paused", flecs.PreStore, draw_paused);
-        flecs.ADD_SYSTEM(ecs_world, "draw_win", flecs.PreStore, draw_win);
 
         flecs.ADD_SYSTEM(ecs_world, "draw_end", flecs.PostFrame, draw_end);
 
