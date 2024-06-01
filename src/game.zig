@@ -1,12 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const rl = @import("raylib.zig");
-const imgui = @import("imgui.zig");
-const b2 = @import("box2d.zig");
-const flecs = @import("flecs.zig");
+
+const rl = @import("deps/raylib.zig");
+const imgui = @import("deps/imgui.zig");
+const b2 = @import("deps/box2d.zig");
+const flecs = @import("deps/flecs.zig");
 
 const _level = @import("level.zig");
-const Level = _level.Level;
 const Levels = _level.Levels;
 const LevelSave = _level.LevelSave;
 const CurrentLevel = _level.CurrentLevel;

@@ -149,7 +149,7 @@ pub fn build(b: *std.Build) void {
 
     const flecs = b.addStaticLibrary(.{
         .name = "flecs",
-        .root_source_file = .{ .path = "src/flecs.zig" },
+        .root_source_file = .{ .path = "src/deps/flecs.zig" },
         .target = target,
         .optimize = optimize,
     });

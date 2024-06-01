@@ -1,10 +1,11 @@
 const std = @import("std");
-const rl = @import("raylib.zig");
-const imgui = @import("imgui.zig");
-const b2 = @import("box2d.zig");
-const flecs = @import("flecs.zig");
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
+
+const rl = @import("deps/raylib.zig");
+const imgui = @import("deps/imgui.zig");
+const b2 = @import("deps/box2d.zig");
+const flecs = @import("deps/flecs.zig");
 
 const _game = @import("game.zig");
 const LevelObject = _game.LevelObject;

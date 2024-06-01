@@ -1,6 +1,7 @@
 const std = @import("std");
-const rl = @import("raylib.zig");
-const b2 = @import("box2d.zig");
+
+const rl = @import("deps/raylib.zig");
+const b2 = @import("deps/box2d.zig");
 
 x: f32,
 y: f32,

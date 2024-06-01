@@ -1,24 +1,19 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+
 const builtin = @import("builtin");
-const rl = @import("raylib.zig");
-const b2 = @import("box2d.zig");
-const flecs = @import("flecs.zig");
+
+const rl = @import("deps/raylib.zig");
 
 const _game = @import("game.zig");
-const Game = _game.Game;
-const SensorEvents = _game.SensorEvents;
 const GameStateStack = _game.GameStateStack;
 const UI_ELEMENT_WIDTH = _game.UI_ELEMENT_WIDTH;
 const UI_ELEMENT_HEIGHT = _game.UI_ELEMENT_HEIGHT;
 
 const _objects = @import("objects.zig");
 const ObjectParams = _objects.ObjectParams;
-const BallParams = _objects.BallParams;
 
 const Settings = @import("settings.zig").Settings;
-
-const Vector2 = @import("vector.zig");
-const Allocator = std.mem.Allocator;
 
 pub const DEFAULT_LEVELS_PATH = "resources/levels";
 pub const DEFAULT_SAVE_PATH = "resources/levels/save.json";

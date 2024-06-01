@@ -1,10 +1,9 @@
 const std = @import("std");
-const rl = @import("raylib.zig");
-const b2 = @import("box2d.zig");
-const flecs = @import("flecs.zig");
-const ParamEditor = @import("editor.zig").ParamEditor;
-const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
+
+const rl = @import("deps/raylib.zig");
+const b2 = @import("deps/box2d.zig");
+const flecs = @import("deps/flecs.zig");
 
 const _game = @import("game.zig");
 const WinTarget = _game.WinTarget;
@@ -12,6 +11,8 @@ const LevelObject = _game.LevelObject;
 const GameStateStack = _game.GameStateStack;
 const MousePosition = _game.MousePosition;
 const PhysicsWorld = _game.PhysicsWorld;
+
+const Vector2 = @import("vector.zig");
 
 const AABB_LINE_THICKNESS = 1.5;
 

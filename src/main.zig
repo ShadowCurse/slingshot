@@ -1,9 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const rl = @import("raylib.zig");
-const b2 = @import("box2d.zig");
-const Game = @import("game.zig").Game;
+
 const GameV2 = @import("game.zig").GameV2;
+
 const _settings = @import("settings.zig");
 const Settings = _settings.Settings;
 const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
