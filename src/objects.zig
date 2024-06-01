@@ -16,6 +16,32 @@ const Vector2 = @import("vector.zig");
 
 const AABB_LINE_THICKNESS = 1.5;
 
+pub const BallShader = struct {
+    ball_shader: rl.Shader,
+
+    const Self = @This();
+
+    pub fn new(vs_path: [*c]const u8, fs_path: [*c]const u8) Self {
+        const shader = rl.LoadShader(vs_path, fs_path);
+        return Self{
+            .ball_shader = shader,
+        };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
+        rl.UnloadShader(self.ball_shader);
+    }
+};
+
 pub const BodyId = struct {
     id: b2.b2BodyId,
 
@@ -228,16 +254,22 @@ fn draw_balls(
         return;
     }
 
-    for (positions, bodies, shapes, colors) |*position, *body, *shape, *color| {
-        rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
+    const shaders = flecs.singleton_get(iter.world, BallShader).?;
 
-        const velocity = Vector2.from_b2(b2.b2Body_GetLinearVelocity(body.id)).div(2.0);
-        const target = position.value.add(&velocity);
-        rl.DrawLineV(
-            position.value.to_rl_as_pos(),
-            target.to_rl_as_pos(),
-            color.value,
-        );
+    for (positions, bodies, shapes, colors) |*position, *body, *shape, *color| {
+        {
+            rl.BeginShaderMode(shaders.ball_shader);
+            defer rl.EndShaderMode();
+
+            rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
+            const velocity = Vector2.from_b2(b2.b2Body_GetLinearVelocity(body.id)).div(2.0);
+            const target = position.value.add(&velocity);
+            rl.DrawLineV(
+                position.value.to_rl_as_pos(),
+                target.to_rl_as_pos(),
+                color.value,
+            );
+        }
     }
 }
 
@@ -756,6 +788,8 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     flecs.COMPONENT(world, BodyId);
     flecs.COMPONENT(world, ShapeId);
 
+    flecs.COMPONENT(world, BallShader);
+
     flecs.TAG(world, SpawnerTag);
 
     flecs.TAG(world, BallTag);
@@ -772,6 +806,9 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
     flecs.TAG(world, RectangleTag);
     flecs.COMPONENT(world, RectangleShape);
+
+    const shaders = BallShader.new(null, "./resources/shaders/base.fs");
+    _ = flecs.singleton_set(world, BallShader, shaders);
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
