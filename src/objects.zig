@@ -378,7 +378,13 @@ pub fn create_anchor(
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
-fn draw_anchors(iter: *flecs.iter_t, positions: []const Position, shapes: []const AnchorShape, colors: []const Color) void {
+fn draw_anchors(
+    iter: *flecs.iter_t,
+    positions: []const Position,
+    colors: []const Color,
+    shapes: []const AnchorShape,
+    joint_params: []const AnchoraJointParams,
+) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -388,8 +394,11 @@ fn draw_anchors(iter: *flecs.iter_t, positions: []const Position, shapes: []cons
         return;
     }
 
-    for (positions, shapes, colors) |*position, *shape, *color| {
+    for (positions, colors, shapes, joint_params) |*position, *color, *shape, *joint_param| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
+        var radius_color = color.value;
+        radius_color.a = 30;
+        rl.DrawCircleV(position.value.to_rl_as_pos(), joint_param.max_length, radius_color);
     }
 }
 
