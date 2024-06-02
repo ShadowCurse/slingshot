@@ -746,6 +746,7 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
     const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
+    const selected_entity = flecs.singleton_get_mut(iter.world, SelectedEntity).?;
 
     var open = true;
     if (imgui.igBegin("LevelEditor", &open, 0)) {
@@ -769,7 +770,7 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
             state_stack.pop_state();
         }
 
-        imgui.igSeparatorText("Adding objects");
+        imgui.igSeparatorText("Objects");
         if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
             create_ball(iter.world, physics_world.id, &.{});
         }
@@ -783,6 +784,13 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
                 state_stack.push_state(.Exit);
                 return;
             };
+        }
+
+        if (imgui.igButton("Remove selected", .{ .x = 0.0, .y = 0.0 })) {
+            if (selected_entity.entity) |e| {
+                _ = flecs.delete(iter.world, e);
+                selected_entity.entity = null;
+            }
         }
 
         editor_state.focused = imgui.igIsWindowHovered(imgui.ImGuiFocusedFlags_AnyWindow) or
