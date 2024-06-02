@@ -1,24 +1,24 @@
 #version 330
 
 // Input vertex attributes (from vertex shader)
-in vec2 frag_tex_coord;
-in vec4 frag_color;
+in vec2 fragTexCoord;
+in vec4 fragColor;
 
 // Input uniform values
-uniform sampler2D texture_0;
-uniform vec4 diffuse;
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
 
 // Output fragment color
-out vec4 final_color;
+out vec4 finalColor;
 
 // NOTE: Add here your custom variables
 
 void main()
 {
     // Texel color fetching from texture sampler
-    vec4 texel_color = texture(texture_0, frag_tex_coord);
+    vec4 texelColor = texture(texture0, fragTexCoord);
 
     // NOTE: Implement here your fragment shader code
 
-    final_color = texel_color * diffuse;
+    finalColor = texelColor*colDiffuse;
 }
