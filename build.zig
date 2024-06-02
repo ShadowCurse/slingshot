@@ -74,11 +74,17 @@ pub fn build(b: *std.Build) void {
     rl_imgui.addIncludePath(.{ .path = "rlImGui" });
     rl_imgui.addIncludePath(.{ .path = "raylib/src" });
     rl_imgui.addIncludePath(.{ .path = "cimgui/imgui" });
-    rl_imgui.addCSourceFile(.{
-        .file = .{ .path = "rlImGui/rlImGui.cpp" },
+    rl_imgui.addCSourceFiles(.{
+        .files = &.{
+            "rlImGui/rlImGui.cpp",
+        },
         .flags = &.{},
     });
-    rl_imgui.linkLibCpp();
+    // Cpp headers will be included from emsdk
+    // for emscripten builds
+    if (target.result.os.tag != .emscripten) {
+        rl_imgui.linkLibCpp();
+    }
 
     const box2c = b.addStaticLibrary(.{
         .name = "box2c",
@@ -171,6 +177,17 @@ pub fn build(b: *std.Build) void {
         const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
 
+        const cpp_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include", "c++", "v1" }) catch @panic("Out of memory");
+        defer b.allocator.free(cache_include);
+
+        imgui.addIncludePath(.{ .path = cache_include });
+        cimgui.addIncludePath(.{ .path = cache_include });
+
+        // It is important to include cpp_include
+        // before everything else
+        rl_imgui.addIncludePath(.{ .path = cpp_include });
+        rl_imgui.addIncludePath(.{ .path = cache_include });
+
         box2c.addIncludePath(.{ .path = cache_include });
         flecs.addIncludePath(.{ .path = cache_include });
 
@@ -182,9 +199,13 @@ pub fn build(b: *std.Build) void {
         });
         lib.addIncludePath(.{ .path = cache_include });
 
+        lib.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
+        lib.addIncludePath(.{ .path = "cimgui" });
         lib.addIncludePath(.{ .path = "raylib/src" });
         lib.addIncludePath(.{ .path = "raygui/src" });
+        lib.addIncludePath(.{ .path = "rlImGui" });
         lib.addIncludePath(.{ .path = "box2c/include" });
+        lib.addIncludePath(.{ .path = "flecs/include" });
 
         lib.linkLibC();
 
@@ -226,7 +247,10 @@ pub fn build(b: *std.Build) void {
     // step when running `zig build`).
     b.installArtifact(artifact);
     if (target.result.os.tag == .emscripten) {
+        b.installArtifact(imgui);
+        b.installArtifact(cimgui);
         b.installArtifact(raylib);
+        b.installArtifact(rl_imgui);
         b.installArtifact(box2c);
         b.installArtifact(flecs);
     }
