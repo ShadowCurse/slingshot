@@ -16,7 +16,7 @@ const _settings = @import("settings.zig");
 const Settings = _settings.Settings;
 
 const _editor = @import("editor.zig");
-const EditorLevel = _editor.EditorLevel;
+const EditorState = _editor.EditorState;
 
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
@@ -76,12 +76,12 @@ fn draw_level_selection(iter: *flecs.iter_t) void {
     const settings = flecs.singleton_get(iter.world, Settings).?;
     const levels = flecs.singleton_get_mut(iter.world, Levels).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
+    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
 
     levels.draw(settings, state_stack, current_level);
 
     if (current_level.load_path) |path| {
-        @memcpy(editor_level.level_path[0..path.len], path);
+        @memcpy(editor_state.level_path[0..path.len], path);
     }
 }
 

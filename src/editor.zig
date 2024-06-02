@@ -52,8 +52,11 @@ pub const EditorCamera = struct {
     camera: rl.Camera2D,
 };
 
-pub const EditorLevel = struct {
+pub const EditorState = struct {
     level_path: [256]u8 = .{0} ** 256,
+    // used to disable object dragging when
+    // editor ui is hovered or focused
+    focused: bool = false,
 };
 
 pub const EditorBool = struct {
@@ -360,12 +363,18 @@ fn drag_selected_entity(
     if (state_stack.current_state() != .Editor) {
         return;
     }
+
     if (!rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
         return;
     }
 
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
+        return;
+    }
+
+    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
+    if (editor_state.focused) {
         return;
     }
 
@@ -723,7 +732,7 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
     }
 
     const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-    const editor_level = flecs.singleton_get_mut(iter.world, EditorLevel).?;
+    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
     const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
 
     var open = true;
@@ -732,13 +741,13 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
 
         _ = imgui.igInputText(
             "Save path",
-            &editor_level.level_path,
-            editor_level.level_path.len,
+            &editor_state.level_path,
+            editor_state.level_path.len,
             0,
             null,
             null,
         );
-        const slice = std.mem.sliceTo(&editor_level.level_path, 0);
+        const slice = std.mem.sliceTo(&editor_state.level_path, 0);
         if (imgui.igButton("Save level", .{ .x = 0.0, .y = 0.0 })) {
             current_level.save_path = slice;
         }
@@ -763,16 +772,19 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
                 return;
             };
         }
+
+        editor_state.focused = imgui.igIsWindowHovered(imgui.ImGuiFocusedFlags_AnyWindow) or
+            imgui.igIsWindowFocused(imgui.ImGuiFocusedFlags_AnyWindow);
     }
 }
 
 pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
-    flecs.COMPONENT(world, EditorLevel);
+    flecs.COMPONENT(world, EditorState);
     flecs.COMPONENT(world, EditorCamera);
     flecs.COMPONENT(world, SelectedEntity);
 
-    _ = flecs.singleton_set(world, EditorLevel, .{});
+    _ = flecs.singleton_set(world, EditorState, .{});
     _ = flecs.singleton_set(world, SelectedEntity, .{});
 
     const camera = rl.Camera2D{
