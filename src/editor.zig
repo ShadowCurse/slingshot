@@ -30,6 +30,7 @@ const BallShape = _objects.BallShape;
 const create_anchor = _objects.create_anchor;
 const AnchorTag = _objects.AnchorTag;
 const AnchorShape = _objects.AnchorShape;
+const AnchoraJointParams = _objects.AnchoraJointParams;
 
 const create_rectangle = _objects.create_rectangle;
 const RectangleTag = _objects.RectangleTag;
@@ -557,6 +558,7 @@ pub fn draw_editor_anchor(
     colors: []Color,
     positions: []Position,
     shapes: []AnchorShape,
+    joint_params: []AnchoraJointParams,
     body_ids: []const BodyId,
 ) void {
     const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
@@ -576,6 +578,7 @@ pub fn draw_editor_anchor(
         var editor_color: EditorColor = undefined;
         var editor_position: EditorVector2 = undefined;
         var editor_radius: EditorF32 = undefined;
+        var editor_joint_params: ParamEditor(AnchoraJointParams) = undefined;
     };
 
     const selected = selected_entity.entity.?;
@@ -585,12 +588,14 @@ pub fn draw_editor_anchor(
             const color = &colors[i];
             const position = &positions[i];
             const shape = &shapes[i];
+            const joint_param = &joint_params[i];
             const body_id = &body_ids[i];
 
             if (LocalCtx.current_entity != selected) {
                 LocalCtx.editor_color = EditorColor.new(&color.value);
                 LocalCtx.editor_position = EditorVector2.new(&position.value);
                 LocalCtx.editor_radius = EditorF32.new(&shape.radius);
+                LocalCtx.editor_joint_params = ParamEditor(AnchoraJointParams).new(joint_param);
             }
 
             var open = true;
@@ -613,6 +618,12 @@ pub fn draw_editor_anchor(
                 if (LocalCtx.editor_radius.draw("radius")) {
                     if (LocalCtx.editor_radius.get_value()) |v| {
                         shape.radius = v;
+                    }
+                }
+
+                if (LocalCtx.editor_joint_params.draw()) {
+                    if (LocalCtx.editor_joint_params.get_value()) |v| {
+                        joint_param.* = v;
                     }
                 }
             }
