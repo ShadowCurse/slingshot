@@ -700,17 +700,18 @@ fn draw_editor_rectangle(
 
                 if (LocalCtx.editor_shape.draw()) {
                     if (LocalCtx.editor_shape.get_value()) |v| {
+                        const restitution = if (v.restitution < 0.0) 0.0 else v.restitution;
                         const rectangle = RectangleShape.new(
                             v.point_1,
                             v.point_2,
                             v.width,
                             v.height_offset,
-                            v.restitution,
+                            restitution,
                             v.is_sensor,
                         ) catch return;
                         shape.* = rectangle;
                         b2.b2Shape_SetPolygon(shape_id.id, &rectangle.shape);
-                        b2.b2Shape_SetRestitution(shape_id.id, v.restitution);
+                        b2.b2Shape_SetRestitution(shape_id.id, restitution);
                         b2.b2Shape_EnableSensorEvents(shape_id.id, v.is_sensor);
 
                         var new_aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id.id));
