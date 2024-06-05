@@ -8,17 +8,32 @@ in vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 
+uniform vec2 resolution;
+uniform vec2 velocity;
+
 // Output fragment color
 out vec4 finalColor;
 
-// NOTE: Add here your custom variables
-
 void main()
 {
-    // Texel color fetching from texture sampler
-    vec4 texelColor = texture(texture0, fragTexCoord);
+    // vec2 resolution = vec2(400.0, 400.0);
+    vec2 st = (gl_FragCoord.xy / resolution) - 0.5;
 
-    // NOTE: Implement here your fragment shader code
+    float l = length(velocity);
+    float transition_smoothing = smoothstep(1.0, 250.0, l);
 
-    finalColor = texelColor*colDiffuse;
+    vec2 velocity = normalize(velocity);
+
+    vec2 direction = normalize(st);
+    float c = dot(velocity, direction);
+ 
+    float radius = length(st);
+    radius = radius + smoothstep(0.0, 12.0, abs(c)) * 0.4 * transition_smoothing;
+    
+    // Fade in a ring
+    float outer_radius = 0.030;
+    float inner_radius = 0.029;
+    float fade_radius = smoothstep(outer_radius, inner_radius, radius);
+
+    finalColor = colDiffuse * fade_radius;
 }

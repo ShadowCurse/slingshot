@@ -17,14 +17,23 @@ const Vector2 = @import("vector.zig");
 const AABB_LINE_THICKNESS = 1.5;
 
 pub const BallShader = struct {
-    ball_shader: rl.Shader,
+    render_texture: rl.RenderTexture,
+    shader: rl.Shader,
+    resolution_loc: i32,
+    velocity_loc: i32,
 
     const Self = @This();
 
-    pub fn new(vs_path: [*c]const u8, fs_path: [*c]const u8) Self {
-        const shader = rl.LoadShader(vs_path, fs_path);
+    pub fn new() Self {
+        const render_texture = rl.LoadRenderTexture(400, 400);
+        const shader = rl.LoadShader(null, "./resources/shaders/base.fs");
+        const resolution_loc = rl.GetShaderLocation(shader, "resolution");
+        const velocity_loc = rl.GetShaderLocation(shader, "velocity");
         return Self{
-            .ball_shader = shader,
+            .render_texture = render_texture,
+            .shader = shader,
+            .resolution_loc = resolution_loc,
+            .velocity_loc = velocity_loc,
         };
     }
 
@@ -38,7 +47,8 @@ pub const BallShader = struct {
             return;
         }
 
-        rl.UnloadShader(self.ball_shader);
+        rl.UnloadRenderTexture(self.render_texture);
+        rl.UnloadShader(self.shader);
     }
 };
 
@@ -238,11 +248,9 @@ pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, param
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
-fn draw_balls(
+fn pre_draw_balls(
     iter: *flecs.iter_t,
-    positions: []const Position,
     bodies: []const BodyId,
-    shapes: []const BallShape,
     colors: []const Color,
 ) void {
     const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
@@ -256,20 +264,82 @@ fn draw_balls(
 
     const shaders = flecs.singleton_get(iter.world, BallShader).?;
 
-    for (positions, bodies, shapes, colors) |*position, *body, *shape, *color| {
+    const camera = rl.Camera2D{
+        .offset = rl.Vector2{
+            .x = 400.0 / 2.0,
+            .y = 400.0 / 2.0,
+        },
+        .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
+        .rotation = 0.0,
+        .zoom = 1.0,
+    };
+
+    for (bodies, colors) |*body, *color| {
         {
-            rl.BeginShaderMode(shaders.ball_shader);
+            rl.BeginTextureMode(shaders.render_texture);
+            defer rl.EndTextureMode();
+
+            rl.ClearBackground(rl.BLACK);
+
+            rl.BeginMode2D(camera);
+            defer rl.EndMode2D();
+
+            rl.BeginShaderMode(shaders.shader);
             defer rl.EndShaderMode();
 
-            rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
-            const velocity = Vector2.from_b2(b2.b2Body_GetLinearVelocity(body.id)).div(2.0);
-            const target = position.value.add(&velocity);
-            rl.DrawLineV(
-                position.value.to_rl_as_pos(),
-                target.to_rl_as_pos(),
+            const resolution = Vector2{ .x = 400.0, .y = 400.0 };
+            rl.SetShaderValue(shaders.shader, shaders.resolution_loc, &resolution, rl.SHADER_UNIFORM_VEC2);
+
+            const velocity = Vector2.from_b2(b2.b2Body_GetLinearVelocity(body.id));
+            const v_orth = velocity.orthogonal();
+            rl.SetShaderValue(shaders.shader, shaders.velocity_loc, &v_orth, rl.SHADER_UNIFORM_VEC2);
+
+            rl.DrawRectangleV(
+                rl.Vector2{
+                    .x = -200.0,
+                    .y = -200.0,
+                },
+                rl.Vector2{
+                    .x = 400.0,
+                    .y = 400.0,
+                },
                 color.value,
             );
         }
+    }
+}
+
+fn draw_balls(
+    iter: *flecs.iter_t,
+    positions: []const Position,
+) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
+    const shaders = flecs.singleton_get(iter.world, BallShader).?;
+
+    for (positions) |*position| {
+        const offset = Vector2{
+            .x = -200.0,
+            .y = 200.0,
+        };
+        rl.DrawTextureRec(
+            shaders.render_texture.texture,
+            rl.Rectangle{
+                .x = 0.0,
+                .y = 0.0,
+                .width = 400.0,
+                .height = -400.0,
+            },
+            position.value.add(&offset).to_rl_as_pos(),
+            rl.WHITE,
+        );
     }
 }
 
@@ -816,7 +886,7 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     flecs.TAG(world, RectangleTag);
     flecs.COMPONENT(world, RectangleShape);
 
-    const shaders = BallShader.new(null, "./resources/shaders/base.fs");
+    const shaders = BallShader.new();
     _ = flecs.singleton_set(world, BallShader, shaders);
 }
 
@@ -855,8 +925,23 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
 
         flecs.SYSTEM(world, "update_joints", flecs.OnUpdate, &desc);
     }
+    {
+        var desc = flecs.SYSTEM_DESC(pre_draw_balls);
 
-    flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
+        desc.query.filter.terms[2].id = flecs.id(BallTag);
+        desc.query.filter.terms[2].inout = .In;
+
+        flecs.SYSTEM(world, "pre_draw_balls", flecs.PreFrame, &desc);
+    }
+    {
+        var desc = flecs.SYSTEM_DESC(draw_balls);
+
+        desc.query.filter.terms[1].id = flecs.id(BallTag);
+        desc.query.filter.terms[1].inout = .In;
+
+        flecs.SYSTEM(world, "draw_balls", flecs.OnUpdate, &desc);
+    }
+
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
     flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
     flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
