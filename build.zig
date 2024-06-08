@@ -56,13 +56,23 @@ pub fn build(b: *std.Build) void {
     cimgui.linkLibCpp();
 
     const raylib_build = @import("raylib/src/build.zig");
-    const raylib = raylib_build.addRaylib(
+    const raylib_wayland = raylib_build.addRaylib(
         b,
         target,
         optimize,
         .{
             .raygui = true,
             .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
+        },
+    ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
+
+    const raylib_x11 = raylib_build.addRaylib(
+        b,
+        target,
+        optimize,
+        .{
+            .raygui = true,
+            .linux_display_backend = raylib_build.LinuxDisplayBackend.X11,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
 
@@ -172,12 +182,29 @@ pub fn build(b: *std.Build) void {
     flecs.linkLibC();
 
     // If compiled for wasm32-wasi, compile project as a static lib
-    // const artifact = if (target.result.os.tag == .wasi) blk: {
-    const artifact = if (target.result.os.tag == .emscripten) blk: {
-        const cache_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include" }) catch @panic("Out of memory");
+    const artifact_emscripten = if (target.result.os.tag == .emscripten) blk: {
+        const cache_include = std.fs.path.join(
+            b.allocator,
+            &.{
+                b.sysroot.?,
+                "cache",
+                "sysroot",
+                "include",
+            },
+        ) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
 
-        const cpp_include = std.fs.path.join(b.allocator, &.{ b.sysroot.?, "cache", "sysroot", "include", "c++", "v1" }) catch @panic("Out of memory");
+        const cpp_include = std.fs.path.join(
+            b.allocator,
+            &.{
+                b.sysroot.?,
+                "cache",
+                "sysroot",
+                "include",
+                "c++",
+                "v1",
+            },
+        ) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
 
         imgui.addIncludePath(.{ .path = cache_include });
@@ -211,54 +238,72 @@ pub fn build(b: *std.Build) void {
 
         break :blk lib;
     } else blk: {
-        const exe = b.addExecutable(.{
-            .name = "slingshot",
-            .root_source_file = .{ .path = "src/main.zig" },
-            .target = target,
-            .optimize = optimize,
-        });
-
-        exe.linkLibrary(imgui);
-
-        exe.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
-        exe.addIncludePath(.{ .path = "cimgui" });
-        exe.linkLibrary(cimgui);
-
-        exe.addIncludePath(.{ .path = "raylib/src" });
-        exe.addIncludePath(.{ .path = "raygui/src" });
-        exe.linkLibrary(raylib);
-
-        exe.addIncludePath(.{ .path = "rlImGui" });
-        exe.linkLibrary(rl_imgui);
-
-        exe.addIncludePath(.{ .path = "box2c/include" });
-        exe.linkLibrary(box2c);
-
-        exe.addIncludePath(.{ .path = "flecs/include" });
-        exe.linkLibrary(flecs);
-
-        exe.linkLibC();
-
-        break :blk exe;
+        break :blk null;
     };
+
+    const ARTIFACT_INCLUDES = struct {
+        fn add_includes(c: *std.Build.Step.Compile) void {
+            c.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
+            c.addIncludePath(.{ .path = "cimgui" });
+            c.addIncludePath(.{ .path = "raylib/src" });
+            c.addIncludePath(.{ .path = "raygui/src" });
+            c.addIncludePath(.{ .path = "rlImGui" });
+            c.addIncludePath(.{ .path = "box2c/include" });
+            c.addIncludePath(.{ .path = "flecs/include" });
+        }
+    };
+
+    const artifact_wayland = b.addExecutable(.{
+        .name = "slingshot",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    ARTIFACT_INCLUDES.add_includes(artifact_wayland);
+    artifact_wayland.linkLibrary(imgui);
+    artifact_wayland.linkLibrary(cimgui);
+    artifact_wayland.linkLibrary(rl_imgui);
+    artifact_wayland.linkLibrary(box2c);
+    artifact_wayland.linkLibrary(flecs);
+
+    artifact_wayland.linkLibrary(raylib_wayland);
+
+    const artifact_x11 = b.addExecutable(.{
+        .name = "slingshot_x11",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    ARTIFACT_INCLUDES.add_includes(artifact_x11);
+    artifact_x11.linkLibrary(imgui);
+    artifact_x11.linkLibrary(cimgui);
+    artifact_x11.linkLibrary(rl_imgui);
+    artifact_x11.linkLibrary(box2c);
+    artifact_x11.linkLibrary(flecs);
+
+    artifact_x11.linkLibrary(raylib_x11);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
-    b.installArtifact(artifact);
-    if (target.result.os.tag == .emscripten) {
+    if (artifact_emscripten) |e| {
+        b.installArtifact(e);
+
         b.installArtifact(imgui);
         b.installArtifact(cimgui);
-        b.installArtifact(raylib);
+        b.installArtifact(raylib_wayland);
         b.installArtifact(rl_imgui);
         b.installArtifact(box2c);
         b.installArtifact(flecs);
+    } else {
+        b.installArtifact(artifact_wayland);
+        b.installArtifact(artifact_x11);
     }
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
-    const run_cmd = b.addRunArtifact(artifact);
+    const run_cmd = b.addRunArtifact(artifact_wayland);
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
