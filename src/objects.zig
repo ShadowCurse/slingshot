@@ -1,6 +1,8 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const builtin = @import("builtin");
+
 const rl = @import("deps/raylib.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
@@ -26,7 +28,13 @@ pub const BallShader = struct {
 
     pub fn new() Self {
         const render_texture = rl.LoadRenderTexture(400, 400);
-        const shader = rl.LoadShader(null, "./resources/shaders/base.fs");
+
+        const shader = if (builtin.os.tag == .emscripten) blk: {
+            break :blk rl.LoadShader(null, "./resources/shaders/base_web.fs");
+        } else blk: {
+            break :blk rl.LoadShader(null, "./resources/shaders/base.fs");
+        };
+
         const resolution_loc = rl.GetShaderLocation(shader, "resolution");
         const velocity_loc = rl.GetShaderLocation(shader, "velocity");
         return Self{
