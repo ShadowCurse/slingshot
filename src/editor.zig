@@ -53,6 +53,7 @@ const AABB_COLOR_SELECTED = rl.ORANGE;
 
 pub const SelectedEntity = struct {
     entity: ?flecs.entity_t = null,
+    hovered: bool = false,
 };
 
 pub const EditorCamera = struct {
@@ -369,12 +370,7 @@ fn select_entity(iter: *flecs.iter_t) void {
         return;
     }
 
-    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
-    if (editor_state.focused) {
-        return;
-    }
-
-    if (!rl.IsKeyPressed(rl.KEY_S)) {
+    if (!rl.IsMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)) {
         return;
     }
 
@@ -456,17 +452,12 @@ fn drag_selected_entity(
         return;
     }
 
-    if (!rl.IsMouseButtonDown(rl.MOUSE_BUTTON_LEFT)) {
+    if (!rl.IsMouseButtonDown(rl.MOUSE_BUTTON_RIGHT)) {
         return;
     }
 
     const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
-        return;
-    }
-
-    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
-    if (editor_state.focused) {
         return;
     }
 
