@@ -99,11 +99,20 @@ pub const AABB = struct {
 
     const Self = @This();
 
-    pub fn new() Self {
+    pub fn default() Self {
         return Self{
             .aabb = b2.b2AABB{
                 .lowerBound = Vector2.MAX.to_b2(),
                 .upperBound = Vector2.MIN.to_b2(),
+            },
+        };
+    }
+
+    pub fn new_square(half_side: f32) Self {
+        return Self{
+            .aabb = b2.b2AABB{
+                .lowerBound = (Vector2{ .x = -half_side, .y = -half_side }).to_b2(),
+                .upperBound = (Vector2{ .x = half_side, .y = half_side }).to_b2(),
             },
         };
     }
@@ -195,6 +204,8 @@ pub fn create_spawner(ecs_world: *flecs.world_t, params: *const SpawnerParams) v
     const n = flecs.new_id(ecs_world);
     _ = flecs.add(ecs_world, n, SpawnerTag);
     _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
+    const aabb = AABB.new_square(SpawnerParams.RADIUS);
+    _ = flecs.set(ecs_world, n, AABB, aabb);
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
 }
 
