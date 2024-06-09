@@ -181,6 +181,9 @@ pub const SpawnerParams = struct {
 
     const Self = @This();
 
+    const RADIUS: f32 = 10.0;
+    const COLOR: rl.Color = rl.PINK;
+
     pub fn new(position: *const Position) Self {
         return Self{
             .position = position.value,
@@ -193,6 +196,24 @@ pub fn create_spawner(ecs_world: *flecs.world_t, params: *const SpawnerParams) v
     _ = flecs.add(ecs_world, n, SpawnerTag);
     _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
+}
+
+fn draw_spawners(
+    iter: *flecs.iter_t,
+    positions: []const Position,
+) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
+    for (positions) |*position| {
+        rl.DrawCircleV(position.value.to_rl_as_pos(), SpawnerParams.RADIUS, SpawnerParams.COLOR);
+    }
 }
 
 pub const BallTag = struct {};
@@ -948,6 +969,14 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
         desc.query.filter.terms[1].inout = .In;
 
         flecs.SYSTEM(world, "draw_balls", flecs.OnUpdate, &desc);
+    }
+    {
+        var desc = flecs.SYSTEM_DESC(draw_spawners);
+
+        desc.query.filter.terms[1].id = flecs.id(SpawnerTag);
+        desc.query.filter.terms[1].inout = .In;
+
+        flecs.SYSTEM(world, "draw_spawners", flecs.OnUpdate, &desc);
     }
 
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
