@@ -23,6 +23,10 @@ const ShapeId = _objects.ShapeId;
 const Color = _objects.Color;
 const Position = _objects.Position;
 
+const TextTag = _objects.TextTag;
+const TextText = _objects.TextText;
+const TextParams = _objects.TextParams;
+
 const SpawnerTag = _objects.SpawnerTag;
 
 const create_ball = _objects.create_ball;
@@ -182,6 +186,33 @@ pub const EditorColor = struct {
     }
 };
 
+pub const EditorText = struct {
+    state: TextParams.TEXT_TYPE = TextParams.TEXT_DEFAULT,
+
+    const Self = @This();
+
+    pub fn new(value: *const TextParams.TEXT_TYPE) Self {
+        var self: Self = undefined;
+        @memcpy(&self.state, value);
+        return self;
+    }
+
+    pub fn draw(self: *Self, label: [:0]const u8) bool {
+        return imgui.igInputText(
+            label,
+            &self.state,
+            self.state.len,
+            0,
+            null,
+            null,
+        );
+    }
+
+    pub fn get_value(self: *const Self) ?TextParams.TEXT_TYPE {
+        return self.state;
+    }
+};
+
 pub fn ParamEditor(comptime T: type) type {
     return struct {
         inner: ParamEditorInner(T),
@@ -261,6 +292,15 @@ fn ParamEditorInner(comptime T: type) type {
                     .alignment = @alignOf(EditorVector2),
                 };
             },
+            TextParams.TEXT_TYPE => {
+                new_fields[i] = .{
+                    .name = field.name,
+                    .type = EditorText,
+                    .default_value = null,
+                    .is_comptime = false,
+                    .alignment = @alignOf(EditorText),
+                };
+            },
             else => {},
         }
     }
@@ -294,6 +334,7 @@ fn update_editor_camera(iter: *flecs.iter_t) void {
 
 const SelectEntityCtx = struct {
     allocator: Allocator,
+    text_query: *flecs.query_t,
     spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
@@ -320,6 +361,18 @@ fn select_entity(iter: *flecs.iter_t) void {
     const ctx: *const SelectEntityCtx = @alignCast(@ptrCast(iter.ctx.?));
 
     var selected: ?flecs.entity_t = null;
+
+    const text_query: *flecs.query_t = @ptrCast(ctx.text_query);
+    var text_iter = flecs.query_iter(iter.world, text_query);
+    while (flecs.query_next(&text_iter)) {
+        const aabbs = flecs.field(&text_iter, AABB, 1).?;
+        const positions = flecs.field(&text_iter, Position, 2).?;
+        for (text_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
+                selected = e;
+            }
+        }
+    }
 
     const spawner_query: *flecs.query_t = @ptrCast(ctx.spawner_query);
     var spawner_iter = flecs.query_iter(iter.world, spawner_query);
@@ -402,6 +455,32 @@ fn drag_selected_entity(
     } else {
         const position = if (flecs.get_mut(iter.world, selected, Position)) |p| p else return;
         position.value = mouse_pos.world_position;
+    }
+}
+
+fn draw_texts_aabb(
+    iter: *flecs.iter_t,
+    aabbs: []const AABB,
+    positions: []const Position,
+    // tags: []const TextTag,
+) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+
+    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
+        const color = c: {
+            if (selected_entity.entity) |selected| {
+                break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
+            } else {
+                break :c AABB_COLOR;
+            }
+        };
+        rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
     }
 }
 
@@ -518,6 +597,71 @@ fn draw_rectangles_aabb(
             AABB_LINE_THICKNESS,
             color,
         );
+    }
+}
+
+fn draw_editor_text(
+    iter: *flecs.iter_t,
+    colors: []Color,
+    positions: []Position,
+    texts: []TextText,
+) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const LocalCtx = struct {
+        // used to detect when entity is first
+        // selected for editors initialization.
+        var current_entity: flecs.entity_t = 0;
+        var editor_color: EditorColor = undefined;
+        var editor_position: EditorVector2 = undefined;
+        var editor_text: ParamEditor(TextText) = undefined;
+    };
+
+    const selected = selected_entity.entity.?;
+
+    for (iter.entities(), 0..) |e, i| {
+        if (e == selected) {
+            const color = &colors[i];
+            const position = &positions[i];
+            const text = &texts[i];
+
+            if (LocalCtx.current_entity != selected) {
+                LocalCtx.editor_color = EditorColor.new(&color.value);
+                LocalCtx.editor_position = EditorVector2.new(&position.value);
+                LocalCtx.editor_text = ParamEditor(TextText).new(text);
+            }
+
+            var open = true;
+            if (imgui.igBegin("EditorText", &open, 0)) {
+                defer imgui.igEnd();
+
+                if (LocalCtx.editor_color.draw("color")) {
+                    if (LocalCtx.editor_color.get_value()) |v| {
+                        color.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_position.draw("position")) {
+                    if (LocalCtx.editor_position.get_value()) |v| {
+                        position.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_text.draw()) {
+                    if (LocalCtx.editor_text.get_value()) |v| {
+                        text.* = v;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -867,6 +1011,15 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     {
         var desc = flecs.SYSTEM_DESC(select_entity);
 
+        var text_query: flecs.query_desc_t = .{};
+        text_query.filter.terms[0].inout = .In;
+        text_query.filter.terms[0].id = flecs.id(AABB);
+        text_query.filter.terms[1].inout = .In;
+        text_query.filter.terms[1].id = flecs.id(Position);
+        text_query.filter.terms[2].inout = .In;
+        text_query.filter.terms[2].id = flecs.id(TextTag);
+        const tq = try flecs.query_init(world, &text_query);
+
         var spawner_query: flecs.query_desc_t = .{};
         spawner_query.filter.terms[0].inout = .In;
         spawner_query.filter.terms[0].id = flecs.id(AABB);
@@ -905,6 +1058,7 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
 
         var s_ctx = try allocator.create(SelectEntityCtx);
         s_ctx.allocator = allocator;
+        s_ctx.text_query = tq;
         s_ctx.spawner_query = sq;
         s_ctx.ball_query = bq;
         s_ctx.anchor_query = aq;
@@ -917,6 +1071,12 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     }
     flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
+    {
+        var desc = flecs.SYSTEM_DESC(draw_texts_aabb);
+        desc.query.filter.terms[2].id = flecs.id(TextTag);
+        desc.query.filter.terms[2].inout = .In;
+        flecs.SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, &desc);
+    }
     {
         var desc = flecs.SYSTEM_DESC(draw_spawners_aabb);
         desc.query.filter.terms[2].id = flecs.id(SpawnerTag);
@@ -943,6 +1103,7 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     }
 
     flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
+    flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text);
     flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
     flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
     flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
