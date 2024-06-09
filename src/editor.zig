@@ -23,6 +23,8 @@ const ShapeId = _objects.ShapeId;
 const Color = _objects.Color;
 const Position = _objects.Position;
 
+const SpawnerTag = _objects.SpawnerTag;
+
 const create_ball = _objects.create_ball;
 const BallTag = _objects.BallTag;
 const BallShape = _objects.BallShape;
@@ -292,6 +294,7 @@ fn update_editor_camera(iter: *flecs.iter_t) void {
 
 const SelectEntityCtx = struct {
     allocator: Allocator,
+    spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
     rectangle_query: *flecs.query_t,
@@ -317,6 +320,18 @@ fn select_entity(iter: *flecs.iter_t) void {
     const ctx: *const SelectEntityCtx = @alignCast(@ptrCast(iter.ctx.?));
 
     var selected: ?flecs.entity_t = null;
+
+    const spawner_query: *flecs.query_t = @ptrCast(ctx.spawner_query);
+    var spawner_iter = flecs.query_iter(iter.world, spawner_query);
+    while (flecs.query_next(&spawner_iter)) {
+        const aabbs = flecs.field(&spawner_iter, AABB, 1).?;
+        const positions = flecs.field(&spawner_iter, Position, 2).?;
+        for (spawner_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
+                selected = e;
+            }
+        }
+    }
 
     const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
     var ball_iter = flecs.query_iter(iter.world, ball_query);
@@ -380,9 +395,40 @@ fn drag_selected_entity(
     }
 
     const selected = selected_entity.entity.?;
-    const body = if (flecs.get(iter.world, selected, BodyId)) |bi| bi else return;
     const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
-    b2.b2Body_SetTransform(body.id, mouse_pos.world_position.to_b2(), 0.0);
+
+    if (flecs.get(iter.world, selected, BodyId)) |body| {
+        b2.b2Body_SetTransform(body.id, mouse_pos.world_position.to_b2(), 0.0);
+    } else {
+        const position = if (flecs.get_mut(iter.world, selected, Position)) |p| p else return;
+        position.value = mouse_pos.world_position;
+    }
+}
+
+fn draw_spawners_aabb(
+    iter: *flecs.iter_t,
+    aabbs: []const AABB,
+    positions: []const Position,
+    // tags: []const SpawnerTag,
+) void {
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+
+    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
+        const color = c: {
+            if (selected_entity.entity) |selected| {
+                break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
+            } else {
+                break :c AABB_COLOR;
+            }
+        };
+        rl.DrawRectangleLinesEx(rl_aabb_rect, AABB_LINE_THICKNESS, color);
+    }
 }
 
 fn draw_balls_aabb(
@@ -821,6 +867,15 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     {
         var desc = flecs.SYSTEM_DESC(select_entity);
 
+        var spawner_query: flecs.query_desc_t = .{};
+        spawner_query.filter.terms[0].inout = .In;
+        spawner_query.filter.terms[0].id = flecs.id(AABB);
+        spawner_query.filter.terms[1].inout = .In;
+        spawner_query.filter.terms[1].id = flecs.id(Position);
+        spawner_query.filter.terms[2].inout = .In;
+        spawner_query.filter.terms[2].id = flecs.id(SpawnerTag);
+        const sq = try flecs.query_init(world, &spawner_query);
+
         var ball_query: flecs.query_desc_t = .{};
         ball_query.filter.terms[0].inout = .In;
         ball_query.filter.terms[0].id = flecs.id(AABB);
@@ -850,6 +905,7 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
 
         var s_ctx = try allocator.create(SelectEntityCtx);
         s_ctx.allocator = allocator;
+        s_ctx.spawner_query = sq;
         s_ctx.ball_query = bq;
         s_ctx.anchor_query = aq;
         s_ctx.rectangle_query = rq;
@@ -861,6 +917,12 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     }
     flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
+    {
+        var desc = flecs.SYSTEM_DESC(draw_spawners_aabb);
+        desc.query.filter.terms[2].id = flecs.id(SpawnerTag);
+        desc.query.filter.terms[2].inout = .In;
+        flecs.SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, &desc);
+    }
     {
         var desc = flecs.SYSTEM_DESC(draw_balls_aabb);
         desc.query.filter.terms[2].id = flecs.id(BallTag);
