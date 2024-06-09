@@ -517,14 +517,6 @@ pub fn process_keys(iter: *flecs.iter_t) void {
         }
     }
 
-    if (rl.IsKeyPressed(rl.KEY_E)) {
-        if (current_state == .Running) {
-            state_stack.push_state(.Editor);
-        } else if (current_state == .Editor) {
-            state_stack.pop_state();
-        }
-    }
-
     if (current_state == .Running) {
         const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
         if (rl.IsKeyPressed(rl.KEY_R)) {

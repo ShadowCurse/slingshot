@@ -332,6 +332,24 @@ fn update_editor_camera(iter: *flecs.iter_t) void {
     editor_camera.camera.zoom += mouse_wheel_move;
 }
 
+fn enter_editor_mode(iter: *flecs.iter_t) void {
+    const editor_state = flecs.singleton_get(iter.world, EditorState).?;
+    if (editor_state.focused) {
+        return;
+    }
+
+    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+
+    if (rl.IsKeyPressed(rl.KEY_E)) {
+        if (current_state == .Running) {
+            state_stack.push_state(.Editor);
+        } else if (current_state == .Editor) {
+            state_stack.pop_state();
+        }
+    }
+}
+
 const SelectEntityCtx = struct {
     allocator: Allocator,
     text_query: *flecs.query_t,
@@ -346,8 +364,13 @@ const SelectEntityCtx = struct {
     }
 };
 fn select_entity(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
     if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
+    if (editor_state.focused) {
         return;
     }
 
@@ -1007,6 +1030,7 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
+    flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
     flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
     {
         var desc = flecs.SYSTEM_DESC(select_entity);
