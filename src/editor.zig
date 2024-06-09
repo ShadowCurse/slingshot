@@ -23,6 +23,7 @@ const ShapeId = _objects.ShapeId;
 const Color = _objects.Color;
 const Position = _objects.Position;
 
+const create_text = _objects.create_text;
 const TextTag = _objects.TextTag;
 const TextText = _objects.TextText;
 const TextParams = _objects.TextParams;
@@ -975,6 +976,9 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
         }
 
         imgui.igSeparatorText("Objects");
+        if (imgui.igButton("Add text", .{ .x = 0.0, .y = 0.0 })) {
+            create_text(iter.world, &.{});
+        }
         if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
             create_ball(iter.world, physics_world.id, &.{});
         }
