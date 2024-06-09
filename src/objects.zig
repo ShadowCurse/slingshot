@@ -117,6 +117,15 @@ pub const AABB = struct {
         };
     }
 
+    pub fn new_rectangle(half_width: f32, half_height: f32) Self {
+        return Self{
+            .aabb = b2.b2AABB{
+                .lowerBound = (Vector2{ .x = -half_width, .y = -half_height }).to_b2(),
+                .upperBound = (Vector2{ .x = half_width, .y = half_height }).to_b2(),
+            },
+        };
+    }
+
     pub fn from_b2(aabb: b2.b2AABB) Self {
         return Self{
             .aabb = aabb,
@@ -180,6 +189,86 @@ fn update_positions(iter: *flecs.iter_t, bodies: []const BodyId, positions: []Po
 
     for (bodies, positions) |*body, *position| {
         position.value = Vector2.from_b2(b2.b2Body_GetPosition(body.id));
+    }
+}
+
+pub const TextTag = struct {};
+
+pub const TextText = struct {
+    text: TextParams.TEXT_TYPE = TextParams.TEXT_DEFAULT,
+    font_size: f32 = 10.0,
+    spacing: f32 = 1.0,
+};
+
+pub const TextParams = struct {
+    position: Vector2 = Vector2.ZERO,
+    color: rl.Color = rl.WHITE,
+    text: TextParams.TEXT_TYPE = TextParams.TEXT_DEFAULT,
+    font_size: f32 = 10.0,
+    spacing: f32 = 1.0,
+
+    const Self = @This();
+
+    const TEXT_SIZE = 64;
+    const FONT_WIDTH = 7.0;
+    const MAX_WIDTH = TEXT_SIZE * FONT_WIDTH;
+
+    pub const TEXT_TYPE = [TEXT_SIZE:0]u8;
+    pub const TEXT_DEFAULT = .{0} ** TEXT_SIZE;
+
+    pub fn new(position: *const Position, color: *const Color, text: *const TextText) Self {
+        return Self{
+            .position = position.value,
+            .color = color.value,
+            .text = text,
+            .font_size = text.font_size,
+            .spacing = text.spacing,
+        };
+    }
+};
+
+pub fn create_text(ecs_world: *flecs.world_t, params: *const TextParams) void {
+    const n = flecs.new_id(ecs_world);
+    _ = flecs.add(ecs_world, n, TextTag);
+    const text = TextText{
+        .text = params.text,
+        .font_size = params.font_size,
+        .spacing = params.spacing,
+    };
+    _ = flecs.set(ecs_world, n, TextText, text);
+    _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
+    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
+    const aabb = AABB.new_rectangle(TextParams.MAX_WIDTH / 2.0, params.font_size);
+    _ = flecs.set(ecs_world, n, AABB, aabb);
+    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
+}
+
+fn draw_texts(
+    iter: *flecs.iter_t,
+    positions: []const Position,
+    colors: []const Color,
+    texts: []const TextText,
+) void {
+    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
+    const font = rl.GetFontDefault();
+    for (positions, colors, texts) |*position, *color, *text| {
+        const p = position.value.sub(&Vector2{ .x = TextParams.MAX_WIDTH / 2.0, .y = -text.font_size / 2.0 });
+        rl.DrawTextEx(
+            font,
+            &text.text,
+            p.to_rl_as_pos(),
+            text.font_size,
+            text.spacing,
+            color.value,
+        );
     }
 }
 
@@ -909,6 +998,9 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
     flecs.COMPONENT(world, BallShader);
 
+    flecs.TAG(world, TextTag);
+    flecs.COMPONENT(world, TextText);
+
     flecs.TAG(world, SpawnerTag);
 
     flecs.TAG(world, BallTag);
@@ -990,6 +1082,7 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
         flecs.SYSTEM(world, "draw_spawners", flecs.OnUpdate, &desc);
     }
 
+    flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
     flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
     flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
