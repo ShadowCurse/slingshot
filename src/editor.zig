@@ -371,6 +371,11 @@ fn select_entity(iter: *flecs.iter_t) void {
         return;
     }
 
+    const editor_state = flecs.singleton_get(iter.world, EditorState).?;
+    if (editor_state.focused) {
+        return;
+    }
+
     if (!rl.IsMouseButtonPressed(rl.MOUSE_LEFT_BUTTON)) {
         return;
     }
