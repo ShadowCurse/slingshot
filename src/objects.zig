@@ -220,7 +220,7 @@ pub const TextParams = struct {
         return Self{
             .position = position.value,
             .color = color.value,
-            .text = text,
+            .text = text.text,
             .font_size = text.font_size,
             .spacing = text.spacing,
         };
@@ -975,6 +975,7 @@ fn draw_rectangles(
 }
 
 pub const ObjectTags = enum {
+    Text,
     Spawner,
     Ball,
     Anchor,
@@ -982,6 +983,7 @@ pub const ObjectTags = enum {
 };
 
 pub const ObjectParams = union(ObjectTags) {
+    Text: TextParams,
     Spawner: SpawnerParams,
     Ball: BallParams,
     Anchor: AnchorParams,

@@ -36,6 +36,11 @@ const BodyId = _objects.BodyId;
 const ShapeId = _objects.ShapeId;
 const Position = _objects.Position;
 
+const create_text = _objects.create_text;
+const TextTag = _objects.TextTag;
+const TextText = _objects.TextText;
+const TextParams = _objects.TextParams;
+
 const create_spawner = _objects.create_spawner;
 const SpawnerTag = _objects.SpawnerTag;
 const SpawnerParams = _objects.SpawnerParams;
@@ -253,6 +258,9 @@ pub fn load_level(iter: *flecs.iter_t) void {
 
     for (level_save.objects) |*obj| {
         switch (obj.*) {
+            .Text => |*r| {
+                create_text(iter.world, r);
+            },
             .Spawner => |*r| {
                 create_spawner(iter.world, r);
             },
@@ -375,6 +383,7 @@ pub fn recreate_level(iter: *flecs.iter_t) void {
 
 pub const SaveLevelCtx = struct {
     allocator: Allocator,
+    text_query: *flecs.query_t,
     spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
@@ -403,6 +412,21 @@ pub fn save_level(iter: *flecs.iter_t) void {
 
     var objects_params = std.ArrayList(ObjectParams).init(allocator.*);
     defer objects_params.deinit();
+
+    const text_query: *flecs.query_t = @ptrCast(ctx.text_query);
+    var text_iter = flecs.query_iter(iter.world, text_query);
+    while (flecs.query_next(&text_iter)) {
+        const colors = flecs.field(&text_iter, Color, 1).?;
+        const positions = flecs.field(&text_iter, Position, 2).?;
+        const texts = flecs.field(&text_iter, TextText, 3).?;
+        for (colors, positions, texts) |*color, *position, *text| {
+            const params = TextParams.new(position, color, text);
+            objects_params.append(.{ .Text = params }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
 
     const spawner_query: *flecs.query_t = @ptrCast(ctx.spawner_query);
     var spawner_iter = flecs.query_iter(iter.world, spawner_query);
@@ -747,6 +771,15 @@ pub const GameV2 = struct {
         {
             var desc = flecs.SYSTEM_DESC(save_level);
 
+            var text_query: flecs.query_desc_t = .{};
+            text_query.filter.terms[0].inout = .In;
+            text_query.filter.terms[0].id = flecs.id(Color);
+            text_query.filter.terms[1].inout = .In;
+            text_query.filter.terms[1].id = flecs.id(Position);
+            text_query.filter.terms[2].inout = .In;
+            text_query.filter.terms[2].id = flecs.id(TextText);
+            const tq = try flecs.query_init(ecs_world, &text_query);
+
             var spawner_query: flecs.query_desc_t = .{};
             spawner_query.filter.terms[0].inout = .In;
             spawner_query.filter.terms[0].id = flecs.id(Position);
@@ -783,6 +816,7 @@ pub const GameV2 = struct {
 
             var s_ctx = try allocator.create(SaveLevelCtx);
             s_ctx.allocator = allocator;
+            s_ctx.text_query = tq;
             s_ctx.spawner_query = sq;
             s_ctx.ball_query = bq;
             s_ctx.anchor_query = aq;
