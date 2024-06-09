@@ -22,6 +22,9 @@ pub const DEFAULT_SAVE_PATH = "resources/levels/save.json";
 
 pub const EMSCRIPTEN_LEVEL_NAMES = [_][]const u8{
     "level_1.json",
+    "tutorial_detach.json",
+    "tutorial_drag.json",
+    "tutorial_sling.json",
 };
 
 pub const LevelSave = struct {
