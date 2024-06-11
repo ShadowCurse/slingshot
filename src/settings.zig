@@ -103,16 +103,13 @@ pub const Settings = struct {
             .zoom = 1.0,
         };
         camera.camera = c;
-        // TODO is there a better workaround?
-        // Currently this is needed, because when
-        // only SetWindowSize is used, the inner viewport
-        // is not resized
-        rl.ToggleFullscreen();
-        rl.ToggleFullscreen();
         rl.SetWindowSize(
             @intCast(self.resolution_width),
             @intCast(self.resolution_height),
         );
+        // NOTE: this needs a modification to raylib to make this
+        // method extern
+        rl.SetupViewport(@intCast(self.resolution_width), @intCast(self.resolution_height));
     }
 
     pub fn save(self: *const Self) !void {

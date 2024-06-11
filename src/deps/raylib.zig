@@ -663,6 +663,10 @@ pub const LoadFileDataCallback = ?*const fn ([*c]const u8, [*c]c_int) callconv(.
 pub const SaveFileDataCallback = ?*const fn ([*c]const u8, ?*anyopaque, c_int) callconv(.C) bool;
 pub const LoadFileTextCallback = ?*const fn ([*c]const u8) callconv(.C) [*c]u8;
 pub const SaveFileTextCallback = ?*const fn ([*c]const u8, [*c]u8) callconv(.C) bool;
+
+// Additionally exposed method
+pub extern fn SetupViewport(width: c_int, height: c_int) void;
+
 pub extern fn InitWindow(width: c_int, height: c_int, title: [*c]const u8) void;
 pub extern fn CloseWindow() void;
 pub extern fn WindowShouldClose() bool;
