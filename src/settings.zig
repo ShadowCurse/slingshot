@@ -16,6 +16,8 @@ pub const DEFAULT_SETTINGS_PATH = "resources/settings.json";
 pub const SettingsSave = struct {
     resolution_width: u32,
     resolution_height: u32,
+    fullscreen: bool,
+    borderless: bool,
 };
 
 pub const Settings = struct {
@@ -37,11 +39,15 @@ pub const Settings = struct {
     // UI state
     selected_resolution: i32 = 0,
     select_resolution_active: bool = false,
+    is_fullscreen: bool = false,
+    is_borderless: bool = false,
 
     resolution_width: u32 = 0,
     resolution_height: u32 = 0,
+    fullscreen: bool = false,
+    borderless: bool = false,
 
-    pub fn update_selected_resolution(self: *Self) void {
+    pub fn use_selected_resolution(self: *Self) void {
         const selected_resolution: usize = @intCast(self.selected_resolution);
         self.resolution_width = Self.RESOLUTIONS[selected_resolution][0];
         self.resolution_height = Self.RESOLUTIONS[selected_resolution][1];
@@ -54,6 +60,13 @@ pub const Settings = struct {
             .width = UI_ELEMENT_WIDTH,
             .height = UI_ELEMENT_HEIGHT,
         };
+        _ = rl.GuiToggle(rectangle, "Fullscreen", &self.is_fullscreen);
+
+        rectangle.x += UI_ELEMENT_WIDTH;
+        _ = rl.GuiToggle(rectangle, "Borderless", &self.is_borderless);
+
+        rectangle.x -= UI_ELEMENT_WIDTH;
+        rectangle.y += UI_ELEMENT_HEIGHT;
         _ = rl.GuiLabel(
             rectangle,
             "Resolution",
@@ -71,13 +84,19 @@ pub const Settings = struct {
         }
 
         rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
-        rectangle.y += UI_ELEMENT_HEIGHT * 3.5;
+        rectangle.y += UI_ELEMENT_HEIGHT * 2.5;
         const apply_button = rl.GuiButton(
             rectangle,
             "Apply",
         );
         if (apply_button != 0) {
-            self.update_selected_resolution();
+            if (self.fullscreen != self.is_fullscreen) {
+                self.toggle_fullscreen();
+            } else if (self.borderless != self.is_borderless) {
+                self.toggle_borderless_window();
+            } else if (!self.fullscreen and !self.borderless) {
+                self.use_selected_resolution();
+            }
             self.set_window_size(camera);
             try self.save();
         }
@@ -89,6 +108,32 @@ pub const Settings = struct {
         );
         if (back_button != 0) {
             state_stack.pop_state();
+        }
+    }
+
+    pub fn toggle_fullscreen(self: *Self) void {
+        rl.ToggleFullscreen();
+        self.fullscreen = self.is_fullscreen;
+
+        if (self.fullscreen) {
+            const m = rl.GetCurrentMonitor();
+            self.resolution_width = @intCast(rl.GetMonitorWidth(m));
+            self.resolution_height = @intCast(rl.GetMonitorHeight(m));
+        } else {
+            self.use_selected_resolution();
+        }
+    }
+
+    pub fn toggle_borderless_window(self: *Self) void {
+        rl.ToggleBorderlessWindowed();
+        self.borderless = self.is_borderless;
+
+        if (self.borderless) {
+            const m = rl.GetCurrentMonitor();
+            self.resolution_width = @intCast(rl.GetMonitorWidth(m));
+            self.resolution_height = @intCast(rl.GetMonitorHeight(m));
+        } else {
+            self.use_selected_resolution();
         }
     }
 
@@ -119,6 +164,8 @@ pub const Settings = struct {
         const config_save = SettingsSave{
             .resolution_width = self.resolution_width,
             .resolution_height = self.resolution_height,
+            .fullscreen = self.is_fullscreen,
+            .borderless = self.is_borderless,
         };
 
         const options = std.json.StringifyOptions{
