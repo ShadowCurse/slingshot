@@ -1,0 +1,13 @@
+diff --git a/src/rcore.c b/src/rcore.c
+index 9705495e..d5375b87 100644
+--- a/src/rcore.c
++++ b/src/rcore.c
+@@ -473,7 +473,7 @@ extern void ClosePlatform(void);        // Close platform
+ 
+ static void InitTimer(void);                                // Initialize timer, hi-resolution if available (required by InitPlatform())
+ static void SetupFramebuffer(int width, int height);        // Setup main framebuffer (required by InitPlatform())
+-static void SetupViewport(int width, int height);           // Set viewport for a provided width and height
++extern void SetupViewport(int width, int height);           // Set viewport for a provided width and height
+ 
+ static void ScanDirectoryFiles(const char *basePath, FilePathList *list, const char *filter);   // Scan all files and directories in a base path
+ static void ScanDirectoryFilesRecursively(const char *basePath, FilePathList *list, const char *filter);  // Scan all files and directories recursively from a base path
