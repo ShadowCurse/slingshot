@@ -4,6 +4,16 @@ const Allocator = std.mem.Allocator;
 const rl = @import("deps/raylib.zig");
 const flecs = @import("deps/flecs.zig");
 
+const SPT = flecs.SYSTEM_PARAMETER_TAG;
+const SPW = flecs.SYSTEM_PARAMETER_WORLD;
+const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
+const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
+const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
+const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
+const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT;
+const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+
 const _game = @import("game.zig");
 const GameCamera = _game.GameCamera;
 const GameStateStack = _game.GameStateStack;
@@ -21,14 +31,18 @@ const EditorState = _editor.EditorState;
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
 
-fn draw_main_menu(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+fn draw_main_menu(
+    __settings: SPS(Settings),
+    _levels: SPS_MUT(Levels),
+    _state_stack: SPS_MUT(GameStateStack),
+) void {
+    const settings = __settings.data;
+    const levels = _levels.data;
+    const state_stack = _state_stack.data;
+
     if (state_stack.current_state() != .MainMenu) {
         return;
     }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const levels = flecs.singleton_get_mut(iter.world, Levels).?;
 
     var rectangle = rl.Rectangle{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
@@ -67,16 +81,21 @@ fn draw_main_menu(iter: *flecs.iter_t) void {
     }
 }
 
-fn draw_level_selection(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+fn draw_level_selection(
+    _world: SPW(),
+    _state_stack: SPS_MUT(GameStateStack),
+) void {
+    const world = _world.data;
+    const state_stack = _state_stack.data;
+
     if (state_stack.current_state() != .LevelSelection) {
         return;
     }
 
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const levels = flecs.singleton_get_mut(iter.world, Levels).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
+    const settings = flecs.singleton_get(world, Settings).?;
+    const levels = flecs.singleton_get_mut(world, Levels).?;
+    const current_level = flecs.singleton_get_mut(world, CurrentLevel).?;
+    const editor_state = flecs.singleton_get_mut(world, EditorState).?;
 
     levels.draw(settings, state_stack, current_level);
 
@@ -85,28 +104,36 @@ fn draw_level_selection(iter: *flecs.iter_t) void {
     }
 }
 
-fn draw_settings(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+fn draw_settings(
+    _camera: SPS_MUT(GameCamera),
+    __settings: SPS_MUT(Settings),
+    _state_stack: SPS_MUT(GameStateStack),
+) void {
+    const camera = _camera.data;
+    const settings = __settings.data;
+    const state_stack = _state_stack.data;
+
     if (state_stack.current_state() != .Settings) {
         return;
     }
-
-    const camera = flecs.singleton_get_mut(iter.world, GameCamera).?;
-    const settings = flecs.singleton_get_mut(iter.world, Settings).?;
 
     settings.draw(camera, state_stack) catch {
         state_stack.push_state(.Exit);
     };
 }
 
-pub fn draw_paused(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+pub fn draw_paused(
+    __settings: SPS_MUT(Settings),
+    _state_stack: SPS_MUT(GameStateStack),
+    _current_level: SPS_MUT(CurrentLevel),
+) void {
+    const settings = __settings.data;
+    const state_stack = _state_stack.data;
+    const current_level = _current_level.data;
+
     if (state_stack.current_state() != .Paused) {
         return;
     }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
 
     var rectangle = rl.Rectangle{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
@@ -144,14 +171,18 @@ pub fn draw_paused(iter: *flecs.iter_t) void {
     }
 }
 
-fn draw_win(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+fn draw_win(
+    __settings: SPS_MUT(Settings),
+    _state_stack: SPS_MUT(GameStateStack),
+    _current_level: SPS_MUT(CurrentLevel),
+) void {
+    const settings = __settings.data;
+    const state_stack = _state_stack.data;
+    const current_level = _current_level.data;
+
     if (state_stack.current_state() != .Win) {
         return;
     }
-
-    const settings = flecs.singleton_get(iter.world, Settings).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
 
     const win_button_rect = rl.Rectangle{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,

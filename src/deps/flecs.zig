@@ -269,6 +269,161 @@ pub const move_t = *const fn (
 
 pub const poly_dtor_t = *const fn (poly: *poly_t) callconv(.C) void;
 
+pub const system_parameter_tag_t = enum {
+    Tag,
+    World,
+    Context,
+    Entities,
+    DeltaTime,
+    Singleton,
+    Component,
+};
+
+pub fn SYSTEM_PARAMETER_TAG(comptime tag: type) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Tag;
+        const TYPE = tag;
+        const INOUT = .InOutNone;
+    };
+}
+
+pub fn SYSTEM_PARAMETER_WORLD() type {
+    return struct {
+        const TAG: system_parameter_tag_t = .World;
+        const TYPE = *world_t;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_CONTEXT(comptime c: type) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Context;
+        data: *const c,
+
+        const self_t = @This();
+        pub fn init(ctx: *anyopaque) self_t {
+            const data: *const c = @alignCast(@ptrCast(ctx));
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_CONTEXT_MUT(comptime c: type) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Context;
+        data: *c,
+
+        const self_t = @This();
+        pub fn init(ctx: *anyopaque) self_t {
+            const data: *c = @alignCast(@ptrCast(ctx));
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_ENTITIES() type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Entities;
+        const TYPE = []entity_t;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_DELTA_TIME() type {
+    return struct {
+        const TAG: system_parameter_tag_t = .DeltaTime;
+        const TYPE = f32;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_SINGLETON(comptime s: type) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Singleton;
+        const TYPE = *const s;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_SINGLETON_MUT(comptime s: type) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Singleton;
+        const TYPE = *s;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_COMPONENT(comptime c: type, comptime inout: inout_kind_t) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Component;
+        const INOUT = inout;
+        const TYPE = []const c;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_COMPONENT_MUT(comptime c: type, comptime inout: inout_kind_t) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Component;
+        const INOUT = inout;
+        const TYPE = []c;
+        data: TYPE,
+
+        const self_t = @This();
+        pub fn init(data: TYPE) self_t {
+            return .{
+                .data = data,
+            };
+        }
+    };
+}
+
 pub const system_desc_t = extern struct {
     _canary: i32 = 0,
     entity: entity_t = 0,
@@ -2405,25 +2560,50 @@ pub fn OBSERVER(
 // }
 fn SystemImpl(comptime fn_system: anytype) type {
     const fn_type = @typeInfo(@TypeOf(fn_system));
-    if (fn_type.Fn.params.len == 0) {
-        @compileError("System need at least one parameter");
-    }
 
     return struct {
         fn exec(it: *iter_t) callconv(.C) void {
             const ArgsTupleType = std.meta.ArgsTuple(@TypeOf(fn_system));
             var args_tuple: ArgsTupleType = undefined;
 
-            const has_it_param = fn_type.Fn.params[0].type == *iter_t;
-            if (has_it_param) {
-                args_tuple[0] = it;
-            }
-
-            const start_index = if (has_it_param) 1 else 0;
-
-            inline for (start_index..fn_type.Fn.params.len) |i| {
+            comptime var current_term = 1;
+            inline for (0..fn_type.Fn.params.len) |i| {
                 const p = fn_type.Fn.params[i];
-                args_tuple[i] = field(it, @typeInfo(p.type.?).Pointer.child, i + 1 - start_index).?;
+                const t = p.type.?;
+                switch (t.TAG) {
+                    .Tag => {},
+                    .World => {
+                        args_tuple[i] = t.init(it.world);
+                    },
+                    .Context => {
+                        args_tuple[i] = t.init(it.ctx.?);
+                    },
+                    .Entities => {
+                        args_tuple[i] = t.init(it.entities());
+                    },
+                    .DeltaTime => {
+                        args_tuple[i] = t.init(it.delta_time);
+                    },
+                    .Singleton => {
+                        const param_type_info = @typeInfo(t.TYPE).Pointer;
+                        if (param_type_info.is_const) {
+                            args_tuple[i] = t.init(singleton_get(it.world, param_type_info.child).?);
+                        } else {
+                            args_tuple[i] = t.init(singleton_get_mut(it.world, param_type_info.child).?);
+                        }
+                    },
+                    .Component => {
+                        const component_type = @typeInfo(t.TYPE).Pointer.child;
+                        if (field(it, component_type, current_term)) |c| {
+                            args_tuple[i] = t.init(c);
+                        } else {
+                            const name = @typeName(component_type);
+                            const msg = std.fmt.comptimePrint("Cannot find component: {s}", .{name});
+                            @panic(msg);
+                        }
+                        current_term += 1;
+                    },
+                }
             }
 
             //NOTE: .always_inline seems ok, but unsure. Replace to .auto if it breaks
@@ -2440,13 +2620,28 @@ pub fn SYSTEM_DESC(comptime fn_system: anytype) system_desc_t {
     system_desc.callback = system_struct.exec;
 
     const fn_type = @typeInfo(@TypeOf(fn_system)).Fn;
-    const has_it_param = fn_type.params[0].type == *iter_t;
-    const start_index = if (has_it_param) 1 else 0;
-    inline for (start_index..fn_type.params.len) |i| {
+
+    comptime var current_term = 0;
+    inline for (0..fn_type.params.len) |i| {
         const p = fn_type.params[i];
-        const param_type_info = @typeInfo(p.type.?).Pointer;
-        const inout = if (param_type_info.is_const) .In else .InOut;
-        system_desc.query.filter.terms[i - start_index] = .{ .id = id(param_type_info.child), .inout = inout };
+        const t = p.type.?;
+
+        switch (t.TAG) {
+            .Tag => {
+                system_desc.query.filter.terms[current_term] = .{ .id = id(t.TYPE), .inout = t.INOUT };
+                current_term += 1;
+            },
+            .World => {},
+            .Context => {},
+            .Entities => {},
+            .DeltaTime => {},
+            .Singleton => {},
+            .Component => {
+                const component_type = @typeInfo(t.TYPE).Pointer.child;
+                system_desc.query.filter.terms[current_term] = .{ .id = id(component_type), .inout = t.INOUT };
+                current_term += 1;
+            },
+        }
     }
 
     return system_desc;

@@ -7,6 +7,17 @@ const imgui = @import("deps/imgui.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
 
+const SPT = flecs.SYSTEM_PARAMETER_TAG;
+const SPW = flecs.SYSTEM_PARAMETER_WORLD;
+const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
+const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
+const SP_ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
+const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
+const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
+const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
+const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+
 const _game = @import("game.zig");
 const LevelObject = _game.LevelObject;
 const PhysicsWorld = _game.PhysicsWorld;
@@ -316,13 +327,16 @@ fn ParamEditorInner(comptime T: type) type {
     });
 }
 
-fn update_editor_camera(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+fn update_editor_camera(
+    _state_stack: SPS(GameStateStack),
+    _editor_camera: SPS_MUT(EditorCamera),
+) void {
+    const state_stack = _state_stack.data;
+    const editor_camera = _editor_camera.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
-
-    const editor_camera = flecs.singleton_get_mut(iter.world, EditorCamera).?;
 
     if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
         const delta = rl.GetMouseDelta();
@@ -334,15 +348,18 @@ fn update_editor_camera(iter: *flecs.iter_t) void {
     editor_camera.camera.zoom += mouse_wheel_move;
 }
 
-fn enter_editor_mode(iter: *flecs.iter_t) void {
-    const editor_state = flecs.singleton_get(iter.world, EditorState).?;
+fn enter_editor_mode(
+    _editor_state: SPS(EditorState),
+    _state_stack: SPS_MUT(GameStateStack),
+) void {
+    const editor_state = _editor_state.data;
+    const state_stack = _state_stack.data;
+
     if (editor_state.focused) {
         return;
     }
 
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
     const current_state = state_stack.current_state();
-
     if (rl.IsKeyPressed(rl.KEY_E)) {
         if (current_state == .Running) {
             state_stack.push_state(.Editor);
@@ -365,13 +382,25 @@ const SelectEntityCtx = struct {
         self.allocator.destroy(self);
     }
 };
-fn select_entity(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
+fn select_entity(
+    _world: SPW(),
+    _ctx: SP_CONTEXT(SelectEntityCtx),
+    _state_stack: SPS(GameStateStack),
+    _editor_state: SPS(EditorState),
+    _mouse_pos: SPS(MousePosition),
+    _selected_entity: SPS_MUT(SelectedEntity),
+) void {
+    const world = _world.data;
+    const ctx = _ctx.data;
+    const state_stack = _state_stack.data;
+    const editor_state = _editor_state.data;
+    const mouse_pos = _mouse_pos.data;
+    const selected_entity = _selected_entity.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const editor_state = flecs.singleton_get(iter.world, EditorState).?;
     if (editor_state.focused) {
         return;
     }
@@ -380,15 +409,9 @@ fn select_entity(iter: *flecs.iter_t) void {
         return;
     }
 
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
-    const selected_entity = flecs.singleton_get_mut(iter.world, SelectedEntity).?;
-
-    const ctx: *const SelectEntityCtx = @alignCast(@ptrCast(iter.ctx.?));
-
     var selected: ?flecs.entity_t = null;
-
     const text_query: *flecs.query_t = @ptrCast(ctx.text_query);
-    var text_iter = flecs.query_iter(iter.world, text_query);
+    var text_iter = flecs.query_iter(world, text_query);
     while (flecs.query_next(&text_iter)) {
         const aabbs = flecs.field(&text_iter, AABB, 1).?;
         const positions = flecs.field(&text_iter, Position, 2).?;
@@ -400,7 +423,7 @@ fn select_entity(iter: *flecs.iter_t) void {
     }
 
     const spawner_query: *flecs.query_t = @ptrCast(ctx.spawner_query);
-    var spawner_iter = flecs.query_iter(iter.world, spawner_query);
+    var spawner_iter = flecs.query_iter(world, spawner_query);
     while (flecs.query_next(&spawner_iter)) {
         const aabbs = flecs.field(&spawner_iter, AABB, 1).?;
         const positions = flecs.field(&spawner_iter, Position, 2).?;
@@ -412,7 +435,7 @@ fn select_entity(iter: *flecs.iter_t) void {
     }
 
     const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
-    var ball_iter = flecs.query_iter(iter.world, ball_query);
+    var ball_iter = flecs.query_iter(world, ball_query);
     while (flecs.query_next(&ball_iter)) {
         const aabbs = flecs.field(&ball_iter, AABB, 1).?;
         const positions = flecs.field(&ball_iter, Position, 2).?;
@@ -424,7 +447,7 @@ fn select_entity(iter: *flecs.iter_t) void {
     }
 
     const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
-    var anchor_iter = flecs.query_iter(iter.world, anchor_query);
+    var anchor_iter = flecs.query_iter(world, anchor_query);
     while (flecs.query_next(&anchor_iter)) {
         const aabbs = flecs.field(&anchor_iter, AABB, 1).?;
         const positions = flecs.field(&anchor_iter, Position, 2).?;
@@ -436,7 +459,7 @@ fn select_entity(iter: *flecs.iter_t) void {
     }
 
     const rectangle_query: *flecs.query_t = @ptrCast(ctx.rectangle_query);
-    var rectangle_iter = flecs.query_iter(iter.world, rectangle_query);
+    var rectangle_iter = flecs.query_iter(world, rectangle_query);
     while (flecs.query_next(&rectangle_iter)) {
         const aabbs = flecs.field(&rectangle_iter, AABB, 1).?;
         const positions = flecs.field(&rectangle_iter, Position, 2).?;
@@ -451,9 +474,16 @@ fn select_entity(iter: *flecs.iter_t) void {
 }
 
 fn drag_selected_entity(
-    iter: *flecs.iter_t,
+    _world: SPW(),
+    _state_stack: SPS(GameStateStack),
+    _mouse_pos: SPS(MousePosition),
+    _selected_entity: SPS(SelectedEntity),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const world = _world.data;
+    const state_stack = _state_stack.data;
+    const mouse_pos = _mouse_pos.data;
+    const selected_entity = _selected_entity.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
@@ -462,36 +492,39 @@ fn drag_selected_entity(
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
 
     const selected = selected_entity.entity.?;
-    const mouse_pos = flecs.singleton_get(iter.world, MousePosition).?;
 
-    if (flecs.get(iter.world, selected, BodyId)) |body| {
+    if (flecs.get(world, selected, BodyId)) |body| {
         b2.b2Body_SetTransform(body.id, mouse_pos.world_position.to_b2(), 0.0);
     } else {
-        const position = if (flecs.get_mut(iter.world, selected, Position)) |p| p else return;
+        const position = if (flecs.get_mut(world, selected, Position)) |p| p else return;
         position.value = mouse_pos.world_position;
     }
 }
 
 fn draw_texts_aabb(
-    iter: *flecs.iter_t,
-    aabbs: []const AABB,
-    positions: []const Position,
-    // tags: []const TextTag,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _aabbs: SPC(AABB, .In),
+    _positions: SPC(Position, .In),
+    _: SPT(TextTag),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const aabbs = _aabbs.data;
+    const positions = _positions.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
-    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+    for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
         const color = c: {
             if (selected_entity.entity) |selected| {
@@ -505,19 +538,24 @@ fn draw_texts_aabb(
 }
 
 fn draw_spawners_aabb(
-    iter: *flecs.iter_t,
-    aabbs: []const AABB,
-    positions: []const Position,
-    // tags: []const SpawnerTag,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _aabbs: SPC(AABB, .In),
+    _positions: SPC(Position, .In),
+    _: SPT(SpawnerTag),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const aabbs = _aabbs.data;
+    const positions = _positions.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
-    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+    for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
         const color = c: {
             if (selected_entity.entity) |selected| {
@@ -531,19 +569,24 @@ fn draw_spawners_aabb(
 }
 
 fn draw_balls_aabb(
-    iter: *flecs.iter_t,
-    aabbs: []const AABB,
-    positions: []const Position,
-    // tags: []const BallTag,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _aabbs: SPC(AABB, .In),
+    _positions: SPC(Position, .In),
+    _: SPT(BallTag),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const aabbs = _aabbs.data;
+    const positions = _positions.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
-    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+    for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
         const color = c: {
             if (selected_entity.entity) |selected| {
@@ -557,19 +600,24 @@ fn draw_balls_aabb(
 }
 
 fn draw_anchors_aabb(
-    iter: *flecs.iter_t,
-    aabbs: []const AABB,
-    positions: []const Position,
-    // tags: []const AnchorTag,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _aabbs: SPC(AABB, .In),
+    _positions: SPC(Position, .In),
+    _: SPT(AnchorTag),
 ) void {
-    const state_stack = flecs.singleton_get(iter.world, GameStateStack).?;
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const aabbs = _aabbs.data;
+    const positions = _positions.data;
 
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+    for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
 
         const color = c: {
@@ -589,19 +637,24 @@ fn draw_anchors_aabb(
 }
 
 fn draw_rectangles_aabb(
-    iter: *flecs.iter_t,
-    aabbs: []const AABB,
-    positions: []const Position,
-    // tags: []const RectangleTag,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _aabbs: SPC(AABB, .In),
+    _positions: SPC(Position, .In),
+    _: SPT(RectangleTag),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const aabbs = _aabbs.data;
+    const positions = _positions.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
-
-    for (iter.entities(), aabbs, positions) |e, *aabb, *position| {
+    for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
 
         const color = c: {
@@ -621,17 +674,24 @@ fn draw_rectangles_aabb(
 }
 
 fn draw_editor_text(
-    iter: *flecs.iter_t,
-    colors: []Color,
-    positions: []Position,
-    texts: []TextText,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _colors: SPC_MUT(Color, .InOut),
+    _positions: SPC_MUT(Position, .InOut),
+    _texts: SPC_MUT(TextText, .InOut),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const colors = _colors.data;
+    const positions = _positions.data;
+    const texts = _texts.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -647,7 +707,7 @@ fn draw_editor_text(
 
     const selected = selected_entity.entity.?;
 
-    for (iter.entities(), 0..) |e, i| {
+    for (entities, 0..) |e, i| {
         if (e == selected) {
             const color = &colors[i];
             const position = &positions[i];
@@ -686,20 +746,30 @@ fn draw_editor_text(
 }
 
 fn draw_editor_ball(
-    iter: *flecs.iter_t,
-    colors: []Color,
-    positions: []Position,
-    aabbs: []AABB,
-    shapes: []BallShape,
-    body_ids: []const BodyId,
-    shape_ids: []const ShapeId,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _body_ids: SPC(BodyId, .In),
+    _shape_ids: SPC(ShapeId, .In),
+    _colors: SPC_MUT(Color, .InOut),
+    _positions: SPC_MUT(Position, .InOut),
+    _aabbs: SPC_MUT(AABB, .InOut),
+    _shapes: SPC_MUT(BallShape, .InOut),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const body_ids = _body_ids.data;
+    const shape_ids = _shape_ids.data;
+    const colors = _colors.data;
+    const positions = _positions.data;
+    const aabbs = _aabbs.data;
+    const shapes = _shapes.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -715,7 +785,7 @@ fn draw_editor_ball(
 
     const selected = selected_entity.entity.?;
 
-    for (iter.entities(), 0..) |e, i| {
+    for (entities, 0..) |e, i| {
         if (e == selected) {
             const color = &colors[i];
             const position = &positions[i];
@@ -764,19 +834,28 @@ fn draw_editor_ball(
 }
 
 pub fn draw_editor_anchor(
-    iter: *flecs.iter_t,
-    colors: []Color,
-    positions: []Position,
-    shapes: []AnchorShape,
-    joint_params: []AnchoraJointParams,
-    body_ids: []const BodyId,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _body_ids: SPC(BodyId, .In),
+    _colors: SPC_MUT(Color, .InOut),
+    _positions: SPC_MUT(Position, .InOut),
+    _shapes: SPC_MUT(AnchorShape, .InOut),
+    _joint_params: SPC_MUT(AnchoraJointParams, .InOut),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const body_ids = _body_ids.data;
+    const colors = _colors.data;
+    const positions = _positions.data;
+    const shapes = _shapes.data;
+    const joint_params = _joint_params.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -793,7 +872,7 @@ pub fn draw_editor_anchor(
 
     const selected = selected_entity.entity.?;
 
-    for (iter.entities(), 0..) |e, i| {
+    for (entities, 0..) |e, i| {
         if (e == selected) {
             const color = &colors[i];
             const position = &positions[i];
@@ -842,20 +921,30 @@ pub fn draw_editor_anchor(
 }
 
 fn draw_editor_rectangle(
-    iter: *flecs.iter_t,
-    colors: []Color,
-    positions: []Position,
-    aabbs: []AABB,
-    shapes: []RectangleShape,
-    body_ids: []const BodyId,
-    shape_ids: []const ShapeId,
+    _entities: SP_ENTITIES(),
+    _state_stack: SPS(GameStateStack),
+    _selected_entity: SPS(SelectedEntity),
+    _body_ids: SPC(BodyId, .In),
+    _shape_ids: SPC(ShapeId, .In),
+    _colors: SPC_MUT(Color, .InOut),
+    _positions: SPC_MUT(Position, .InOut),
+    _aabbs: SPC_MUT(AABB, .InOut),
+    _shapes: SPC_MUT(RectangleShape, .InOut),
 ) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+    const entities = _entities.data;
+    const state_stack = _state_stack.data;
+    const selected_entity = _selected_entity.data;
+    const body_ids = _body_ids.data;
+    const shape_ids = _shape_ids.data;
+    const colors = _colors.data;
+    const positions = _positions.data;
+    const aabbs = _aabbs.data;
+    const shapes = _shapes.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
 
-    const selected_entity = flecs.singleton_get(iter.world, SelectedEntity).?;
     if (selected_entity.entity == null) {
         return;
     }
@@ -879,7 +968,7 @@ fn draw_editor_rectangle(
 
     const selected = selected_entity.entity.?;
 
-    for (iter.entities(), 0..) |e, i| {
+    for (entities, 0..) |e, i| {
         if (e == selected) {
             const color = &colors[i];
             const position = &positions[i];
@@ -947,16 +1036,24 @@ fn draw_editor_rectangle(
     }
 }
 
-fn draw_editor_level(iter: *flecs.iter_t) void {
-    const state_stack = flecs.singleton_get_mut(iter.world, GameStateStack).?;
+fn draw_editor_level(
+    _world: SPW(),
+    _physics_world: SPS(PhysicsWorld),
+    _selected_entity: SPS_MUT(SelectedEntity),
+    _editor_state: SPS_MUT(EditorState),
+    _state_stack: SPS_MUT(GameStateStack),
+    _current_level: SPS_MUT(CurrentLevel),
+) void {
+    const world = _world.data;
+    const physics_world = _physics_world.data;
+    const selected_entity = _selected_entity.data;
+    const editor_state = _editor_state.data;
+    const state_stack = _state_stack.data;
+    const current_level = _current_level.data;
+
     if (state_stack.current_state() != .Editor) {
         return;
     }
-
-    const physics_world = flecs.singleton_get(iter.world, PhysicsWorld).?;
-    const editor_state = flecs.singleton_get_mut(iter.world, EditorState).?;
-    const current_level = flecs.singleton_get_mut(iter.world, CurrentLevel).?;
-    const selected_entity = flecs.singleton_get_mut(iter.world, SelectedEntity).?;
 
     var open = true;
     if (imgui.igBegin("LevelEditor", &open, 0)) {
@@ -982,18 +1079,18 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
 
         imgui.igSeparatorText("Objects");
         if (imgui.igButton("Add text", .{ .x = 0.0, .y = 0.0 })) {
-            create_text(iter.world, &.{});
+            create_text(world, &.{});
         }
         if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
-            create_ball(iter.world, physics_world.id, &.{});
+            create_ball(world, physics_world.id, &.{});
         }
 
         if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
-            create_anchor(iter.world, physics_world.id, &.{});
+            create_anchor(world, physics_world.id, &.{});
         }
 
         if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
-            create_rectangle(iter.world, physics_world.id, &.{}) catch {
+            create_rectangle(world, physics_world.id, &.{}) catch {
                 state_stack.push_state(.Exit);
                 return;
             };
@@ -1001,7 +1098,7 @@ fn draw_editor_level(iter: *flecs.iter_t) void {
 
         if (imgui.igButton("Remove selected", .{ .x = 0.0, .y = 0.0 })) {
             if (selected_entity.entity) |e| {
-                _ = flecs.delete(iter.world, e);
+                _ = flecs.delete(world, e);
                 selected_entity.entity = null;
             }
         }
@@ -1095,36 +1192,11 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     }
     flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
-    {
-        var desc = flecs.SYSTEM_DESC(draw_texts_aabb);
-        desc.query.filter.terms[2].id = flecs.id(TextTag);
-        desc.query.filter.terms[2].inout = .In;
-        flecs.SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, &desc);
-    }
-    {
-        var desc = flecs.SYSTEM_DESC(draw_spawners_aabb);
-        desc.query.filter.terms[2].id = flecs.id(SpawnerTag);
-        desc.query.filter.terms[2].inout = .In;
-        flecs.SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, &desc);
-    }
-    {
-        var desc = flecs.SYSTEM_DESC(draw_balls_aabb);
-        desc.query.filter.terms[2].id = flecs.id(BallTag);
-        desc.query.filter.terms[2].inout = .In;
-        flecs.SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, &desc);
-    }
-    {
-        var desc = flecs.SYSTEM_DESC(draw_anchors_aabb);
-        desc.query.filter.terms[2].id = flecs.id(AnchorTag);
-        desc.query.filter.terms[2].inout = .In;
-        flecs.SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, &desc);
-    }
-    {
-        var desc = flecs.SYSTEM_DESC(draw_rectangles_aabb);
-        desc.query.filter.terms[2].id = flecs.id(RectangleTag);
-        desc.query.filter.terms[2].inout = .In;
-        flecs.SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, &desc);
-    }
+    flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb);
+    flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb);
+    flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb);
+    flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb);
+    flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb);
 
     flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
     flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text);
