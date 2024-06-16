@@ -15,6 +15,7 @@ const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
 const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
 const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+const SPC_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 
 const _ui = @import("ui.zig");
 const UI_FLECS_INIT_SYSTEMS = _ui.FLECS_INIT_SYSTEMS;
@@ -246,6 +247,10 @@ pub fn load_level(
     _physical_world: SPS(PhysicsWorld),
     _state_stack: SPS_MUT(GameStateStack),
     _current_level: SPS_MUT(CurrentLevel),
+    _: SPC_ID(&flecs.Wildcard, .{
+        .inout = .Out,
+        .src = .{ .flags = flecs.IsEntity, .id = 0 },
+    }),
 ) void {
     const world = _world.data;
     const allocator = _allocator.data;
@@ -796,14 +801,8 @@ pub const GameV2 = struct {
             flecs.SYSTEM(ecs_world, "start_level", flecs.PreFrame, &desc);
         }
 
-        {
-            var desc = flecs.SYSTEM_DESC(load_level);
-            desc.query.filter.terms[0].inout = .Out;
-            desc.query.filter.terms[0].id = flecs.Wildcard;
-            desc.query.filter.terms[0].src.flags = flecs.IsEntity;
-            desc.query.filter.terms[0].src.id = 0;
-            flecs.SYSTEM(ecs_world, "load_level", flecs.PreFrame, &desc);
-        }
+        flecs.ADD_SYSTEM(ecs_world, "load_level", flecs.PreFrame, load_level);
+
         {
             var desc = flecs.SYSTEM_DESC(recreate_level);
 

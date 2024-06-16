@@ -277,6 +277,7 @@ pub const system_parameter_tag_t = enum {
     DeltaTime,
     Singleton,
     Component,
+    ComponentId,
 };
 
 pub fn SYSTEM_PARAMETER_TAG(comptime tag: type) type {
@@ -420,6 +421,21 @@ pub fn SYSTEM_PARAMETER_COMPONENT_MUT(comptime c: type, comptime inout: inout_ki
             return .{
                 .data = data,
             };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_COMPONENT_ID(
+    comptime id_ref: *const entity_t,
+    comptime term: term_t,
+) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .ComponentId;
+
+        pub fn get_term() term_t {
+            var t = term;
+            t.id = id_ref.*;
+            return t;
         }
     };
 }
@@ -2603,6 +2619,9 @@ fn SystemImpl(comptime fn_system: anytype) type {
                         }
                         current_term += 1;
                     },
+                    .ComponentId => {
+                        current_term += 1;
+                    },
                 }
             }
 
@@ -2639,6 +2658,10 @@ pub fn SYSTEM_DESC(comptime fn_system: anytype) system_desc_t {
             .Component => {
                 const component_type = @typeInfo(t.TYPE).Pointer.child;
                 system_desc.query.filter.terms[current_term] = .{ .id = id(component_type), .inout = t.INOUT };
+                current_term += 1;
+            },
+            .ComponentId => {
+                system_desc.query.filter.terms[current_term] = t.get_term();
                 current_term += 1;
             },
         }
