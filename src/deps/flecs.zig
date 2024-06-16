@@ -272,6 +272,7 @@ pub const poly_dtor_t = *const fn (poly: *poly_t) callconv(.C) void;
 pub const system_parameter_tag_t = enum {
     Tag,
     World,
+    Static,
     Context,
     Entities,
     DeltaTime,
@@ -299,6 +300,34 @@ pub fn SYSTEM_PARAMETER_WORLD() type {
             return .{
                 .data = data,
             };
+        }
+    };
+}
+
+pub fn SYSTEM_PARAMETER_STATIC(comptime c: type) type {
+    return struct {
+        const TAG: system_parameter_tag_t = .Static;
+        var data: c = undefined;
+
+        const self_t = @This();
+        pub fn set(world: *world_t) void {
+            self_t.data = c.init(world) catch {
+                const name = @typeName(c);
+                const msg = std.fmt.comptimePrint("Cannot create static for type: {s}", .{name});
+                @panic(msg);
+            };
+        }
+
+        pub fn new() self_t {
+            return .{};
+        }
+
+        pub fn get(_: *const self_t) *const c {
+            return &self_t.data;
+        }
+
+        pub fn get_mut(_: *const self_t) *c {
+            return &self_t.data;
         }
     };
 }
@@ -2591,6 +2620,9 @@ fn SystemImpl(comptime fn_system: anytype) type {
                     .World => {
                         args_tuple[i] = t.init(it.world);
                     },
+                    .Static => {
+                        args_tuple[i] = t.new();
+                    },
                     .Context => {
                         args_tuple[i] = t.init(it.ctx.?);
                     },
@@ -2632,7 +2664,7 @@ fn SystemImpl(comptime fn_system: anytype) type {
 }
 
 /// Creates system_desc_t from function parameters
-pub fn SYSTEM_DESC(comptime fn_system: anytype) system_desc_t {
+pub fn SYSTEM_DESC(world: *world_t, comptime fn_system: anytype) system_desc_t {
     const system_struct = SystemImpl(fn_system);
 
     var system_desc = system_desc_t{};
@@ -2651,6 +2683,9 @@ pub fn SYSTEM_DESC(comptime fn_system: anytype) system_desc_t {
                 current_term += 1;
             },
             .World => {},
+            .Static => {
+                t.set(world);
+            },
             .Context => {},
             .Entities => {},
             .DeltaTime => {},
@@ -2692,7 +2727,7 @@ pub fn ADD_SYSTEM(
     phase: entity_t,
     comptime fn_system: anytype,
 ) void {
-    var desc = SYSTEM_DESC(fn_system);
+    var desc = SYSTEM_DESC(world, fn_system);
     SYSTEM(world, name, phase, &desc);
 }
 

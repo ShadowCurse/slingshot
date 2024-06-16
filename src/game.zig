@@ -8,6 +8,7 @@ const flecs = @import("deps/flecs.zig");
 
 const SPT = flecs.SYSTEM_PARAMETER_TAG;
 const SPW = flecs.SYSTEM_PARAMETER_WORLD;
+const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
 const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
 const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
 const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
@@ -313,24 +314,40 @@ pub fn load_level(
     state_stack.push_state(.LevelLoaded);
 }
 
-pub const StartLevelCtx = struct {
-    allocator: Allocator,
+const StartLevelCtx = struct {
     ball_query: *flecs.query_t,
     spawner_query: *flecs.query_t,
 
     const Self = @This();
-    pub fn deinit(self: *const Self) callconv(.C) void {
-        self.allocator.destroy(self);
+    pub fn init(world: *flecs.world_t) !Self {
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[0].id = flecs.id(BodyId);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(BallTag);
+        const bq = try flecs.query_init(world, &ball_query);
+
+        var spawner_query: flecs.query_desc_t = .{};
+        spawner_query.filter.terms[0].inout = .In;
+        spawner_query.filter.terms[0].id = flecs.id(Position);
+        spawner_query.filter.terms[1].inout = .In;
+        spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
+        const sq = try flecs.query_init(world, &spawner_query);
+
+        return .{
+            .ball_query = bq,
+            .spawner_query = sq,
+        };
     }
 };
 pub fn start_level(
     _world: SPW(),
+    _ctx: SP_STATIC(StartLevelCtx),
     _state_stack: SPS_MUT(GameStateStack),
-    _ctx: SP_CONTEXT(StartLevelCtx),
 ) void {
     const world = _world.data;
+    const ctx = _ctx.get();
     const state_stack = _state_stack.data;
-    const ctx = _ctx.data;
 
     if (state_stack.current_state() != .LevelLoaded) {
         return;
@@ -354,14 +371,45 @@ pub fn start_level(
     state_stack.push_state(.Running);
 }
 
+const CleanLevelCtx = struct {
+    level_objects_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn init(world: *flecs.world_t) !Self {
+        var level_objects_query: flecs.query_desc_t = .{};
+        level_objects_query.filter.terms[0].inout = .InOutNone;
+        level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
+        level_objects_query.order_by_component = flecs.id(LevelObject);
+        level_objects_query.order_by = &Self.sort;
+        const q = try flecs.query_init(world, &level_objects_query);
+
+        return .{
+            .level_objects_query = q,
+        };
+    }
+
+    fn sort(
+        e1: flecs.entity_t,
+        ptr1: *const anyopaque,
+        e2: flecs.entity_t,
+        ptr2: *const anyopaque,
+    ) callconv(.C) i32 {
+        _ = e2;
+        _ = e1;
+        const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
+        const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
+        return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
+            @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
+    }
+};
 pub fn clean_level(
     _world: SPW(),
+    _ctx: SP_STATIC(CleanLevelCtx),
     _current_level: SPS_MUT(CurrentLevel),
-    _ctx: SP_CONTEXT_MUT(flecs.query_t),
 ) void {
     const world = _world.data;
+    const ctx = _ctx.get();
     const current_level = _current_level.data;
-    const ctx = _ctx.data;
 
     if (!current_level.need_to_clean) {
         return;
@@ -369,7 +417,7 @@ pub fn clean_level(
 
     current_level.need_to_clean = false;
 
-    var level_object_iter = flecs.query_iter(world, ctx);
+    var level_object_iter = flecs.query_iter(world, ctx.level_objects_query);
     while (flecs.query_next(&level_object_iter)) {
         std.log.info("cleaning the level. Deleting {} entities", .{level_object_iter.entities().len});
 
@@ -379,26 +427,40 @@ pub fn clean_level(
     }
 }
 
-pub const RecreateLevelCtx = struct {
-    allocator: Allocator,
+const RecreateLevelCtx = struct {
     ball_query: *flecs.query_t,
     joint_query: *flecs.query_t,
 
     const Self = @This();
-    pub fn deinit(self: *const Self) callconv(.C) void {
-        self.allocator.destroy(self);
+    pub fn init(world: *flecs.world_t) !Self {
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[0].id = flecs.id(BodyId);
+        ball_query.filter.terms[1].inout = .InOut;
+        ball_query.filter.terms[1].id = flecs.id(BallAttachment);
+        const bq = try flecs.query_init(world, &ball_query);
+
+        var joint_query: flecs.query_desc_t = .{};
+        joint_query.filter.terms[0].inout = .In;
+        joint_query.filter.terms[0].id = flecs.id(JointTag);
+        const jq = try flecs.query_init(world, &joint_query);
+
+        return .{
+            .ball_query = bq,
+            .joint_query = jq,
+        };
     }
 };
 pub fn recreate_level(
     _world: SPW(),
+    _ctx: SP_STATIC(RecreateLevelCtx),
     _current_level: SPS_MUT(CurrentLevel),
     _state_stack: SPS_MUT(GameStateStack),
-    _ctx: SP_CONTEXT(RecreateLevelCtx),
 ) void {
     const world = _world.data;
+    const ctx = _ctx.get();
     const current_level = _current_level.data;
     const state_stack = _state_stack.data;
-    const ctx = _ctx.data;
 
     if (!current_level.need_to_restart) {
         return;
@@ -429,7 +491,6 @@ pub fn recreate_level(
 }
 
 pub const SaveLevelCtx = struct {
-    allocator: Allocator,
     text_query: *flecs.query_t,
     spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
@@ -437,22 +498,71 @@ pub const SaveLevelCtx = struct {
     rectangle_query: *flecs.query_t,
 
     const Self = @This();
-    pub fn deinit(self: *const Self) callconv(.C) void {
-        self.allocator.destroy(self);
+    pub fn init(world: *flecs.world_t) !Self {
+        var text_query: flecs.query_desc_t = .{};
+        text_query.filter.terms[0].inout = .In;
+        text_query.filter.terms[0].id = flecs.id(Color);
+        text_query.filter.terms[1].inout = .In;
+        text_query.filter.terms[1].id = flecs.id(Position);
+        text_query.filter.terms[2].inout = .In;
+        text_query.filter.terms[2].id = flecs.id(TextText);
+        const tq = try flecs.query_init(world, &text_query);
+
+        var spawner_query: flecs.query_desc_t = .{};
+        spawner_query.filter.terms[0].inout = .In;
+        spawner_query.filter.terms[0].id = flecs.id(Position);
+        spawner_query.filter.terms[1].inout = .In;
+        spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
+        const sq = try flecs.query_init(world, &spawner_query);
+
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[0].id = flecs.id(Color);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(BallShape);
+        const bq = try flecs.query_init(world, &ball_query);
+
+        var anchor_query: flecs.query_desc_t = .{};
+        anchor_query.filter.terms[0].inout = .In;
+        anchor_query.filter.terms[0].id = flecs.id(Color);
+        anchor_query.filter.terms[1].inout = .In;
+        anchor_query.filter.terms[1].id = flecs.id(Position);
+        anchor_query.filter.terms[2].inout = .In;
+        anchor_query.filter.terms[2].id = flecs.id(AnchorShape);
+        anchor_query.filter.terms[3].inout = .In;
+        anchor_query.filter.terms[3].id = flecs.id(AnchoraJointParams);
+        const aq = try flecs.query_init(world, &anchor_query);
+
+        var rectangle_query: flecs.query_desc_t = .{};
+        rectangle_query.filter.terms[0].inout = .In;
+        rectangle_query.filter.terms[0].id = flecs.id(Color);
+        rectangle_query.filter.terms[1].inout = .In;
+        rectangle_query.filter.terms[1].id = flecs.id(Position);
+        rectangle_query.filter.terms[2].inout = .In;
+        rectangle_query.filter.terms[2].id = flecs.id(RectangleShape);
+        const rq = try flecs.query_init(world, &rectangle_query);
+
+        return .{
+            .text_query = tq,
+            .spawner_query = sq,
+            .ball_query = bq,
+            .anchor_query = aq,
+            .rectangle_query = rq,
+        };
     }
 };
 pub fn save_level(
     _world: SPW(),
+    _ctx: SP_STATIC(SaveLevelCtx),
     _allocator: SPS(Allocator),
     _current_level: SPS_MUT(CurrentLevel),
     _state_stack: SPS_MUT(GameStateStack),
-    _ctx: SP_CONTEXT(SaveLevelCtx),
 ) void {
     const world = _world.data;
+    const ctx = _ctx.get();
     const allocator = _allocator.data;
     const current_level = _current_level.data;
     const state_stack = _state_stack.data;
-    const ctx = _ctx.data;
 
     if (current_level.save_path == null) {
         return;
@@ -743,150 +853,11 @@ pub const GameV2 = struct {
         try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
 
-        {
-            var desc = flecs.SYSTEM_DESC(clean_level);
-
-            var level_objects_query: flecs.query_desc_t = .{};
-            level_objects_query.filter.terms[0].inout = .InOutNone;
-            level_objects_query.filter.terms[0].id = flecs.id(LevelObject);
-            level_objects_query.order_by_component = flecs.id(LevelObject);
-            const DestructionOrder = struct {
-                fn sort(
-                    e1: flecs.entity_t,
-                    ptr1: *const anyopaque,
-                    e2: flecs.entity_t,
-                    ptr2: *const anyopaque,
-                ) callconv(.C) i32 {
-                    _ = e2;
-                    _ = e1;
-                    const lo_1: *const LevelObject = @alignCast(@ptrCast(ptr1));
-                    const lo_2: *const LevelObject = @alignCast(@ptrCast(ptr2));
-                    return @as(i32, @intFromBool(lo_1.destruction_order > lo_2.destruction_order)) -
-                        @as(i32, @intFromBool(lo_1.destruction_order < lo_2.destruction_order));
-                }
-            };
-            level_objects_query.order_by = &DestructionOrder.sort;
-            const q = try flecs.query_init(ecs_world, &level_objects_query);
-            desc.ctx = q;
-            // No need to clean ctx, query seems to be cleaned automatically.
-
-            flecs.SYSTEM(ecs_world, "clean_level", flecs.PreFrame, &desc);
-        }
-
-        {
-            var desc = flecs.SYSTEM_DESC(start_level);
-
-            var ball_query: flecs.query_desc_t = .{};
-            ball_query.filter.terms[0].inout = .In;
-            ball_query.filter.terms[0].id = flecs.id(BodyId);
-            ball_query.filter.terms[1].inout = .In;
-            ball_query.filter.terms[1].id = flecs.id(BallTag);
-            const bq = try flecs.query_init(ecs_world, &ball_query);
-
-            var spawner_query: flecs.query_desc_t = .{};
-            spawner_query.filter.terms[0].inout = .In;
-            spawner_query.filter.terms[0].id = flecs.id(Position);
-            spawner_query.filter.terms[1].inout = .In;
-            spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
-            const sq = try flecs.query_init(ecs_world, &spawner_query);
-
-            var rl_ctx = try allocator.create(StartLevelCtx);
-            rl_ctx.allocator = allocator;
-            rl_ctx.ball_query = bq;
-            rl_ctx.spawner_query = sq;
-
-            desc.ctx = rl_ctx;
-            desc.ctx_free = @ptrCast(&StartLevelCtx.deinit);
-
-            flecs.SYSTEM(ecs_world, "start_level", flecs.PreFrame, &desc);
-        }
-
+        flecs.ADD_SYSTEM(ecs_world, "clean_level", flecs.PreFrame, clean_level);
+        flecs.ADD_SYSTEM(ecs_world, "start_level", flecs.PreFrame, start_level);
         flecs.ADD_SYSTEM(ecs_world, "load_level", flecs.PreFrame, load_level);
-
-        {
-            var desc = flecs.SYSTEM_DESC(recreate_level);
-
-            var ball_query: flecs.query_desc_t = .{};
-            ball_query.filter.terms[0].inout = .In;
-            ball_query.filter.terms[0].id = flecs.id(BodyId);
-            ball_query.filter.terms[1].inout = .InOut;
-            ball_query.filter.terms[1].id = flecs.id(BallAttachment);
-            const bq = try flecs.query_init(ecs_world, &ball_query);
-
-            var joint_query: flecs.query_desc_t = .{};
-            joint_query.filter.terms[0].inout = .In;
-            joint_query.filter.terms[0].id = flecs.id(JointTag);
-            const jq = try flecs.query_init(ecs_world, &joint_query);
-
-            var rl_ctx = try allocator.create(RecreateLevelCtx);
-            rl_ctx.allocator = allocator;
-            rl_ctx.ball_query = bq;
-            rl_ctx.joint_query = jq;
-
-            desc.ctx = rl_ctx;
-            desc.ctx_free = @ptrCast(&RecreateLevelCtx.deinit);
-
-            flecs.SYSTEM(ecs_world, "recreate_level", flecs.PreFrame, &desc);
-        }
-        {
-            var desc = flecs.SYSTEM_DESC(save_level);
-
-            var text_query: flecs.query_desc_t = .{};
-            text_query.filter.terms[0].inout = .In;
-            text_query.filter.terms[0].id = flecs.id(Color);
-            text_query.filter.terms[1].inout = .In;
-            text_query.filter.terms[1].id = flecs.id(Position);
-            text_query.filter.terms[2].inout = .In;
-            text_query.filter.terms[2].id = flecs.id(TextText);
-            const tq = try flecs.query_init(ecs_world, &text_query);
-
-            var spawner_query: flecs.query_desc_t = .{};
-            spawner_query.filter.terms[0].inout = .In;
-            spawner_query.filter.terms[0].id = flecs.id(Position);
-            spawner_query.filter.terms[1].inout = .In;
-            spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
-            const sq = try flecs.query_init(ecs_world, &spawner_query);
-
-            var ball_query: flecs.query_desc_t = .{};
-            ball_query.filter.terms[0].inout = .In;
-            ball_query.filter.terms[0].id = flecs.id(Color);
-            ball_query.filter.terms[1].inout = .In;
-            ball_query.filter.terms[1].id = flecs.id(BallShape);
-            const bq = try flecs.query_init(ecs_world, &ball_query);
-
-            var anchor_query: flecs.query_desc_t = .{};
-            anchor_query.filter.terms[0].inout = .In;
-            anchor_query.filter.terms[0].id = flecs.id(Color);
-            anchor_query.filter.terms[1].inout = .In;
-            anchor_query.filter.terms[1].id = flecs.id(Position);
-            anchor_query.filter.terms[2].inout = .In;
-            anchor_query.filter.terms[2].id = flecs.id(AnchorShape);
-            anchor_query.filter.terms[3].inout = .In;
-            anchor_query.filter.terms[3].id = flecs.id(AnchoraJointParams);
-            const aq = try flecs.query_init(ecs_world, &anchor_query);
-
-            var rectangle_query: flecs.query_desc_t = .{};
-            rectangle_query.filter.terms[0].inout = .In;
-            rectangle_query.filter.terms[0].id = flecs.id(Color);
-            rectangle_query.filter.terms[1].inout = .In;
-            rectangle_query.filter.terms[1].id = flecs.id(Position);
-            rectangle_query.filter.terms[2].inout = .In;
-            rectangle_query.filter.terms[2].id = flecs.id(RectangleShape);
-            const rq = try flecs.query_init(ecs_world, &rectangle_query);
-
-            var s_ctx = try allocator.create(SaveLevelCtx);
-            s_ctx.allocator = allocator;
-            s_ctx.text_query = tq;
-            s_ctx.spawner_query = sq;
-            s_ctx.ball_query = bq;
-            s_ctx.anchor_query = aq;
-            s_ctx.rectangle_query = rq;
-
-            desc.ctx = s_ctx;
-            desc.ctx_free = @ptrCast(&SaveLevelCtx.deinit);
-
-            flecs.SYSTEM(ecs_world, "save_level", flecs.PreFrame, &desc);
-        }
+        flecs.ADD_SYSTEM(ecs_world, "recreate_level", flecs.PreFrame, recreate_level);
+        flecs.ADD_SYSTEM(ecs_world, "save_level", flecs.PreFrame, save_level);
 
         flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 

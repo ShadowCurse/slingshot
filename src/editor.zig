@@ -9,6 +9,7 @@ const flecs = @import("deps/flecs.zig");
 
 const SPT = flecs.SYSTEM_PARAMETER_TAG;
 const SPW = flecs.SYSTEM_PARAMETER_WORLD;
+const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
 const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
 const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
 const SP_ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
@@ -370,7 +371,6 @@ fn enter_editor_mode(
 }
 
 const SelectEntityCtx = struct {
-    allocator: Allocator,
     text_query: *flecs.query_t,
     spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
@@ -378,20 +378,71 @@ const SelectEntityCtx = struct {
     rectangle_query: *flecs.query_t,
 
     const Self = @This();
-    pub fn deinit(self: *const Self) callconv(.C) void {
-        self.allocator.destroy(self);
+    pub fn init(world: *flecs.world_t) !Self {
+        var text_query: flecs.query_desc_t = .{};
+        text_query.filter.terms[0].inout = .In;
+        text_query.filter.terms[0].id = flecs.id(AABB);
+        text_query.filter.terms[1].inout = .In;
+        text_query.filter.terms[1].id = flecs.id(Position);
+        text_query.filter.terms[2].inout = .In;
+        text_query.filter.terms[2].id = flecs.id(TextTag);
+        const tq = try flecs.query_init(world, &text_query);
+
+        var spawner_query: flecs.query_desc_t = .{};
+        spawner_query.filter.terms[0].inout = .In;
+        spawner_query.filter.terms[0].id = flecs.id(AABB);
+        spawner_query.filter.terms[1].inout = .In;
+        spawner_query.filter.terms[1].id = flecs.id(Position);
+        spawner_query.filter.terms[2].inout = .In;
+        spawner_query.filter.terms[2].id = flecs.id(SpawnerTag);
+        const sq = try flecs.query_init(world, &spawner_query);
+
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[0].id = flecs.id(AABB);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(Position);
+        ball_query.filter.terms[2].inout = .In;
+        ball_query.filter.terms[2].id = flecs.id(BallTag);
+        const bq = try flecs.query_init(world, &ball_query);
+
+        var anchor_query: flecs.query_desc_t = .{};
+        anchor_query.filter.terms[0].inout = .In;
+        anchor_query.filter.terms[0].id = flecs.id(AABB);
+        anchor_query.filter.terms[1].inout = .In;
+        anchor_query.filter.terms[1].id = flecs.id(Position);
+        anchor_query.filter.terms[2].inout = .In;
+        anchor_query.filter.terms[2].id = flecs.id(AnchorTag);
+        const aq = try flecs.query_init(world, &anchor_query);
+
+        var rectangle_query: flecs.query_desc_t = .{};
+        rectangle_query.filter.terms[0].inout = .In;
+        rectangle_query.filter.terms[0].id = flecs.id(AABB);
+        rectangle_query.filter.terms[1].inout = .In;
+        rectangle_query.filter.terms[1].id = flecs.id(Position);
+        rectangle_query.filter.terms[2].inout = .In;
+        rectangle_query.filter.terms[2].id = flecs.id(RectangleTag);
+        const rq = try flecs.query_init(world, &rectangle_query);
+
+        return .{
+            .text_query = tq,
+            .spawner_query = sq,
+            .ball_query = bq,
+            .anchor_query = aq,
+            .rectangle_query = rq,
+        };
     }
 };
 fn select_entity(
     _world: SPW(),
-    _ctx: SP_CONTEXT(SelectEntityCtx),
+    _ctx: SP_STATIC(SelectEntityCtx),
     _state_stack: SPS(GameStateStack),
     _editor_state: SPS(EditorState),
     _mouse_pos: SPS(MousePosition),
     _selected_entity: SPS_MUT(SelectedEntity),
 ) void {
     const world = _world.data;
-    const ctx = _ctx.data;
+    const ctx = _ctx.get();
     const state_stack = _state_stack.data;
     const editor_state = _editor_state.data;
     const mouse_pos = _mouse_pos.data;
@@ -1127,69 +1178,10 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
+    _ = allocator;
     flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
     flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
-    {
-        var desc = flecs.SYSTEM_DESC(select_entity);
-
-        var text_query: flecs.query_desc_t = .{};
-        text_query.filter.terms[0].inout = .In;
-        text_query.filter.terms[0].id = flecs.id(AABB);
-        text_query.filter.terms[1].inout = .In;
-        text_query.filter.terms[1].id = flecs.id(Position);
-        text_query.filter.terms[2].inout = .In;
-        text_query.filter.terms[2].id = flecs.id(TextTag);
-        const tq = try flecs.query_init(world, &text_query);
-
-        var spawner_query: flecs.query_desc_t = .{};
-        spawner_query.filter.terms[0].inout = .In;
-        spawner_query.filter.terms[0].id = flecs.id(AABB);
-        spawner_query.filter.terms[1].inout = .In;
-        spawner_query.filter.terms[1].id = flecs.id(Position);
-        spawner_query.filter.terms[2].inout = .In;
-        spawner_query.filter.terms[2].id = flecs.id(SpawnerTag);
-        const sq = try flecs.query_init(world, &spawner_query);
-
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[0].id = flecs.id(AABB);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(Position);
-        ball_query.filter.terms[2].inout = .In;
-        ball_query.filter.terms[2].id = flecs.id(BallTag);
-        const bq = try flecs.query_init(world, &ball_query);
-
-        var anchor_query: flecs.query_desc_t = .{};
-        anchor_query.filter.terms[0].inout = .In;
-        anchor_query.filter.terms[0].id = flecs.id(AABB);
-        anchor_query.filter.terms[1].inout = .In;
-        anchor_query.filter.terms[1].id = flecs.id(Position);
-        anchor_query.filter.terms[2].inout = .In;
-        anchor_query.filter.terms[2].id = flecs.id(AnchorTag);
-        const aq = try flecs.query_init(world, &anchor_query);
-
-        var rectangle_query: flecs.query_desc_t = .{};
-        rectangle_query.filter.terms[0].inout = .In;
-        rectangle_query.filter.terms[0].id = flecs.id(AABB);
-        rectangle_query.filter.terms[1].inout = .In;
-        rectangle_query.filter.terms[1].id = flecs.id(Position);
-        rectangle_query.filter.terms[2].inout = .In;
-        rectangle_query.filter.terms[2].id = flecs.id(RectangleTag);
-        const rq = try flecs.query_init(world, &rectangle_query);
-
-        var s_ctx = try allocator.create(SelectEntityCtx);
-        s_ctx.allocator = allocator;
-        s_ctx.text_query = tq;
-        s_ctx.spawner_query = sq;
-        s_ctx.ball_query = bq;
-        s_ctx.anchor_query = aq;
-        s_ctx.rectangle_query = rq;
-
-        desc.ctx = s_ctx;
-        desc.ctx_free = @ptrCast(&SelectEntityCtx.deinit);
-
-        flecs.SYSTEM(world, "select_entity", flecs.PreUpdate, &desc);
-    }
+    flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity);
     flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
     flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb);

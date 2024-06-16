@@ -9,6 +9,7 @@ const flecs = @import("deps/flecs.zig");
 
 const SPT = flecs.SYSTEM_PARAMETER_TAG;
 const SPW = flecs.SYSTEM_PARAMETER_WORLD;
+const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
 const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
 const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
 const SP_ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
@@ -647,9 +648,30 @@ fn draw_anchors(
     }
 }
 
+const UpdateAnchorsCtx = struct {
+    ball_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn init(world: *flecs.world_t) !Self {
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].id = flecs.id(BodyId);
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(BallShape);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[2].id = flecs.id(Position);
+        ball_query.filter.terms[2].inout = .In;
+        ball_query.filter.terms[3].id = flecs.id(BallAttachment);
+        ball_query.filter.terms[3].inout = .InOut;
+        const q = try flecs.query_init(world, &ball_query);
+
+        return .{
+            .ball_query = q,
+        };
+    }
+};
 fn update_anchors_try_attach(
     _world: SPW(),
-    _ctx: SP_CONTEXT_MUT(flecs.query_t),
+    _ctx: SP_STATIC(UpdateAnchorsCtx),
     _state_stack: SPS(GameStateStack),
     _physics_world: SPS(PhysicsWorld),
     _positions: SPC(Position, .In),
@@ -659,7 +681,7 @@ fn update_anchors_try_attach(
     _joint_params: SPC(AnchoraJointParams, .In),
 ) void {
     const world = _world.data;
-    const ctx = _ctx.data;
+    const ctx = _ctx.get();
     const state_stack = _state_stack.data;
     const physics_world = _physics_world.data;
     const positions = _positions.data;
@@ -672,8 +694,7 @@ fn update_anchors_try_attach(
         return;
     }
 
-    const ball_query: *flecs.query_t = ctx;
-    var ball_iter = flecs.query_iter(world, ball_query);
+    var ball_iter = flecs.query_iter(world, ctx.ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
     const ball_body = flecs.field(&ball_iter, BodyId, 1).?[0];
     const ball_shape = flecs.field(&ball_iter, BallShape, 2).?[0];
@@ -788,10 +809,25 @@ fn draw_joints(
     }
 }
 
+const UpdateJointsCtx = struct {
+    ball_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn init(world: *flecs.world_t) !Self {
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].id = flecs.id(BallAttachment);
+        ball_query.filter.terms[0].inout = .InOut;
+        const q = try flecs.query_init(world, &ball_query);
+
+        return .{
+            .ball_query = q,
+        };
+    }
+};
 fn update_joints(
     _world: SPW(),
     _entities: SP_ENTITIES(),
-    _ctx: SP_CONTEXT_MUT(flecs.query_t),
+    _ctx: SP_STATIC(UpdateJointsCtx),
     _state_stack: SPS(GameStateStack),
     _mouse_pos: SPS(MousePosition),
     _joint_ids: SPC(JointId, .In),
@@ -799,7 +835,7 @@ fn update_joints(
 ) void {
     const world = _world.data;
     const entities = _entities.data;
-    const ctx = _ctx.data;
+    const ctx = _ctx.get();
     const state_stack = _state_stack.data;
     const mouse_pos = _mouse_pos.data;
     const joint_ids = _joint_ids.data;
@@ -809,8 +845,7 @@ fn update_joints(
         return;
     }
 
-    const ball_query: *flecs.query_t = ctx;
-    var ball_iter = flecs.query_iter(world, ball_query);
+    var ball_iter = flecs.query_iter(world, ctx.ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
     var ball_attachment = &flecs.field(&ball_iter, BallAttachment, 1).?[0];
     std.debug.assert(!flecs.query_next(&ball_iter));
@@ -1104,36 +1139,38 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
 
     flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions);
     flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls);
-    {
-        var desc = flecs.SYSTEM_DESC(update_anchors_try_attach);
-
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].id = flecs.id(BodyId);
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(BallShape);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[2].id = flecs.id(Position);
-        ball_query.filter.terms[2].inout = .In;
-        ball_query.filter.terms[3].id = flecs.id(BallAttachment);
-        ball_query.filter.terms[3].inout = .InOut;
-        const q = try flecs.query_init(world, &ball_query);
-        desc.ctx = q;
-        // No need to clean ctx, query seems to be cleaned automatically.
-
-        flecs.SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, &desc);
-    }
-    {
-        var desc = flecs.SYSTEM_DESC(update_joints);
-
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].id = flecs.id(BallAttachment);
-        ball_query.filter.terms[0].inout = .InOut;
-        const q = try flecs.query_init(world, &ball_query);
-        desc.ctx = q;
-        // No need to clean ctx, query seems to be cleaned automatically.
-
-        flecs.SYSTEM(world, "update_joints", flecs.OnUpdate, &desc);
-    }
+    flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
+    // {
+    //     var desc = flecs.SYSTEM_DESC(update_anchors_try_attach);
+    //
+    //     var ball_query: flecs.query_desc_t = .{};
+    //     ball_query.filter.terms[0].id = flecs.id(BodyId);
+    //     ball_query.filter.terms[0].inout = .In;
+    //     ball_query.filter.terms[1].id = flecs.id(BallShape);
+    //     ball_query.filter.terms[1].inout = .In;
+    //     ball_query.filter.terms[2].id = flecs.id(Position);
+    //     ball_query.filter.terms[2].inout = .In;
+    //     ball_query.filter.terms[3].id = flecs.id(BallAttachment);
+    //     ball_query.filter.terms[3].inout = .InOut;
+    //     const q = try flecs.query_init(world, &ball_query);
+    //     desc.ctx = q;
+    //     // No need to clean ctx, query seems to be cleaned automatically.
+    //
+    //     flecs.SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, &desc);
+    // }
+    flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
+    // {
+    //     var desc = flecs.SYSTEM_DESC(update_joints);
+    //
+    //     var ball_query: flecs.query_desc_t = .{};
+    //     ball_query.filter.terms[0].id = flecs.id(BallAttachment);
+    //     ball_query.filter.terms[0].inout = .InOut;
+    //     const q = try flecs.query_init(world, &ball_query);
+    //     desc.ctx = q;
+    //     // No need to clean ctx, query seems to be cleaned automatically.
+    //
+    //     flecs.SYSTEM(world, "update_joints", flecs.OnUpdate, &desc);
+    // }
     flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
     flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
     flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
