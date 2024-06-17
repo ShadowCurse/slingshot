@@ -4,15 +4,9 @@ const Allocator = std.mem.Allocator;
 const rl = @import("deps/raylib.zig");
 const flecs = @import("deps/flecs.zig");
 
-const SPT = flecs.SYSTEM_PARAMETER_TAG;
-const SPW = flecs.SYSTEM_PARAMETER_WORLD;
-const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
-const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
-const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
-const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
-const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT;
-const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
-const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+const DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
+const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
 const __game = @import("game.zig");
 const GameCamera = __game.GameCamera;
@@ -41,9 +35,9 @@ pub const UiTimer = struct {
 };
 
 fn update_timer(
-    _delta_time: SP_DELTA_TIME(),
-    _state_stack: SPS(GameStateStack),
-    _timer: SPS_MUT(UiTimer),
+    _delta_time: DELTA_TIME(),
+    _state_stack: SINGLETON(GameStateStack),
+    _timer: SINGLETON_MUT(UiTimer),
 ) void {
     const time = _delta_time.data;
     const state_stack = _state_stack.data;
@@ -57,9 +51,9 @@ fn update_timer(
 }
 
 fn draw_main_menu(
-    _settings: SPS(Settings),
-    _levels: SPS_MUT(Levels),
-    _state_stack: SPS_MUT(GameStateStack),
+    _settings: SINGLETON(Settings),
+    _levels: SINGLETON_MUT(Levels),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const settings = _settings.data;
     const levels = _levels.data;
@@ -107,11 +101,11 @@ fn draw_main_menu(
 }
 
 fn draw_level_selection(
-    _settings: SPS(Settings),
-    _levels: SPS_MUT(Levels),
-    _current_level: SPS_MUT(CurrentLevel),
-    _state_stack: SPS_MUT(GameStateStack),
-    _editor_state: SPS_MUT(EditorState),
+    _settings: SINGLETON(Settings),
+    _levels: SINGLETON_MUT(Levels),
+    _current_level: SINGLETON_MUT(CurrentLevel),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _editor_state: SINGLETON_MUT(EditorState),
 ) void {
     const settings = _settings.data;
     const levels = _levels.data;
@@ -169,8 +163,8 @@ fn draw_level_selection(
 }
 
 fn draw_timer(
-    _state_stack: SPS_MUT(GameStateStack),
-    _timer: SPS(UiTimer),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _timer: SINGLETON(UiTimer),
 ) void {
     const state_stack = _state_stack.data;
     const timer = _timer.data;
@@ -196,9 +190,9 @@ fn draw_timer(
 }
 
 fn draw_settings(
-    _camera: SPS_MUT(GameCamera),
-    _settings: SPS_MUT(Settings),
-    _state_stack: SPS_MUT(GameStateStack),
+    _camera: SINGLETON_MUT(GameCamera),
+    _settings: SINGLETON_MUT(Settings),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const camera = _camera.data;
     const settings = _settings.data;
@@ -268,9 +262,9 @@ fn draw_settings(
 }
 
 pub fn draw_paused(
-    _settings: SPS_MUT(Settings),
-    _state_stack: SPS_MUT(GameStateStack),
-    _current_level: SPS_MUT(CurrentLevel),
+    _settings: SINGLETON_MUT(Settings),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
     const settings = _settings.data;
     const state_stack = _state_stack.data;
@@ -317,9 +311,9 @@ pub fn draw_paused(
 }
 
 fn draw_win(
-    _settings: SPS_MUT(Settings),
-    _state_stack: SPS_MUT(GameStateStack),
-    _current_level: SPS_MUT(CurrentLevel),
+    _settings: SINGLETON_MUT(Settings),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
     const settings = _settings.data;
     const state_stack = _state_stack.data;

@@ -7,17 +7,14 @@ const imgui = @import("deps/imgui.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
 
-const SPT = flecs.SYSTEM_PARAMETER_TAG;
-const SPW = flecs.SYSTEM_PARAMETER_WORLD;
-const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
-const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
-const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
-const SP_ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
-const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
-const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
-const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
-const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
-const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+const TAG = flecs.SYSTEM_PARAMETER_TAG;
+const WORLD = flecs.SYSTEM_PARAMETER_WORLD;
+const STATIC = flecs.SYSTEM_PARAMETER_STATIC;
+const ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
+const COMPONENT = flecs.SYSTEM_PARAMETER_COMPONENT;
+const COMPONENT_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
+const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
 const __game = @import("game.zig");
 const LevelObject = __game.LevelObject;
@@ -329,8 +326,8 @@ fn ParamEditorInner(comptime T: type) type {
 }
 
 fn update_editor_camera(
-    _state_stack: SPS(GameStateStack),
-    _editor_camera: SPS_MUT(EditorCamera),
+    _state_stack: SINGLETON(GameStateStack),
+    _editor_camera: SINGLETON_MUT(EditorCamera),
 ) void {
     const state_stack = _state_stack.data;
     const editor_camera = _editor_camera.data;
@@ -350,8 +347,8 @@ fn update_editor_camera(
 }
 
 fn enter_editor_mode(
-    _editor_state: SPS(EditorState),
-    _state_stack: SPS_MUT(GameStateStack),
+    _editor_state: SINGLETON(EditorState),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const editor_state = _editor_state.data;
     const state_stack = _state_stack.data;
@@ -434,12 +431,12 @@ const SelectEntityCtx = struct {
     }
 };
 fn select_entity(
-    _world: SPW(),
-    _ctx: SP_STATIC(SelectEntityCtx),
-    _state_stack: SPS(GameStateStack),
-    _editor_state: SPS(EditorState),
-    _mouse_pos: SPS(MousePosition),
-    _selected_entity: SPS_MUT(SelectedEntity),
+    _world: WORLD(),
+    _ctx: STATIC(SelectEntityCtx),
+    _state_stack: SINGLETON(GameStateStack),
+    _editor_state: SINGLETON(EditorState),
+    _mouse_pos: SINGLETON(MousePosition),
+    _selected_entity: SINGLETON_MUT(SelectedEntity),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();
@@ -525,10 +522,10 @@ fn select_entity(
 }
 
 fn drag_selected_entity(
-    _world: SPW(),
-    _state_stack: SPS(GameStateStack),
-    _mouse_pos: SPS(MousePosition),
-    _selected_entity: SPS(SelectedEntity),
+    _world: WORLD(),
+    _state_stack: SINGLETON(GameStateStack),
+    _mouse_pos: SINGLETON(MousePosition),
+    _selected_entity: SINGLETON(SelectedEntity),
 ) void {
     const world = _world.data;
     const state_stack = _state_stack.data;
@@ -558,12 +555,12 @@ fn drag_selected_entity(
 }
 
 fn draw_texts_aabb(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _aabbs: SPC(AABB, .In),
-    _positions: SPC(Position, .In),
-    _: SPT(TextTag),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(TextTag),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -589,12 +586,12 @@ fn draw_texts_aabb(
 }
 
 fn draw_spawners_aabb(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _aabbs: SPC(AABB, .In),
-    _positions: SPC(Position, .In),
-    _: SPT(SpawnerTag),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(SpawnerTag),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -620,12 +617,12 @@ fn draw_spawners_aabb(
 }
 
 fn draw_balls_aabb(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _aabbs: SPC(AABB, .In),
-    _positions: SPC(Position, .In),
-    _: SPT(BallTag),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(BallTag),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -651,12 +648,12 @@ fn draw_balls_aabb(
 }
 
 fn draw_anchors_aabb(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _aabbs: SPC(AABB, .In),
-    _positions: SPC(Position, .In),
-    _: SPT(AnchorTag),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(AnchorTag),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -688,12 +685,12 @@ fn draw_anchors_aabb(
 }
 
 fn draw_rectangles_aabb(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _aabbs: SPC(AABB, .In),
-    _positions: SPC(Position, .In),
-    _: SPT(RectangleTag),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(RectangleTag),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -725,12 +722,12 @@ fn draw_rectangles_aabb(
 }
 
 fn draw_editor_text(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _colors: SPC_MUT(Color, .InOut),
-    _positions: SPC_MUT(Position, .InOut),
-    _texts: SPC_MUT(TextText, .InOut),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _colors: COMPONENT_MUT(Color, .InOut),
+    _positions: COMPONENT_MUT(Position, .InOut),
+    _texts: COMPONENT_MUT(TextText, .InOut),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -797,15 +794,15 @@ fn draw_editor_text(
 }
 
 fn draw_editor_ball(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _body_ids: SPC(BodyId, .In),
-    _shape_ids: SPC(ShapeId, .In),
-    _colors: SPC_MUT(Color, .InOut),
-    _positions: SPC_MUT(Position, .InOut),
-    _aabbs: SPC_MUT(AABB, .InOut),
-    _shapes: SPC_MUT(BallShape, .InOut),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _body_ids: COMPONENT(BodyId, .In),
+    _shape_ids: COMPONENT(ShapeId, .In),
+    _colors: COMPONENT_MUT(Color, .InOut),
+    _positions: COMPONENT_MUT(Position, .InOut),
+    _aabbs: COMPONENT_MUT(AABB, .InOut),
+    _shapes: COMPONENT_MUT(BallShape, .InOut),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -885,14 +882,14 @@ fn draw_editor_ball(
 }
 
 pub fn draw_editor_anchor(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _body_ids: SPC(BodyId, .In),
-    _colors: SPC_MUT(Color, .InOut),
-    _positions: SPC_MUT(Position, .InOut),
-    _shapes: SPC_MUT(AnchorShape, .InOut),
-    _joint_params: SPC_MUT(AnchoraJointParams, .InOut),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _body_ids: COMPONENT(BodyId, .In),
+    _colors: COMPONENT_MUT(Color, .InOut),
+    _positions: COMPONENT_MUT(Position, .InOut),
+    _shapes: COMPONENT_MUT(AnchorShape, .InOut),
+    _joint_params: COMPONENT_MUT(AnchoraJointParams, .InOut),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -972,15 +969,15 @@ pub fn draw_editor_anchor(
 }
 
 fn draw_editor_rectangle(
-    _entities: SP_ENTITIES(),
-    _state_stack: SPS(GameStateStack),
-    _selected_entity: SPS(SelectedEntity),
-    _body_ids: SPC(BodyId, .In),
-    _shape_ids: SPC(ShapeId, .In),
-    _colors: SPC_MUT(Color, .InOut),
-    _positions: SPC_MUT(Position, .InOut),
-    _aabbs: SPC_MUT(AABB, .InOut),
-    _shapes: SPC_MUT(RectangleShape, .InOut),
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _body_ids: COMPONENT(BodyId, .In),
+    _shape_ids: COMPONENT(ShapeId, .In),
+    _colors: COMPONENT_MUT(Color, .InOut),
+    _positions: COMPONENT_MUT(Position, .InOut),
+    _aabbs: COMPONENT_MUT(AABB, .InOut),
+    _shapes: COMPONENT_MUT(RectangleShape, .InOut),
 ) void {
     const entities = _entities.data;
     const state_stack = _state_stack.data;
@@ -1088,12 +1085,12 @@ fn draw_editor_rectangle(
 }
 
 fn draw_editor_level(
-    _world: SPW(),
-    _physics_world: SPS(PhysicsWorld),
-    _selected_entity: SPS_MUT(SelectedEntity),
-    _editor_state: SPS_MUT(EditorState),
-    _state_stack: SPS_MUT(GameStateStack),
-    _current_level: SPS_MUT(CurrentLevel),
+    _world: WORLD(),
+    _physics_world: SINGLETON(PhysicsWorld),
+    _selected_entity: SINGLETON_MUT(SelectedEntity),
+    _editor_state: SINGLETON_MUT(EditorState),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
     const world = _world.data;
     const physics_world = _physics_world.data;

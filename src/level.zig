@@ -5,17 +5,11 @@ const rl = @import("deps/raylib.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
 
-const SPT = flecs.SYSTEM_PARAMETER_TAG;
-const SPW = flecs.SYSTEM_PARAMETER_WORLD;
-const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
-const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
-const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
-const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
-const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
-const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
-const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
-const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
-const SPC_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
+const WORLD = flecs.SYSTEM_PARAMETER_WORLD;
+const STATIC = flecs.SYSTEM_PARAMETER_STATIC;
+const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+const COMPONENT_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 
 const __game = @import("game.zig");
 const GameStateStack = __game.GameStateStack;
@@ -194,12 +188,12 @@ pub const Levels = struct {
 };
 
 pub fn load_level(
-    _world: SPW(),
-    _allocator: SPS(Allocator),
-    _physical_world: SPS(PhysicsWorld),
-    _state_stack: SPS_MUT(GameStateStack),
-    _current_level: SPS_MUT(CurrentLevel),
-    _: SPC_ID(&flecs.Wildcard, .{
+    _world: WORLD(),
+    _allocator: SINGLETON(Allocator),
+    _physical_world: SINGLETON(PhysicsWorld),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _current_level: SINGLETON_MUT(CurrentLevel),
+    _: COMPONENT_ID(&flecs.Wildcard, .{
         .inout = .Out,
         .src = .{ .flags = flecs.IsEntity, .id = 0 },
     }),
@@ -292,10 +286,10 @@ const StartLevelCtx = struct {
     }
 };
 pub fn start_level(
-    _world: SPW(),
-    _ctx: SP_STATIC(StartLevelCtx),
-    _state_stack: SPS_MUT(GameStateStack),
-    _timer: SPS_MUT(UiTimer),
+    _world: WORLD(),
+    _ctx: STATIC(StartLevelCtx),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _timer: SINGLETON_MUT(UiTimer),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();
@@ -357,9 +351,9 @@ const CleanLevelCtx = struct {
     }
 };
 pub fn clean_level(
-    _world: SPW(),
-    _ctx: SP_STATIC(CleanLevelCtx),
-    _current_level: SPS_MUT(CurrentLevel),
+    _world: WORLD(),
+    _ctx: STATIC(CleanLevelCtx),
+    _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();
@@ -406,10 +400,10 @@ const RecreateLevelCtx = struct {
     }
 };
 pub fn recreate_level(
-    _world: SPW(),
-    _ctx: SP_STATIC(RecreateLevelCtx),
-    _current_level: SPS_MUT(CurrentLevel),
-    _state_stack: SPS_MUT(GameStateStack),
+    _world: WORLD(),
+    _ctx: STATIC(RecreateLevelCtx),
+    _current_level: SINGLETON_MUT(CurrentLevel),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();
@@ -506,11 +500,11 @@ pub const SaveLevelCtx = struct {
     }
 };
 pub fn save_level(
-    _world: SPW(),
-    _ctx: SP_STATIC(SaveLevelCtx),
-    _allocator: SPS(Allocator),
-    _current_level: SPS_MUT(CurrentLevel),
-    _state_stack: SPS_MUT(GameStateStack),
+    _world: WORLD(),
+    _ctx: STATIC(SaveLevelCtx),
+    _allocator: SINGLETON(Allocator),
+    _current_level: SINGLETON_MUT(CurrentLevel),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();

@@ -7,17 +7,13 @@ const rl = @import("deps/raylib.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
 
-const SPT = flecs.SYSTEM_PARAMETER_TAG;
-const SPW = flecs.SYSTEM_PARAMETER_WORLD;
-const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
-const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
-const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
-const SP_ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
-const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
-const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
-const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
-const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
-const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
+const TAG = flecs.SYSTEM_PARAMETER_TAG;
+const WORLD = flecs.SYSTEM_PARAMETER_WORLD;
+const STATIC = flecs.SYSTEM_PARAMETER_STATIC;
+const ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
+const COMPONENT = flecs.SYSTEM_PARAMETER_COMPONENT;
+const COMPONENT_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
+const SENGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 
 const __game = @import("game.zig");
 const WinTarget = __game.WinTarget;
@@ -193,9 +189,9 @@ pub const AABB = struct {
 };
 
 fn update_positions(
-    _bodies: SPC(BodyId, .In),
-    _positions: SPC_MUT(Position, .Out),
-    _state_stack: SPS(GameStateStack),
+    _bodies: COMPONENT(BodyId, .In),
+    _positions: COMPONENT_MUT(Position, .Out),
+    _state_stack: SENGLETON(GameStateStack),
 ) void {
     const bodies = _bodies.data;
     const positions = _positions.data;
@@ -265,10 +261,10 @@ pub fn create_text(ecs_world: *flecs.world_t, params: *const TextParams) void {
 }
 
 fn draw_texts(
-    _state_stack: SPS(GameStateStack),
-    _positions: SPC(Position, .In),
-    _colors: SPC(Color, .In),
-    _texts: SPC(TextText, .In),
+    _state_stack: SENGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _colors: COMPONENT(Color, .In),
+    _texts: COMPONENT(TextText, .In),
 ) void {
     const state_stack = _state_stack.data;
     const positions = _positions.data;
@@ -324,9 +320,9 @@ pub fn create_spawner(ecs_world: *flecs.world_t, params: *const SpawnerParams) v
 }
 
 fn draw_spawners(
-    _state_stack: SPS(GameStateStack),
-    _positions: SPC(Position, .In),
-    _: SPT(SpawnerTag),
+    _state_stack: SENGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(SpawnerTag),
 ) void {
     const state_stack = _state_stack.data;
     const positions = _positions.data;
@@ -410,11 +406,11 @@ pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, param
 }
 
 fn pre_draw_balls(
-    _state_stack: SPS(GameStateStack),
-    _shaders: SPS(BallShader),
-    _bodies: SPC(BodyId, .In),
-    _colors: SPC(Color, .In),
-    _: SPT(BallTag),
+    _state_stack: SENGLETON(GameStateStack),
+    _shaders: SENGLETON(BallShader),
+    _bodies: COMPONENT(BodyId, .In),
+    _colors: COMPONENT(Color, .In),
+    _: TAG(BallTag),
 ) void {
     const state_stack = _state_stack.data;
     const shaders = _shaders.data;
@@ -475,10 +471,10 @@ fn pre_draw_balls(
 }
 
 fn draw_balls(
-    _state_stack: SPS(GameStateStack),
-    _shaders: SPS(BallShader),
-    _positions: SPC(Position, .In),
-    _: SPT(BallTag),
+    _state_stack: SENGLETON(GameStateStack),
+    _shaders: SENGLETON(BallShader),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(BallTag),
 ) void {
     const state_stack = _state_stack.data;
     const shaders = _shaders.data;
@@ -512,8 +508,8 @@ fn draw_balls(
 }
 
 fn update_balls(
-    _state_stack: SPS(GameStateStack),
-    _attachments: SPC_MUT(BallAttachment, .InOut),
+    _state_stack: SENGLETON(GameStateStack),
+    _attachments: COMPONENT_MUT(BallAttachment, .InOut),
 ) void {
     const state_stack = _state_stack.data;
     const attachments = _attachments.data;
@@ -622,11 +618,11 @@ pub fn create_anchor(
 }
 
 fn draw_anchors(
-    _state_stack: SPS(GameStateStack),
-    _positions: SPC(Position, .In),
-    _colors: SPC(Color, .In),
-    _shapes: SPC(AnchorShape, .In),
-    _joint_params: SPC(AnchoraJointParams, .In),
+    _state_stack: SENGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _colors: COMPONENT(Color, .In),
+    _shapes: COMPONENT(AnchorShape, .In),
+    _joint_params: COMPONENT(AnchoraJointParams, .In),
 ) void {
     const state_stack = _state_stack.data;
     const positions = _positions.data;
@@ -672,15 +668,15 @@ const UpdateAnchorsCtx = struct {
     }
 };
 fn update_anchors_try_attach(
-    _world: SPW(),
-    _ctx: SP_STATIC(UpdateAnchorsCtx),
-    _state_stack: SPS(GameStateStack),
-    _physics_world: SPS(PhysicsWorld),
-    _positions: SPC(Position, .In),
-    _colors: SPC(Color, .In),
-    _bodies: SPC(BodyId, .In),
-    _shapes: SPC(AnchorShape, .In),
-    _joint_params: SPC(AnchoraJointParams, .In),
+    _world: WORLD(),
+    _ctx: STATIC(UpdateAnchorsCtx),
+    _state_stack: SENGLETON(GameStateStack),
+    _physics_world: SENGLETON(PhysicsWorld),
+    _positions: COMPONENT(Position, .In),
+    _colors: COMPONENT(Color, .In),
+    _bodies: COMPONENT(BodyId, .In),
+    _shapes: COMPONENT(AnchorShape, .In),
+    _joint_params: COMPONENT(AnchoraJointParams, .In),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();
@@ -784,9 +780,9 @@ pub fn create_joint(
 }
 
 fn draw_joints(
-    _state_stack: SPS(GameStateStack),
-    _ids: SPC(JointId, .In),
-    _colors: SPC(Color, .In),
+    _state_stack: SENGLETON(GameStateStack),
+    _ids: COMPONENT(JointId, .In),
+    _colors: COMPONENT(Color, .In),
 ) void {
     const state_stack = _state_stack.data;
     const ids = _ids.data;
@@ -827,13 +823,13 @@ const UpdateJointsCtx = struct {
     }
 };
 fn update_joints(
-    _world: SPW(),
-    _entities: SP_ENTITIES(),
-    _ctx: SP_STATIC(UpdateJointsCtx),
-    _state_stack: SPS(GameStateStack),
-    _mouse_pos: SPS(MousePosition),
-    _joint_ids: SPC(JointId, .In),
-    _joint_stengths: SPC(JointStrength, .In),
+    _world: WORLD(),
+    _entities: ENTITIES(),
+    _ctx: STATIC(UpdateJointsCtx),
+    _state_stack: SENGLETON(GameStateStack),
+    _mouse_pos: SENGLETON(MousePosition),
+    _joint_ids: COMPONENT(JointId, .In),
+    _joint_stengths: COMPONENT(JointStrength, .In),
 ) void {
     const world = _world.data;
     const entities = _entities.data;
@@ -1048,10 +1044,10 @@ pub fn create_rectangle(
 }
 
 fn draw_rectangles(
-    _state_stack: SPS(GameStateStack),
-    _positions: SPC(Position, .In),
-    _shapes: SPC(RectangleShape, .In),
-    _colors: SPC(Color, .In),
+    _state_stack: SENGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _shapes: COMPONENT(RectangleShape, .In),
+    _colors: COMPONENT(Color, .In),
 ) void {
     const state_stack = _state_stack.data;
     const positions = _positions.data;

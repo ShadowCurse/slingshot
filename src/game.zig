@@ -6,17 +6,13 @@ const imgui = @import("deps/imgui.zig");
 const b2 = @import("deps/box2d.zig");
 const flecs = @import("deps/flecs.zig");
 
-const SPT = flecs.SYSTEM_PARAMETER_TAG;
-const SPW = flecs.SYSTEM_PARAMETER_WORLD;
-const SP_STATIC = flecs.SYSTEM_PARAMETER_STATIC;
-const SP_CONTEXT = flecs.SYSTEM_PARAMETER_CONTEXT;
-const SP_CONTEXT_MUT = flecs.SYSTEM_PARAMETER_CONTEXT_MUT;
-const SP_DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
-const SPC = flecs.SYSTEM_PARAMETER_COMPONENT;
-const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
-const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
-const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
-const SPC_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
+const TAG = flecs.SYSTEM_PARAMETER_TAG;
+const WORLD = flecs.SYSTEM_PARAMETER_WORLD;
+const STATIC = flecs.SYSTEM_PARAMETER_STATIC;
+const DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
+const COMPONENT = flecs.SYSTEM_PARAMETER_COMPONENT;
+const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
 const __ui = @import("ui.zig");
 const UiTimer = __ui.UiTimer;
@@ -162,9 +158,9 @@ fn draw_end() void {
 }
 
 fn draw_game_start(
-    _state_stack: SPS(GameStateStack),
-    _game_camera: SPS(GameCamera),
-    _editor_camera: SPS(EditorCamera),
+    _state_stack: SINGLETON(GameStateStack),
+    _game_camera: SINGLETON(GameCamera),
+    _editor_camera: SINGLETON(EditorCamera),
 ) void {
     const state_stack = _state_stack.data;
     const game_camera = _game_camera.data;
@@ -182,7 +178,7 @@ fn draw_game_end() void {
 }
 
 fn window_should_close(
-    _state_stack: SPS_MUT(GameStateStack),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const state_stack = _state_stack.data;
     if (rl.WindowShouldClose()) {
@@ -191,8 +187,8 @@ fn window_should_close(
 }
 
 fn check_exit(
-    _world: SPW(),
-    _state_stack: SPS(GameStateStack),
+    _world: WORLD(),
+    _state_stack: SINGLETON(GameStateStack),
 ) void {
     const world = _world.data;
     const state_stack = _state_stack.data;
@@ -202,15 +198,15 @@ fn check_exit(
 }
 
 fn draw_mouse_pos(
-    _mouse_pos: SPS(MousePosition),
+    _mouse_pos: SINGLETON(MousePosition),
 ) void {
     const mouse_pos = _mouse_pos.data;
     rl.DrawCircleV(mouse_pos.world_position.to_rl_as_pos(), 2.0, rl.YELLOW);
 }
 
 pub fn process_keys(
-    _state_stack: SPS_MUT(GameStateStack),
-    _current_level: SPS_MUT(CurrentLevel),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
     const state_stack = _state_stack.data;
     const current_level = _current_level.data;
@@ -233,10 +229,10 @@ pub fn process_keys(
 }
 
 fn update_mouse_pos(
-    _game_camera: SPS(GameCamera),
-    _editor_camera: SPS(EditorCamera),
-    _state_stack: SPS(GameStateStack),
-    _mouse_pos: SPS_MUT(MousePosition),
+    _game_camera: SINGLETON(GameCamera),
+    _editor_camera: SINGLETON(EditorCamera),
+    _state_stack: SINGLETON(GameStateStack),
+    _mouse_pos: SINGLETON_MUT(MousePosition),
 ) void {
     const game_camera = _game_camera.data;
     const editor_camera = _editor_camera.data;
@@ -259,10 +255,10 @@ fn update_mouse_pos(
 }
 
 pub fn update_physics(
-    _delta_time: SP_DELTA_TIME(),
-    _state_stack: SPS(GameStateStack),
-    _physics_world: SPS(PhysicsWorld),
-    _sensor_events: SPS_MUT(SensorEvents),
+    _delta_time: DELTA_TIME(),
+    _state_stack: SINGLETON(GameStateStack),
+    _physics_world: SINGLETON(PhysicsWorld),
+    _sensor_events: SINGLETON_MUT(SensorEvents),
 ) void {
     const delta_time = _delta_time.data;
     const state_stack = _state_stack.data;
@@ -278,11 +274,11 @@ pub fn update_physics(
 }
 
 pub fn check_win_contidion(
-    _state_stack: SPS_MUT(GameStateStack),
-    _sensor_events: SPS(SensorEvents),
-    _shapes: SPC(ShapeId, .In),
-    _: SPT(RectangleTag),
-    _: SPT(WinTarget),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _sensor_events: SINGLETON(SensorEvents),
+    _shapes: COMPONENT(ShapeId, .In),
+    _: TAG(RectangleTag),
+    _: TAG(WinTarget),
 ) void {
     const state_stack = _state_stack.data;
     const sensor_events = _sensor_events.data;
@@ -302,11 +298,11 @@ pub fn check_win_contidion(
 }
 
 pub fn update_game_camera(
-    _delta_time: SP_DELTA_TIME(),
-    _state_stack: SPS(GameStateStack),
-    _game_camera: SPS_MUT(GameCamera),
-    _positions: SPC(Position, .In),
-    _: SPT(BallTag),
+    _delta_time: DELTA_TIME(),
+    _state_stack: SINGLETON(GameStateStack),
+    _game_camera: SINGLETON_MUT(GameCamera),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(BallTag),
 ) void {
     const delta_time = _delta_time.data;
     const state_stack = _state_stack.data;
