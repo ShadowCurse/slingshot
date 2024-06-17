@@ -39,9 +39,9 @@ fn update_timer(
     _state_stack: SINGLETON(GameStateStack),
     _timer: SINGLETON_MUT(UiTimer),
 ) void {
-    const time = _delta_time.data;
-    const state_stack = _state_stack.data;
-    var timer = _timer.data;
+    const time = _delta_time.get();
+    const state_stack = _state_stack.get();
+    var timer = _timer.get_mut();
 
     if (state_stack.current_state() != .Running) {
         return;
@@ -55,9 +55,9 @@ fn draw_main_menu(
     _levels: SINGLETON_MUT(Levels),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const settings = _settings.data;
-    const levels = _levels.data;
-    const state_stack = _state_stack.data;
+    const settings = _settings.get();
+    const levels = _levels.get_mut();
+    const state_stack = _state_stack.get_mut();
 
     if (state_stack.current_state() != .MainMenu) {
         return;
@@ -107,11 +107,11 @@ fn draw_level_selection(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _editor_state: SINGLETON_MUT(EditorState),
 ) void {
-    const settings = _settings.data;
-    const levels = _levels.data;
-    const current_level = _current_level.data;
-    const state_stack = _state_stack.data;
-    const editor_state = _editor_state.data;
+    const settings = _settings.get();
+    const levels = _levels.get_mut();
+    const current_level = _current_level.get_mut();
+    const state_stack = _state_stack.get_mut();
+    const editor_state = _editor_state.get_mut();
 
     if (state_stack.current_state() != .LevelSelection) {
         return;
@@ -166,8 +166,8 @@ fn draw_timer(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _timer: SINGLETON(UiTimer),
 ) void {
-    const state_stack = _state_stack.data;
-    const timer = _timer.data;
+    const state_stack = _state_stack.get_mut();
+    const timer = _timer.get();
 
     if (state_stack.current_state() != .Running) {
         return;
@@ -194,9 +194,9 @@ fn draw_settings(
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const camera = _camera.data;
-    const settings = _settings.data;
-    const state_stack = _state_stack.data;
+    const camera = _camera.get_mut();
+    const settings = _settings.get_mut();
+    const state_stack = _state_stack.get_mut();
 
     if (state_stack.current_state() != .Settings) {
         return;
@@ -266,9 +266,9 @@ pub fn draw_paused(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
-    const settings = _settings.data;
-    const state_stack = _state_stack.data;
-    const current_level = _current_level.data;
+    const settings = _settings.get_mut();
+    const state_stack = _state_stack.get_mut();
+    const current_level = _current_level.get_mut();
 
     if (state_stack.current_state() != .Paused) {
         return;
@@ -315,9 +315,9 @@ fn draw_win(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
-    const settings = _settings.data;
-    const state_stack = _state_stack.data;
-    const current_level = _current_level.data;
+    const settings = _settings.get_mut();
+    const state_stack = _state_stack.get_mut();
+    const current_level = _current_level.get_mut();
 
     if (state_stack.current_state() != .Win) {
         return;

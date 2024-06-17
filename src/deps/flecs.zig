@@ -301,6 +301,14 @@ pub fn SYSTEM_PARAMETER_WORLD() type {
                 .data = data,
             };
         }
+
+        pub fn get(self: *const self_t) *const world_t {
+            return self.data;
+        }
+
+        pub fn get_mut(self: *const self_t) *world_t {
+            return self.data;
+        }
     };
 }
 
@@ -335,21 +343,6 @@ pub fn SYSTEM_PARAMETER_STATIC(comptime c: type) type {
 pub fn SYSTEM_PARAMETER_CONTEXT(comptime c: type) type {
     return struct {
         const TAG: system_parameter_tag_t = .Context;
-        data: *const c,
-
-        const self_t = @This();
-        pub fn init(ctx: *anyopaque) self_t {
-            const data: *const c = @alignCast(@ptrCast(ctx));
-            return .{
-                .data = data,
-            };
-        }
-    };
-}
-
-pub fn SYSTEM_PARAMETER_CONTEXT_MUT(comptime c: type) type {
-    return struct {
-        const TAG: system_parameter_tag_t = .Context;
         data: *c,
 
         const self_t = @This();
@@ -358,6 +351,14 @@ pub fn SYSTEM_PARAMETER_CONTEXT_MUT(comptime c: type) type {
             return .{
                 .data = data,
             };
+        }
+
+        pub fn get(self: *const self_t) *const c {
+            return self.data;
+        }
+
+        pub fn get_mut(self: *const self_t) *c {
+            return self.data;
         }
     };
 }
@@ -374,6 +375,14 @@ pub fn SYSTEM_PARAMETER_ENTITIES() type {
                 .data = data,
             };
         }
+
+        pub fn get(self: *const self_t) []const entity_t {
+            return self.data;
+        }
+
+        pub fn get_mut(self: *const self_t) []entity_t {
+            return self.data;
+        }
     };
 }
 
@@ -388,6 +397,10 @@ pub fn SYSTEM_PARAMETER_DELTA_TIME() type {
             return .{
                 .data = data,
             };
+        }
+
+        pub fn get(self: *const self_t) TYPE {
+            return self.data;
         }
     };
 }
@@ -404,6 +417,10 @@ pub fn SYSTEM_PARAMETER_SINGLETON(comptime s: type) type {
                 .data = data,
             };
         }
+
+        pub fn get(self: *const self_t) TYPE {
+            return self.data;
+        }
     };
 }
 
@@ -418,6 +435,14 @@ pub fn SYSTEM_PARAMETER_SINGLETON_MUT(comptime s: type) type {
             return .{
                 .data = data,
             };
+        }
+
+        pub fn get(self: *const self_t) *const s {
+            return self.data;
+        }
+
+        pub fn get_mut(self: *const self_t) *s {
+            return self.data;
         }
     };
 }
@@ -435,6 +460,10 @@ pub fn SYSTEM_PARAMETER_COMPONENT(comptime c: type, comptime inout: inout_kind_t
                 .data = data,
             };
         }
+
+        pub fn get(self: *const self_t) []const c {
+            return self.data;
+        }
     };
 }
 
@@ -450,6 +479,14 @@ pub fn SYSTEM_PARAMETER_COMPONENT_MUT(comptime c: type, comptime inout: inout_ki
             return .{
                 .data = data,
             };
+        }
+
+        pub fn get(self: *const self_t) []const c {
+            return self.data;
+        }
+
+        pub fn get_mut(self: *const self_t) []c {
+            return self.data;
         }
     };
 }

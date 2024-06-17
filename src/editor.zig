@@ -329,8 +329,8 @@ fn update_editor_camera(
     _state_stack: SINGLETON(GameStateStack),
     _editor_camera: SINGLETON_MUT(EditorCamera),
 ) void {
-    const state_stack = _state_stack.data;
-    const editor_camera = _editor_camera.data;
+    const state_stack = _state_stack.get();
+    const editor_camera = _editor_camera.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -350,8 +350,8 @@ fn enter_editor_mode(
     _editor_state: SINGLETON(EditorState),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const editor_state = _editor_state.data;
-    const state_stack = _state_stack.data;
+    const editor_state = _editor_state.get();
+    const state_stack = _state_stack.get_mut();
 
     if (editor_state.focused) {
         return;
@@ -438,12 +438,12 @@ fn select_entity(
     _mouse_pos: SINGLETON(MousePosition),
     _selected_entity: SINGLETON_MUT(SelectedEntity),
 ) void {
-    const world = _world.data;
+    const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.data;
-    const editor_state = _editor_state.data;
-    const mouse_pos = _mouse_pos.data;
-    const selected_entity = _selected_entity.data;
+    const state_stack = _state_stack.get();
+    const editor_state = _editor_state.get();
+    const mouse_pos = _mouse_pos.get();
+    const selected_entity = _selected_entity.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -527,10 +527,10 @@ fn drag_selected_entity(
     _mouse_pos: SINGLETON(MousePosition),
     _selected_entity: SINGLETON(SelectedEntity),
 ) void {
-    const world = _world.data;
-    const state_stack = _state_stack.data;
-    const mouse_pos = _mouse_pos.data;
-    const selected_entity = _selected_entity.data;
+    const world = _world.get_mut();
+    const state_stack = _state_stack.get();
+    const mouse_pos = _mouse_pos.get();
+    const selected_entity = _selected_entity.get();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -562,11 +562,11 @@ fn draw_texts_aabb(
     _positions: COMPONENT(Position, .In),
     _: TAG(TextTag),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const aabbs = _aabbs.data;
-    const positions = _positions.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -593,11 +593,11 @@ fn draw_spawners_aabb(
     _positions: COMPONENT(Position, .In),
     _: TAG(SpawnerTag),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const aabbs = _aabbs.data;
-    const positions = _positions.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -624,11 +624,11 @@ fn draw_balls_aabb(
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const aabbs = _aabbs.data;
-    const positions = _positions.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -655,11 +655,11 @@ fn draw_anchors_aabb(
     _positions: COMPONENT(Position, .In),
     _: TAG(AnchorTag),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const aabbs = _aabbs.data;
-    const positions = _positions.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -692,11 +692,11 @@ fn draw_rectangles_aabb(
     _positions: COMPONENT(Position, .In),
     _: TAG(RectangleTag),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const aabbs = _aabbs.data;
-    const positions = _positions.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -729,12 +729,12 @@ fn draw_editor_text(
     _positions: COMPONENT_MUT(Position, .InOut),
     _texts: COMPONENT_MUT(TextText, .InOut),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const colors = _colors.data;
-    const positions = _positions.data;
-    const texts = _texts.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const colors = _colors.get_mut();
+    const positions = _positions.get_mut();
+    const texts = _texts.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -804,15 +804,15 @@ fn draw_editor_ball(
     _aabbs: COMPONENT_MUT(AABB, .InOut),
     _shapes: COMPONENT_MUT(BallShape, .InOut),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const body_ids = _body_ids.data;
-    const shape_ids = _shape_ids.data;
-    const colors = _colors.data;
-    const positions = _positions.data;
-    const aabbs = _aabbs.data;
-    const shapes = _shapes.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const body_ids = _body_ids.get();
+    const shape_ids = _shape_ids.get();
+    const colors = _colors.get_mut();
+    const positions = _positions.get_mut();
+    const aabbs = _aabbs.get_mut();
+    const shapes = _shapes.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -891,14 +891,14 @@ pub fn draw_editor_anchor(
     _shapes: COMPONENT_MUT(AnchorShape, .InOut),
     _joint_params: COMPONENT_MUT(AnchoraJointParams, .InOut),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const body_ids = _body_ids.data;
-    const colors = _colors.data;
-    const positions = _positions.data;
-    const shapes = _shapes.data;
-    const joint_params = _joint_params.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const body_ids = _body_ids.get();
+    const colors = _colors.get_mut();
+    const positions = _positions.get_mut();
+    const shapes = _shapes.get_mut();
+    const joint_params = _joint_params.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -979,15 +979,15 @@ fn draw_editor_rectangle(
     _aabbs: COMPONENT_MUT(AABB, .InOut),
     _shapes: COMPONENT_MUT(RectangleShape, .InOut),
 ) void {
-    const entities = _entities.data;
-    const state_stack = _state_stack.data;
-    const selected_entity = _selected_entity.data;
-    const body_ids = _body_ids.data;
-    const shape_ids = _shape_ids.data;
-    const colors = _colors.data;
-    const positions = _positions.data;
-    const aabbs = _aabbs.data;
-    const shapes = _shapes.data;
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const body_ids = _body_ids.get();
+    const shape_ids = _shape_ids.get();
+    const colors = _colors.get_mut();
+    const positions = _positions.get_mut();
+    const aabbs = _aabbs.get_mut();
+    const shapes = _shapes.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -1092,12 +1092,12 @@ fn draw_editor_level(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
-    const world = _world.data;
-    const physics_world = _physics_world.data;
-    const selected_entity = _selected_entity.data;
-    const editor_state = _editor_state.data;
-    const state_stack = _state_stack.data;
-    const current_level = _current_level.data;
+    const world = _world.get_mut();
+    const physics_world = _physics_world.get();
+    const selected_entity = _selected_entity.get_mut();
+    const editor_state = _editor_state.get_mut();
+    const state_stack = _state_stack.get_mut();
+    const current_level = _current_level.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;

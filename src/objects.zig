@@ -193,9 +193,9 @@ fn update_positions(
     _positions: COMPONENT_MUT(Position, .Out),
     _state_stack: SENGLETON(GameStateStack),
 ) void {
-    const bodies = _bodies.data;
-    const positions = _positions.data;
-    const state_stack = _state_stack.data;
+    const bodies = _bodies.get();
+    const positions = _positions.get_mut();
+    const state_stack = _state_stack.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -266,10 +266,10 @@ fn draw_texts(
     _colors: COMPONENT(Color, .In),
     _texts: COMPONENT(TextText, .In),
 ) void {
-    const state_stack = _state_stack.data;
-    const positions = _positions.data;
-    const colors = _colors.data;
-    const texts = _texts.data;
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
+    const colors = _colors.get();
+    const texts = _texts.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -324,8 +324,8 @@ fn draw_spawners(
     _positions: COMPONENT(Position, .In),
     _: TAG(SpawnerTag),
 ) void {
-    const state_stack = _state_stack.data;
-    const positions = _positions.data;
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -412,10 +412,10 @@ fn pre_draw_balls(
     _colors: COMPONENT(Color, .In),
     _: TAG(BallTag),
 ) void {
-    const state_stack = _state_stack.data;
-    const shaders = _shaders.data;
-    const bodies = _bodies.data;
-    const colors = _colors.data;
+    const state_stack = _state_stack.get();
+    const shaders = _shaders.get();
+    const bodies = _bodies.get();
+    const colors = _colors.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -476,9 +476,9 @@ fn draw_balls(
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
-    const state_stack = _state_stack.data;
-    const shaders = _shaders.data;
-    const positions = _positions.data;
+    const state_stack = _state_stack.get();
+    const shaders = _shaders.get();
+    const positions = _positions.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -511,8 +511,8 @@ fn update_balls(
     _state_stack: SENGLETON(GameStateStack),
     _attachments: COMPONENT_MUT(BallAttachment, .InOut),
 ) void {
-    const state_stack = _state_stack.data;
-    const attachments = _attachments.data;
+    const state_stack = _state_stack.get();
+    const attachments = _attachments.get_mut();
 
     if (state_stack.current_state() != .Running) {
         return;
@@ -624,11 +624,11 @@ fn draw_anchors(
     _shapes: COMPONENT(AnchorShape, .In),
     _joint_params: COMPONENT(AnchoraJointParams, .In),
 ) void {
-    const state_stack = _state_stack.data;
-    const positions = _positions.data;
-    const colors = _colors.data;
-    const shapes = _shapes.data;
-    const joint_params = _joint_params.data;
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
+    const colors = _colors.get();
+    const shapes = _shapes.get();
+    const joint_params = _joint_params.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -678,15 +678,15 @@ fn update_anchors_try_attach(
     _shapes: COMPONENT(AnchorShape, .In),
     _joint_params: COMPONENT(AnchoraJointParams, .In),
 ) void {
-    const world = _world.data;
+    const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.data;
-    const physics_world = _physics_world.data;
-    const positions = _positions.data;
-    const colors = _colors.data;
-    const bodies = _bodies.data;
-    const shapes = _shapes.data;
-    const joint_params = _joint_params.data;
+    const state_stack = _state_stack.get();
+    const physics_world = _physics_world.get();
+    const positions = _positions.get();
+    const colors = _colors.get();
+    const bodies = _bodies.get();
+    const shapes = _shapes.get();
+    const joint_params = _joint_params.get();
 
     if (state_stack.current_state() != .Running) {
         return;
@@ -784,9 +784,9 @@ fn draw_joints(
     _ids: COMPONENT(JointId, .In),
     _colors: COMPONENT(Color, .In),
 ) void {
-    const state_stack = _state_stack.data;
-    const ids = _ids.data;
-    const colors = _colors.data;
+    const state_stack = _state_stack.get();
+    const ids = _ids.get();
+    const colors = _colors.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or
@@ -831,13 +831,13 @@ fn update_joints(
     _joint_ids: COMPONENT(JointId, .In),
     _joint_stengths: COMPONENT(JointStrength, .In),
 ) void {
-    const world = _world.data;
-    const entities = _entities.data;
+    const world = _world.get_mut();
+    const entities = _entities.get();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.data;
-    const mouse_pos = _mouse_pos.data;
-    const joint_ids = _joint_ids.data;
-    const joint_stengths = _joint_stengths.data;
+    const state_stack = _state_stack.get();
+    const mouse_pos = _mouse_pos.get();
+    const joint_ids = _joint_ids.get();
+    const joint_stengths = _joint_stengths.get();
 
     if (state_stack.current_state() != .Running) {
         return;
@@ -1049,10 +1049,10 @@ fn draw_rectangles(
     _shapes: COMPONENT(RectangleShape, .In),
     _colors: COMPONENT(Color, .In),
 ) void {
-    const state_stack = _state_stack.data;
-    const positions = _positions.data;
-    const shapes = _shapes.data;
-    const colors = _colors.data;
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
+    const shapes = _shapes.get();
+    const colors = _colors.get();
 
     const current_state = state_stack.current_state();
     if (!(current_state == .Running or

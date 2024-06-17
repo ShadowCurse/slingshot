@@ -198,11 +198,11 @@ pub fn load_level(
         .src = .{ .flags = flecs.IsEntity, .id = 0 },
     }),
 ) void {
-    const world = _world.data;
-    const allocator = _allocator.data;
-    const physics_world = _physical_world.data;
-    const state_stack = _state_stack.data;
-    const current_level = _current_level.data;
+    const world = _world.get_mut();
+    const allocator = _allocator.get();
+    const physics_world = _physical_world.get();
+    const state_stack = _state_stack.get_mut();
+    const current_level = _current_level.get_mut();
 
     if (current_level.load_path == null) {
         return;
@@ -291,10 +291,10 @@ pub fn start_level(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _timer: SINGLETON_MUT(UiTimer),
 ) void {
-    const world = _world.data;
+    const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.data;
-    const timer = _timer.data;
+    const state_stack = _state_stack.get_mut();
+    const timer = _timer.get_mut();
 
     if (state_stack.current_state() != .LevelLoaded) {
         return;
@@ -355,9 +355,9 @@ pub fn clean_level(
     _ctx: STATIC(CleanLevelCtx),
     _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
-    const world = _world.data;
+    const world = _world.get_mut();
     const ctx = _ctx.get();
-    const current_level = _current_level.data;
+    const current_level = _current_level.get_mut();
 
     if (!current_level.need_to_clean) {
         return;
@@ -405,10 +405,10 @@ pub fn recreate_level(
     _current_level: SINGLETON_MUT(CurrentLevel),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const world = _world.data;
+    const world = _world.get_mut();
     const ctx = _ctx.get();
-    const current_level = _current_level.data;
-    const state_stack = _state_stack.data;
+    const current_level = _current_level.get_mut();
+    const state_stack = _state_stack.get_mut();
 
     if (!current_level.need_to_restart) {
         return;
@@ -506,11 +506,11 @@ pub fn save_level(
     _current_level: SINGLETON_MUT(CurrentLevel),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const world = _world.data;
+    const world = _world.get_mut();
     const ctx = _ctx.get();
-    const allocator = _allocator.data;
-    const current_level = _current_level.data;
-    const state_stack = _state_stack.data;
+    const allocator = _allocator.get();
+    const current_level = _current_level.get_mut();
+    const state_stack = _state_stack.get_mut();
 
     if (current_level.save_path == null) {
         return;

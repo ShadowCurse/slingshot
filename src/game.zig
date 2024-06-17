@@ -162,9 +162,9 @@ fn draw_game_start(
     _game_camera: SINGLETON(GameCamera),
     _editor_camera: SINGLETON(EditorCamera),
 ) void {
-    const state_stack = _state_stack.data;
-    const game_camera = _game_camera.data;
-    const editor_camera = _editor_camera.data;
+    const state_stack = _state_stack.get();
+    const game_camera = _game_camera.get();
+    const editor_camera = _editor_camera.get();
 
     if (state_stack.current_state() == .Editor) {
         rl.BeginMode2D(editor_camera.camera);
@@ -180,7 +180,8 @@ fn draw_game_end() void {
 fn window_should_close(
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const state_stack = _state_stack.data;
+    const state_stack = _state_stack.get_mut();
+
     if (rl.WindowShouldClose()) {
         state_stack.push_state(.Exit);
     }
@@ -190,8 +191,9 @@ fn check_exit(
     _world: WORLD(),
     _state_stack: SINGLETON(GameStateStack),
 ) void {
-    const world = _world.data;
-    const state_stack = _state_stack.data;
+    const world = _world.get_mut();
+    const state_stack = _state_stack.get();
+
     if (state_stack.current_state() == .Exit) {
         flecs.quit(world);
     }
@@ -200,7 +202,7 @@ fn check_exit(
 fn draw_mouse_pos(
     _mouse_pos: SINGLETON(MousePosition),
 ) void {
-    const mouse_pos = _mouse_pos.data;
+    const mouse_pos = _mouse_pos.get();
     rl.DrawCircleV(mouse_pos.world_position.to_rl_as_pos(), 2.0, rl.YELLOW);
 }
 
@@ -208,8 +210,8 @@ pub fn process_keys(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _current_level: SINGLETON_MUT(CurrentLevel),
 ) void {
-    const state_stack = _state_stack.data;
-    const current_level = _current_level.data;
+    const state_stack = _state_stack.get_mut();
+    const current_level = _current_level.get_mut();
 
     const current_state = state_stack.current_state();
 
@@ -234,10 +236,10 @@ fn update_mouse_pos(
     _state_stack: SINGLETON(GameStateStack),
     _mouse_pos: SINGLETON_MUT(MousePosition),
 ) void {
-    const game_camera = _game_camera.data;
-    const editor_camera = _editor_camera.data;
-    const state_stack = _state_stack.data;
-    const mouse_pos = _mouse_pos.data;
+    const game_camera = _game_camera.get();
+    const editor_camera = _editor_camera.get();
+    const state_stack = _state_stack.get();
+    const mouse_pos = _mouse_pos.get_mut();
 
     const camera = if (state_stack.current_state() == .Editor)
         editor_camera.camera
@@ -260,10 +262,10 @@ pub fn update_physics(
     _physics_world: SINGLETON(PhysicsWorld),
     _sensor_events: SINGLETON_MUT(SensorEvents),
 ) void {
-    const delta_time = _delta_time.data;
-    const state_stack = _state_stack.data;
-    const physics_world = _physics_world.data;
-    const sensor_events = _sensor_events.data;
+    const delta_time = _delta_time.get();
+    const state_stack = _state_stack.get();
+    const physics_world = _physics_world.get();
+    const sensor_events = _sensor_events.get_mut();
 
     if (state_stack.current_state() != .Running) {
         return;
@@ -280,9 +282,9 @@ pub fn check_win_contidion(
     _: TAG(RectangleTag),
     _: TAG(WinTarget),
 ) void {
-    const state_stack = _state_stack.data;
-    const sensor_events = _sensor_events.data;
-    const shapes = _shapes.data;
+    const state_stack = _state_stack.get_mut();
+    const sensor_events = _sensor_events.get();
+    const shapes = _shapes.get();
 
     if (state_stack.current_state() == .Win) {
         return;
@@ -304,10 +306,10 @@ pub fn update_game_camera(
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
-    const delta_time = _delta_time.data;
-    const state_stack = _state_stack.data;
-    const game_camera = _game_camera.data;
-    const positions = _positions.data;
+    const delta_time = _delta_time.get();
+    const state_stack = _state_stack.get();
+    const game_camera = _game_camera.get_mut();
+    const positions = _positions.get();
 
     if (state_stack.current_state() != .Running) {
         return;
