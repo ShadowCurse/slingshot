@@ -191,51 +191,6 @@ pub const Levels = struct {
             );
         }
     }
-
-    pub fn draw(
-        self: *Self,
-        settings: *const Settings,
-        state_stack: *GameStateStack,
-        current_level: *CurrentLevel,
-    ) void {
-        var rectangle = rl.Rectangle{
-            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
-            .width = UI_ELEMENT_WIDTH,
-            .height = UI_ELEMENT_HEIGHT * 2.0,
-        };
-
-        _ = rl.GuiListViewEx(
-            rectangle,
-            @ptrCast(self.level_names_list.items.ptr),
-            @intCast(self.level_names_list.items.len),
-            &self.scroll_index,
-            &self.active,
-            &self.focus,
-        );
-
-        rectangle.y += UI_ELEMENT_HEIGHT * 3.0;
-        rectangle.height = UI_ELEMENT_HEIGHT;
-        const load = rl.GuiButton(
-            rectangle,
-            "Load",
-        );
-        if (load != 0) {
-            if (self.active != -1) {
-                const i: usize = @intCast(self.active);
-                current_level.load_path = self.levels.items[i].path;
-            }
-        }
-
-        rectangle.y += UI_ELEMENT_HEIGHT;
-        const main_menu = rl.GuiButton(
-            rectangle,
-            "Main menu",
-        );
-        if (main_menu != 0) {
-            state_stack.pop_state();
-        }
-    }
 };
 
 pub fn load_level(

@@ -107,25 +107,64 @@ fn draw_main_menu(
 }
 
 fn draw_level_selection(
-    _world: SPW(),
+    __settings: SPS(Settings),
+    _levels: SPS_MUT(Levels),
+    _current_level: SPS_MUT(CurrentLevel),
     _state_stack: SPS_MUT(GameStateStack),
+    _editor_state: SPS_MUT(EditorState),
 ) void {
-    const world = _world.data;
+    const settings = __settings.data;
+    const levels = _levels.data;
+    const current_level = _current_level.data;
     const state_stack = _state_stack.data;
+    const editor_state = _editor_state.data;
 
     if (state_stack.current_state() != .LevelSelection) {
         return;
     }
 
-    const settings = flecs.singleton_get(world, Settings).?;
-    const levels = flecs.singleton_get_mut(world, Levels).?;
-    const current_level = flecs.singleton_get_mut(world, CurrentLevel).?;
-    const editor_state = flecs.singleton_get_mut(world, EditorState).?;
+    var rectangle = rl.Rectangle{
+        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
+        .width = UI_ELEMENT_WIDTH,
+        .height = UI_ELEMENT_HEIGHT * 2.0,
+    };
 
-    levels.draw(settings, state_stack, current_level);
+    _ = rl.GuiListViewEx(
+        rectangle,
+        @ptrCast(levels.level_names_list.items.ptr),
+        @intCast(levels.level_names_list.items.len),
+        &levels.scroll_index,
+        &levels.active,
+        &levels.focus,
+    );
 
-    if (current_level.load_path) |path| {
-        @memcpy(editor_state.level_path[0..path.len], path);
+    rectangle.y += UI_ELEMENT_HEIGHT * 3.0;
+    rectangle.height = UI_ELEMENT_HEIGHT;
+    const load = rl.GuiButton(
+        rectangle,
+        "Load",
+    );
+    if (load != 0) {
+        if (levels.active != -1) {
+            const i: usize = @intCast(levels.active);
+            const level_path = levels.levels.items[i].path;
+            current_level.load_path = level_path;
+            // Editor needs to have it's own copy
+            @memcpy(
+                editor_state.level_path[0..level_path.len],
+                level_path,
+            );
+        }
+    }
+
+    rectangle.y += UI_ELEMENT_HEIGHT;
+    const main_menu = rl.GuiButton(
+        rectangle,
+        "Main menu",
+    );
+    if (main_menu != 0) {
+        state_stack.pop_state();
     }
 }
 
