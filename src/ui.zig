@@ -208,9 +208,63 @@ fn draw_settings(
         return;
     }
 
-    settings.draw(camera, state_stack) catch {
-        state_stack.push_state(.Exit);
+    var rectangle = rl.Rectangle{
+        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH,
+        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
+        .width = UI_ELEMENT_WIDTH,
+        .height = UI_ELEMENT_HEIGHT,
     };
+    _ = rl.GuiToggle(rectangle, "Fullscreen", &settings.is_fullscreen);
+
+    rectangle.x += UI_ELEMENT_WIDTH;
+    _ = rl.GuiToggle(rectangle, "Borderless", &settings.is_borderless);
+
+    rectangle.x -= UI_ELEMENT_WIDTH;
+    rectangle.y += UI_ELEMENT_HEIGHT;
+    _ = rl.GuiLabel(
+        rectangle,
+        "Resolution",
+    );
+
+    rectangle.x += UI_ELEMENT_WIDTH;
+    const r = rl.GuiDropdownBox(
+        rectangle,
+        Settings.RESOLUTIONS_STR,
+        &settings.selected_resolution,
+        settings.select_resolution_active,
+    );
+    if (r == 1) {
+        settings.select_resolution_active = !settings.select_resolution_active;
+    }
+
+    rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
+    rectangle.y += UI_ELEMENT_HEIGHT * 2.5;
+    const apply_button = rl.GuiButton(
+        rectangle,
+        "Apply",
+    );
+    if (apply_button != 0) {
+        if (settings.fullscreen != settings.is_fullscreen) {
+            settings.toggle_fullscreen();
+        } else if (settings.borderless != settings.is_borderless) {
+            settings.toggle_borderless_window();
+        } else if (!settings.fullscreen and !settings.borderless) {
+            settings.use_selected_resolution();
+        }
+        settings.set_window_size(camera);
+        settings.save() catch {
+            state_stack.push_state(.Exit);
+        };
+    }
+
+    rectangle.y += UI_ELEMENT_HEIGHT;
+    const back_button = rl.GuiButton(
+        rectangle,
+        "Back",
+    );
+    if (back_button != 0) {
+        state_stack.pop_state();
+    }
 }
 
 pub fn draw_paused(
