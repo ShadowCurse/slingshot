@@ -1140,41 +1140,11 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions);
     flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls);
     flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
-    // {
-    //     var desc = flecs.SYSTEM_DESC(update_anchors_try_attach);
-    //
-    //     var ball_query: flecs.query_desc_t = .{};
-    //     ball_query.filter.terms[0].id = flecs.id(BodyId);
-    //     ball_query.filter.terms[0].inout = .In;
-    //     ball_query.filter.terms[1].id = flecs.id(BallShape);
-    //     ball_query.filter.terms[1].inout = .In;
-    //     ball_query.filter.terms[2].id = flecs.id(Position);
-    //     ball_query.filter.terms[2].inout = .In;
-    //     ball_query.filter.terms[3].id = flecs.id(BallAttachment);
-    //     ball_query.filter.terms[3].inout = .InOut;
-    //     const q = try flecs.query_init(world, &ball_query);
-    //     desc.ctx = q;
-    //     // No need to clean ctx, query seems to be cleaned automatically.
-    //
-    //     flecs.SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, &desc);
-    // }
     flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
-    // {
-    //     var desc = flecs.SYSTEM_DESC(update_joints);
-    //
-    //     var ball_query: flecs.query_desc_t = .{};
-    //     ball_query.filter.terms[0].id = flecs.id(BallAttachment);
-    //     ball_query.filter.terms[0].inout = .InOut;
-    //     const q = try flecs.query_init(world, &ball_query);
-    //     desc.ctx = q;
-    //     // No need to clean ctx, query seems to be cleaned automatically.
-    //
-    //     flecs.SYSTEM(world, "update_joints", flecs.OnUpdate, &desc);
-    // }
     flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
+
     flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
     flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
-
     flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
     flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
