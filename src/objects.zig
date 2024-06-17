@@ -19,14 +19,14 @@ const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
 const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
-const _game = @import("game.zig");
-const WinTarget = _game.WinTarget;
-const GameStateStack = _game.GameStateStack;
-const MousePosition = _game.MousePosition;
-const PhysicsWorld = _game.PhysicsWorld;
+const __game = @import("game.zig");
+const WinTarget = __game.WinTarget;
+const GameStateStack = __game.GameStateStack;
+const MousePosition = __game.MousePosition;
+const PhysicsWorld = __game.PhysicsWorld;
 
-const _level = @import("level.zig");
-const LevelObject = _level.LevelObject;
+const __level = @import("level.zig");
+const LevelObject = __level.LevelObject;
 
 const Vector2 = @import("vector.zig");
 

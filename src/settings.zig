@@ -3,13 +3,13 @@ const Allocator = std.mem.Allocator;
 
 const rl = @import("deps/raylib.zig");
 
-const _game = @import("game.zig");
-const GameCamera = _game.GameCamera;
-const GameStateStack = _game.GameStateStack;
+const __game = @import("game.zig");
+const GameCamera = __game.GameCamera;
+const GameStateStack = __game.GameStateStack;
 
-const _ui = @import("ui.zig");
-const UI_ELEMENT_WIDTH = _ui.UI_ELEMENT_WIDTH;
-const UI_ELEMENT_HEIGHT = _ui.UI_ELEMENT_HEIGHT;
+const __ui = @import("ui.zig");
+const UI_ELEMENT_WIDTH = __ui.UI_ELEMENT_WIDTH;
+const UI_ELEMENT_HEIGHT = __ui.UI_ELEMENT_HEIGHT;
 
 pub const DEFAULT_SETTINGS_PATH = "resources/settings.json";
 

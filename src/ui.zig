@@ -14,19 +14,19 @@ const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT;
 const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
-const _game = @import("game.zig");
-const GameCamera = _game.GameCamera;
-const GameStateStack = _game.GameStateStack;
+const __game = @import("game.zig");
+const GameCamera = __game.GameCamera;
+const GameStateStack = __game.GameStateStack;
 
-const _level = @import("level.zig");
-const Levels = _level.Levels;
-const CurrentLevel = _level.CurrentLevel;
+const __level = @import("level.zig");
+const Levels = __level.Levels;
+const CurrentLevel = __level.CurrentLevel;
 
-const _settings = @import("settings.zig");
-const Settings = _settings.Settings;
+const __settings = @import("settings.zig");
+const Settings = __settings.Settings;
 
-const _editor = @import("editor.zig");
-const EditorState = _editor.EditorState;
+const __editor = @import("editor.zig");
+const EditorState = __editor.EditorState;
 
 const Vector2 = @import("vector.zig");
 
@@ -57,11 +57,11 @@ fn update_timer(
 }
 
 fn draw_main_menu(
-    __settings: SPS(Settings),
+    _settings: SPS(Settings),
     _levels: SPS_MUT(Levels),
     _state_stack: SPS_MUT(GameStateStack),
 ) void {
-    const settings = __settings.data;
+    const settings = _settings.data;
     const levels = _levels.data;
     const state_stack = _state_stack.data;
 
@@ -107,13 +107,13 @@ fn draw_main_menu(
 }
 
 fn draw_level_selection(
-    __settings: SPS(Settings),
+    _settings: SPS(Settings),
     _levels: SPS_MUT(Levels),
     _current_level: SPS_MUT(CurrentLevel),
     _state_stack: SPS_MUT(GameStateStack),
     _editor_state: SPS_MUT(EditorState),
 ) void {
-    const settings = __settings.data;
+    const settings = _settings.data;
     const levels = _levels.data;
     const current_level = _current_level.data;
     const state_stack = _state_stack.data;
@@ -197,11 +197,11 @@ fn draw_timer(
 
 fn draw_settings(
     _camera: SPS_MUT(GameCamera),
-    __settings: SPS_MUT(Settings),
+    _settings: SPS_MUT(Settings),
     _state_stack: SPS_MUT(GameStateStack),
 ) void {
     const camera = _camera.data;
-    const settings = __settings.data;
+    const settings = _settings.data;
     const state_stack = _state_stack.data;
 
     if (state_stack.current_state() != .Settings) {
@@ -268,11 +268,11 @@ fn draw_settings(
 }
 
 pub fn draw_paused(
-    __settings: SPS_MUT(Settings),
+    _settings: SPS_MUT(Settings),
     _state_stack: SPS_MUT(GameStateStack),
     _current_level: SPS_MUT(CurrentLevel),
 ) void {
-    const settings = __settings.data;
+    const settings = _settings.data;
     const state_stack = _state_stack.data;
     const current_level = _current_level.data;
 
@@ -317,11 +317,11 @@ pub fn draw_paused(
 }
 
 fn draw_win(
-    __settings: SPS_MUT(Settings),
+    _settings: SPS_MUT(Settings),
     _state_stack: SPS_MUT(GameStateStack),
     _current_level: SPS_MUT(CurrentLevel),
 ) void {
-    const settings = __settings.data;
+    const settings = _settings.data;
     const state_stack = _state_stack.data;
     const current_level = _current_level.data;
 

@@ -17,46 +17,46 @@ const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 const SPC_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 
-const _game = @import("game.zig");
-const GameStateStack = _game.GameStateStack;
-const PhysicsWorld = _game.PhysicsWorld;
+const __game = @import("game.zig");
+const GameStateStack = __game.GameStateStack;
+const PhysicsWorld = __game.PhysicsWorld;
 
-const _ui = @import("ui.zig");
-const UI_ELEMENT_WIDTH = _ui.UI_ELEMENT_WIDTH;
-const UI_ELEMENT_HEIGHT = _ui.UI_ELEMENT_HEIGHT;
-const UiTimer = _ui.UiTimer;
+const __ui = @import("ui.zig");
+const UI_ELEMENT_WIDTH = __ui.UI_ELEMENT_WIDTH;
+const UI_ELEMENT_HEIGHT = __ui.UI_ELEMENT_HEIGHT;
+const UiTimer = __ui.UiTimer;
 
-const _objects = @import("objects.zig");
-const ObjectParams = _objects.ObjectParams;
+const __objects = @import("objects.zig");
+const ObjectParams = __objects.ObjectParams;
 
-const Color = _objects.Color;
-const BodyId = _objects.BodyId;
-const Position = _objects.Position;
+const Color = __objects.Color;
+const BodyId = __objects.BodyId;
+const Position = __objects.Position;
 
-const create_text = _objects.create_text;
-const TextText = _objects.TextText;
-const TextParams = _objects.TextParams;
+const create_text = __objects.create_text;
+const TextText = __objects.TextText;
+const TextParams = __objects.TextParams;
 
-const create_spawner = _objects.create_spawner;
-const SpawnerTag = _objects.SpawnerTag;
-const SpawnerParams = _objects.SpawnerParams;
+const create_spawner = __objects.create_spawner;
+const SpawnerTag = __objects.SpawnerTag;
+const SpawnerParams = __objects.SpawnerParams;
 
-const create_ball = _objects.create_ball;
-const BallTag = _objects.BallTag;
-const BallShape = _objects.BallShape;
-const BallParams = _objects.BallParams;
-const BallAttachment = _objects.BallAttachment;
+const create_ball = __objects.create_ball;
+const BallTag = __objects.BallTag;
+const BallShape = __objects.BallShape;
+const BallParams = __objects.BallParams;
+const BallAttachment = __objects.BallAttachment;
 
-const create_anchor = _objects.create_anchor;
-const AnchorShape = _objects.AnchorShape;
-const AnchorParams = _objects.AnchorParams;
-const AnchoraJointParams = _objects.AnchoraJointParams;
+const create_anchor = __objects.create_anchor;
+const AnchorShape = __objects.AnchorShape;
+const AnchorParams = __objects.AnchorParams;
+const AnchoraJointParams = __objects.AnchoraJointParams;
 
-const JointTag = _objects.JointTag;
+const JointTag = __objects.JointTag;
 
-const create_rectangle = _objects.create_rectangle;
-const RectangleShape = _objects.RectangleShape;
-const RectangleParams = _objects.RectangleParams;
+const create_rectangle = __objects.create_rectangle;
+const RectangleShape = __objects.RectangleShape;
+const RectangleParams = __objects.RectangleParams;
 
 const Settings = @import("settings.zig").Settings;
 

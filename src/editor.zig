@@ -19,41 +19,41 @@ const SPC_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
 const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
-const _game = @import("game.zig");
-const LevelObject = _game.LevelObject;
-const PhysicsWorld = _game.PhysicsWorld;
-const MousePosition = _game.MousePosition;
-const GameStateStack = _game.GameStateStack;
+const __game = @import("game.zig");
+const LevelObject = __game.LevelObject;
+const PhysicsWorld = __game.PhysicsWorld;
+const MousePosition = __game.MousePosition;
+const GameStateStack = __game.GameStateStack;
 
-const _level = @import("level.zig");
-const CurrentLevel = _level.CurrentLevel;
+const __level = @import("level.zig");
+const CurrentLevel = __level.CurrentLevel;
 
-const _objects = @import("objects.zig");
-const AABB = _objects.AABB;
-const BodyId = _objects.BodyId;
-const ShapeId = _objects.ShapeId;
-const Color = _objects.Color;
-const Position = _objects.Position;
+const __objects = @import("objects.zig");
+const AABB = __objects.AABB;
+const BodyId = __objects.BodyId;
+const ShapeId = __objects.ShapeId;
+const Color = __objects.Color;
+const Position = __objects.Position;
 
-const create_text = _objects.create_text;
-const TextTag = _objects.TextTag;
-const TextText = _objects.TextText;
-const TextParams = _objects.TextParams;
+const create_text = __objects.create_text;
+const TextTag = __objects.TextTag;
+const TextText = __objects.TextText;
+const TextParams = __objects.TextParams;
 
-const SpawnerTag = _objects.SpawnerTag;
+const SpawnerTag = __objects.SpawnerTag;
 
-const create_ball = _objects.create_ball;
-const BallTag = _objects.BallTag;
-const BallShape = _objects.BallShape;
+const create_ball = __objects.create_ball;
+const BallTag = __objects.BallTag;
+const BallShape = __objects.BallShape;
 
-const create_anchor = _objects.create_anchor;
-const AnchorTag = _objects.AnchorTag;
-const AnchorShape = _objects.AnchorShape;
-const AnchoraJointParams = _objects.AnchoraJointParams;
+const create_anchor = __objects.create_anchor;
+const AnchorTag = __objects.AnchorTag;
+const AnchorShape = __objects.AnchorShape;
+const AnchoraJointParams = __objects.AnchoraJointParams;
 
-const create_rectangle = _objects.create_rectangle;
-const RectangleTag = _objects.RectangleTag;
-const RectangleShape = _objects.RectangleShape;
+const create_rectangle = __objects.create_rectangle;
+const RectangleTag = __objects.RectangleTag;
+const RectangleShape = __objects.RectangleShape;
 
 const EDITOR_HEIGHT: f32 = 50.0;
 const LABEL_WIDTH: f32 = 50.0;

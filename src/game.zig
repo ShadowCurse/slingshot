@@ -18,34 +18,34 @@ const SPS = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SPS_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 const SPC_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 
-const _ui = @import("ui.zig");
-const UiTimer = _ui.UiTimer;
-const UI_FLECS_INIT_SYSTEMS = _ui.FLECS_INIT_SYSTEMS;
-const UI_FLECS_INIT_COMPONENTS = _ui.FLECS_INIT_COMPONENTS;
+const __ui = @import("ui.zig");
+const UiTimer = __ui.UiTimer;
+const UI_FLECS_INIT_SYSTEMS = __ui.FLECS_INIT_SYSTEMS;
+const UI_FLECS_INIT_COMPONENTS = __ui.FLECS_INIT_COMPONENTS;
 
-const _level = @import("level.zig");
-const CurrentLevel = _level.CurrentLevel;
-const LEVEL_FLECS_INIT_SYSTES = _level.FLECS_INIT_SYSTEMS;
-const LEVEL_FLECS_INIT_COMPONENTS = _level.FLECS_INIT_COMPONENTS;
+const __level = @import("level.zig");
+const CurrentLevel = __level.CurrentLevel;
+const LEVEL_FLECS_INIT_SYSTES = __level.FLECS_INIT_SYSTEMS;
+const LEVEL_FLECS_INIT_COMPONENTS = __level.FLECS_INIT_COMPONENTS;
 
-const _settings = @import("settings.zig");
-const Settings = _settings.Settings;
-const DEFAULT_SETTINGS_PATH = _settings.DEFAULT_SETTINGS_PATH;
+const __settings = @import("settings.zig");
+const Settings = __settings.Settings;
+const DEFAULT_SETTINGS_PATH = __settings.DEFAULT_SETTINGS_PATH;
 
-const _editor = @import("editor.zig");
-const EditorLevel = _editor.EditorLevel;
-const EditorCamera = _editor.EditorCamera;
-const EDITOR_FLECS_INIT_SYSTEMS = _editor.FLECS_INIT_SYSTEMS;
-const EDITOR_FLECS_INIT_COMPONENTS = _editor.FLECS_INIT_COMPONENTS;
+const __editor = @import("editor.zig");
+const EditorLevel = __editor.EditorLevel;
+const EditorCamera = __editor.EditorCamera;
+const EDITOR_FLECS_INIT_SYSTEMS = __editor.FLECS_INIT_SYSTEMS;
+const EDITOR_FLECS_INIT_COMPONENTS = __editor.FLECS_INIT_COMPONENTS;
 
-const _objects = @import("objects.zig");
-const ObjectParams = _objects.ObjectParams;
-const ShapeId = _objects.ShapeId;
-const Position = _objects.Position;
-const BallTag = _objects.BallTag;
-const RectangleTag = _objects.RectangleTag;
-const OBJECTS_FLECS_INIT_SYSTEMS = _objects.FLECS_INIT_SYSTEMS;
-const OBJECTS_FLECS_INIT_COMPONENTS = _objects.FLECS_INIT_COMPONENTS;
+const __objects = @import("objects.zig");
+const ObjectParams = __objects.ObjectParams;
+const ShapeId = __objects.ShapeId;
+const Position = __objects.Position;
+const BallTag = __objects.BallTag;
+const RectangleTag = __objects.RectangleTag;
+const OBJECTS_FLECS_INIT_SYSTEMS = __objects.FLECS_INIT_SYSTEMS;
+const OBJECTS_FLECS_INIT_COMPONENTS = __objects.FLECS_INIT_COMPONENTS;
 
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
