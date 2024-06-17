@@ -21,6 +21,7 @@ const SPC_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 const _ui = @import("ui.zig");
 const UI_FLECS_INIT_SYSTEMS = _ui.FLECS_INIT_SYSTEMS;
 const UI_FLECS_INIT_COMPONENTS = _ui.FLECS_INIT_COMPONENTS;
+const UiTimer = _ui.UiTimer;
 
 const _level = @import("level.zig");
 const Levels = _level.Levels;
@@ -344,10 +345,12 @@ pub fn start_level(
     _world: SPW(),
     _ctx: SP_STATIC(StartLevelCtx),
     _state_stack: SPS_MUT(GameStateStack),
+    _timer: SPS_MUT(UiTimer),
 ) void {
     const world = _world.data;
     const ctx = _ctx.get();
     const state_stack = _state_stack.data;
+    const timer = _timer.data;
 
     if (state_stack.current_state() != .LevelLoaded) {
         return;
@@ -366,6 +369,7 @@ pub fn start_level(
     std.debug.assert(!flecs.query_next(&spawner_iter));
 
     b2.b2Body_SetTransform(ball_body.id, spawner_position.value.to_b2(), 0.0);
+    timer.time = 0.0;
 
     state_stack.pop_state();
     state_stack.push_state(.Running);

@@ -28,8 +28,33 @@ const Settings = _settings.Settings;
 const _editor = @import("editor.zig");
 const EditorState = _editor.EditorState;
 
+const Vector2 = @import("vector.zig");
+
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
+
+pub const UiTimer = struct {
+    time: f32 = 0.0,
+    color: rl.Color = rl.WHITE,
+    font_size: f32 = 50.0,
+    spacing: f32 = 1.0,
+};
+
+fn update_timer(
+    _delta_time: SP_DELTA_TIME(),
+    _state_stack: SPS(GameStateStack),
+    _timer: SPS_MUT(UiTimer),
+) void {
+    const time = _delta_time.data;
+    const state_stack = _state_stack.data;
+    var timer = _timer.data;
+
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    timer.time += time;
+}
 
 fn draw_main_menu(
     __settings: SPS(Settings),
@@ -102,6 +127,33 @@ fn draw_level_selection(
     if (current_level.load_path) |path| {
         @memcpy(editor_state.level_path[0..path.len], path);
     }
+}
+
+fn draw_timer(
+    _state_stack: SPS_MUT(GameStateStack),
+    _timer: SPS(UiTimer),
+) void {
+    const state_stack = _state_stack.data;
+    const timer = _timer.data;
+
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    const font = rl.GetFontDefault();
+    const position = Vector2.ZERO;
+
+    var buf: [8:0]u8 = undefined;
+    const s = std.fmt.bufPrintZ(&buf, "{d:.2}", .{timer.time}) catch unreachable;
+
+    rl.DrawTextEx(
+        font,
+        s.ptr,
+        position.to_rl_as_pos(),
+        timer.font_size,
+        timer.spacing,
+        timer.color,
+    );
 }
 
 fn draw_settings(
@@ -203,14 +255,20 @@ fn draw_win(
 }
 
 pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
-    _ = world;
     _ = allocator;
+
+    flecs.COMPONENT(world, UiTimer);
+
+    _ = flecs.singleton_set(world, UiTimer, .{});
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
+    flecs.ADD_SYSTEM(world, "update_timer", flecs.PreFrame, update_timer);
+
     flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
     flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
+    flecs.ADD_SYSTEM(world, "draw_timer", flecs.PreStore, draw_timer);
     flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
     flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
     flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
