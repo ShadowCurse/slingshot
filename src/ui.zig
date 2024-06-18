@@ -14,7 +14,7 @@ const GameStateStack = __game.GameStateStack;
 
 const __level = @import("level.zig");
 const Levels = __level.Levels;
-const CurrentLevel = __level.CurrentLevel;
+const LevelState = __level.LevelState;
 
 const __settings = @import("settings.zig");
 const Settings = __settings.Settings;
@@ -74,7 +74,7 @@ fn draw_main_menu(
         "Start",
     );
     if (start_button != 0) {
-        levels.scan() catch {
+        levels.load_metadata() catch {
             state_stack.push_state(.Exit);
             return;
         };
@@ -103,13 +103,13 @@ fn draw_main_menu(
 fn draw_level_selection(
     _settings: SINGLETON(Settings),
     _levels: SINGLETON_MUT(Levels),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _level_state: SINGLETON_MUT(LevelState),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _editor_state: SINGLETON_MUT(EditorState),
 ) void {
     const settings = _settings.get();
     const levels = _levels.get_mut();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
     const state_stack = _state_stack.get_mut();
     const editor_state = _editor_state.get_mut();
 
@@ -126,8 +126,8 @@ fn draw_level_selection(
 
     _ = rl.GuiListViewEx(
         rectangle,
-        @ptrCast(levels.level_names_list.items.ptr),
-        @intCast(levels.level_names_list.items.len),
+        @ptrCast(levels.unlocked_names.items.ptr),
+        @intCast(levels.unlocked_names.items.len),
         &levels.scroll_index,
         &levels.active,
         &levels.focus,
@@ -142,8 +142,9 @@ fn draw_level_selection(
     if (load != 0) {
         if (levels.active != -1) {
             const i: usize = @intCast(levels.active);
-            const level_path = levels.levels.items[i].path;
-            current_level.load_path = level_path;
+            const level_idx = levels.unlocked_idx.items[i];
+            const level_path = levels.levels_metadata.items[level_idx].path;
+            level_state.load_path = level_path;
             // Editor needs to have it's own copy
             @memcpy(
                 editor_state.level_path[0..level_path.len],
@@ -264,11 +265,11 @@ fn draw_settings(
 pub fn draw_paused(
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
 
     if (state_stack.current_state() != .Paused) {
         return;
@@ -306,18 +307,18 @@ pub fn draw_paused(
         state_stack.pop_state();
         state_stack.pop_state();
         state_stack.pop_state();
-        current_level.need_to_clean = true;
+        level_state.need_to_clean = true;
     }
 }
 
 fn draw_win(
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
 
     if (state_stack.current_state() != .Win) {
         return;
@@ -337,7 +338,7 @@ fn draw_win(
         state_stack.pop_state();
         state_stack.pop_state();
         state_stack.pop_state();
-        current_level.need_to_clean = true;
+        level_state.need_to_clean = true;
     }
 }
 

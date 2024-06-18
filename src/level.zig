@@ -57,6 +57,7 @@ const Settings = @import("settings.zig").Settings;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
+pub const DEFAULT_LEVELS_METADATA_PATH = "resources/levels_meta.json";
 pub const DEFAULT_LEVELS_PATH = "resources/levels";
 pub const DEFAULT_SAVE_PATH = "resources/levels/save.json";
 
@@ -71,11 +72,58 @@ pub const LevelObject = struct {
     destruction_order: usize,
 };
 
+pub const LevelMetadata = struct {
+    name: [:0]const u8,
+    path: []const u8,
+    finished: bool,
+    best_time: f32,
+    locked: bool,
+    unlocks: [][]const u8,
+
+    const Self = @This();
+
+    pub fn clone(self: *const Self, allocator: Allocator) !Self {
+        const name = try allocator.dupeZ(u8, self.name);
+        const path = try allocator.dupe(u8, self.path);
+        const unlocks = try allocator.dupe([]const u8, self.unlocks);
+        for (unlocks, self.unlocks) |*u, su| {
+            u.* = try allocator.dupe(u8, su);
+        }
+        return .{
+            .name = name,
+            .path = path,
+            .finished = self.finished,
+            .best_time = self.best_time,
+            .locked = self.locked,
+            .unlocks = unlocks,
+        };
+    }
+
+    pub fn deinit(self: *const Self, allocator: Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.path);
+        for (self.unlocks) |u| {
+            allocator.free(u);
+        }
+        allocator.free(self.unlocks);
+    }
+};
+
+pub const LevelMetadataSave = struct {
+    metas: []LevelMetadata,
+};
+
 pub const LevelSave = struct {
     objects: []ObjectParams,
 };
 
 pub const CurrentLevel = struct {
+    name: ?[]const u8 = null,
+    finished: bool = false,
+    best_time: f32 = 0.0,
+};
+
+pub const LevelState = struct {
     load_path: ?[]const u8 = null,
     save_path: ?[]const u8 = null,
     need_to_clean: bool = false,
@@ -84,105 +132,67 @@ pub const CurrentLevel = struct {
 
 pub const Levels = struct {
     allocator: Allocator,
-    levels: std.ArrayList(Self.LevelInfo),
-    level_names_list: std.ArrayList(*const u8),
+    levels_metadata: std.ArrayList(LevelMetadata),
+    unlocked_idx: std.ArrayList(usize),
+    unlocked_names: std.ArrayList(*const u8),
 
     scroll_index: i32 = 0,
     active: i32 = 0,
     focus: i32 = 0,
 
-    const LevelInfo = struct {
-        name: [:0]const u8,
-        path: []const u8,
-
-        fn init(allocator: Allocator, name: []const u8) !LevelInfo {
-            return LevelInfo{
-                .name = try allocator.dupeZ(u8, name),
-                .path = try std.fs.path.join(allocator, &.{ DEFAULT_LEVELS_PATH, name }),
-            };
-        }
-
-        fn deinit(self: *const LevelInfo, allocator: Allocator) void {
-            allocator.free(self.name);
-            allocator.free(self.path);
-        }
-
-        fn cmp(context: void, a: LevelInfo, b: LevelInfo) bool {
-            _ = context;
-            const min_len = @min(a.name.len, b.name.len);
-            for (a.name[0..min_len], b.name[0..min_len]) |a_char, b_char| {
-                if (a_char == b_char) {
-                    continue;
-                } else {
-                    if (a_char < b_char) {
-                        return true;
-                    } else {
-                        return false;
-                    }
-                }
-            }
-            return false;
-        }
-    };
-
     const Self = @This();
 
     pub fn init(allocator: Allocator) !Self {
-        const levels = std.ArrayList(Self.LevelInfo).init(allocator);
-        const level_names_list = std.ArrayList(*const u8).init(allocator);
+        const levels_metadata = std.ArrayList(LevelMetadata).init(allocator);
+        const unlocked_idx = std.ArrayList(usize).init(allocator);
+        const unlocked_names = std.ArrayList(*const u8).init(allocator);
+
         return Self{
             .allocator = allocator,
-            .levels = levels,
-            .level_names_list = level_names_list,
+            .levels_metadata = levels_metadata,
+            .unlocked_idx = unlocked_idx,
+            .unlocked_names = unlocked_names,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.levels.items) |level_info| {
-            level_info.deinit(self.allocator);
+        for (self.levels_metadata.items) |*m| {
+            m.deinit(self.allocator);
         }
-        self.levels.deinit();
-        self.level_names_list.deinit();
+        self.levels_metadata.deinit();
+        self.unlocked_idx.deinit();
+        self.unlocked_names.deinit();
     }
 
-    pub fn scan(self: *Self) !void {
-        for (self.levels.items) |level_info| {
-            level_info.deinit(self.allocator);
-        }
-        self.levels.clearRetainingCapacity();
-        self.level_names_list.clearRetainingCapacity();
+    pub fn load_metadata(self: *Self) !void {
+        var file = try std.fs.cwd().openFile(DEFAULT_LEVELS_METADATA_PATH, .{});
+        defer file.close();
 
-        if (builtin.os.tag == .emscripten) {
-            for (EMSCRIPTEN_LEVEL_NAMES) |level_name| {
-                const level_info = try LevelInfo.init(self.allocator, level_name);
-                try self.levels.append(level_info);
+        const file_data = try file.readToEndAlloc(self.allocator, 1024 * 1024 * 1024);
+        defer self.allocator.free(file_data);
+
+        const level_metadata = try std.json.parseFromSlice(LevelMetadataSave, self.allocator, file_data, .{});
+        defer level_metadata.deinit();
+
+        const data = &level_metadata.value;
+
+        for (self.levels_metadata.items) |*m| {
+            m.deinit(self.allocator);
+        }
+        self.levels_metadata.clearRetainingCapacity();
+        try self.levels_metadata.resize(data.metas.len);
+
+        for (self.levels_metadata.items, data.metas) |*i, *m| {
+            i.* = try m.clone(self.allocator);
+        }
+
+        self.unlocked_idx.clearRetainingCapacity();
+        self.unlocked_names.clearRetainingCapacity();
+        for (self.levels_metadata.items, 0..) |m, i| {
+            if (!m.locked) {
+                try self.unlocked_idx.append(i);
+                try self.unlocked_names.append(@ptrCast(m.name.ptr));
             }
-        } else {
-            const levels_dir = try std.fs.cwd().openDir(DEFAULT_LEVELS_PATH, .{ .iterate = true });
-            var iterator = levels_dir.iterate();
-            while (try iterator.next()) |entry| {
-                if (entry.kind == .file) {
-                    if (std.mem.endsWith(u8, entry.name, ".json")) {
-                        const level_info = try LevelInfo.init(self.allocator, entry.name);
-                        try self.levels.append(level_info);
-                    }
-                }
-            }
-        }
-
-        std.sort.heap(LevelInfo, self.levels.items, {}, LevelInfo.cmp);
-        for (self.levels.items) |level_info| {
-            try self.level_names_list.append(@ptrCast(level_info.name.ptr));
-        }
-
-        for (self.levels.items) |level_info| {
-            std.log.debug(
-                "found level: name: {s}, path: {s}",
-                .{
-                    level_info.name,
-                    level_info.path,
-                },
-            );
         }
     }
 };
@@ -192,7 +202,7 @@ pub fn load_level(
     _allocator: SINGLETON(Allocator),
     _physical_world: SINGLETON(PhysicsWorld),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _current_level: SINGLETON_MUT(LevelState),
     _: COMPONENT_ID(&flecs.Wildcard, .{
         .inout = .Out,
         .src = .{ .flags = flecs.IsEntity, .id = 0 },
@@ -353,7 +363,7 @@ const CleanLevelCtx = struct {
 pub fn clean_level(
     _world: WORLD(),
     _ctx: STATIC(CleanLevelCtx),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _current_level: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
@@ -402,7 +412,7 @@ const RecreateLevelCtx = struct {
 pub fn recreate_level(
     _world: WORLD(),
     _ctx: STATIC(RecreateLevelCtx),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _current_level: SINGLETON_MUT(LevelState),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const world = _world.get_mut();
@@ -503,7 +513,7 @@ pub fn save_level(
     _world: WORLD(),
     _ctx: STATIC(SaveLevelCtx),
     _allocator: SINGLETON(Allocator),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _current_level: SINGLETON_MUT(LevelState),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const world = _world.get_mut();
@@ -619,11 +629,13 @@ pub fn save_level(
 pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.COMPONENT(world, Levels);
     flecs.COMPONENT(world, CurrentLevel);
+    flecs.COMPONENT(world, LevelState);
     flecs.COMPONENT(world, LevelObject);
 
     const levels = try Levels.init(allocator);
     _ = flecs.singleton_set(world, Levels, levels);
     _ = flecs.singleton_set(world, CurrentLevel, .{});
+    _ = flecs.singleton_set(world, LevelState, .{});
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {

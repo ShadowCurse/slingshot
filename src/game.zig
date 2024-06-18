@@ -20,7 +20,7 @@ const UI_FLECS_INIT_SYSTEMS = __ui.FLECS_INIT_SYSTEMS;
 const UI_FLECS_INIT_COMPONENTS = __ui.FLECS_INIT_COMPONENTS;
 
 const __level = @import("level.zig");
-const CurrentLevel = __level.CurrentLevel;
+const LevelCurrent = __level.LevelState;
 const LEVEL_FLECS_INIT_SYSTES = __level.FLECS_INIT_SYSTEMS;
 const LEVEL_FLECS_INIT_COMPONENTS = __level.FLECS_INIT_COMPONENTS;
 
@@ -208,10 +208,10 @@ fn draw_mouse_pos(
 
 pub fn process_keys(
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _level_state: SINGLETON_MUT(LevelCurrent),
 ) void {
     const state_stack = _state_stack.get_mut();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
 
     const current_state = state_stack.current_state();
 
@@ -225,7 +225,7 @@ pub fn process_keys(
 
     if (current_state == .Running) {
         if (rl.IsKeyPressed(rl.KEY_R)) {
-            current_level.need_to_restart = true;
+            level_state.need_to_restart = true;
         }
     }
 }

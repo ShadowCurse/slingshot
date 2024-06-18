@@ -17,13 +17,12 @@ const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
 const __game = @import("game.zig");
-const LevelObject = __game.LevelObject;
 const PhysicsWorld = __game.PhysicsWorld;
 const MousePosition = __game.MousePosition;
 const GameStateStack = __game.GameStateStack;
 
 const __level = @import("level.zig");
-const CurrentLevel = __level.CurrentLevel;
+const LevelState = __level.LevelState;
 
 const __objects = @import("objects.zig");
 const AABB = __objects.AABB;
@@ -1090,14 +1089,14 @@ fn draw_editor_level(
     _selected_entity: SINGLETON_MUT(SelectedEntity),
     _editor_state: SINGLETON_MUT(EditorState),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
     const physics_world = _physics_world.get();
     const selected_entity = _selected_entity.get_mut();
     const editor_state = _editor_state.get_mut();
     const state_stack = _state_stack.get_mut();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
 
     if (state_stack.current_state() != .Editor) {
         return;
@@ -1117,11 +1116,11 @@ fn draw_editor_level(
         );
         const slice = std.mem.sliceTo(&editor_state.level_path, 0);
         if (imgui.igButton("Save level", .{ .x = 0.0, .y = 0.0 })) {
-            current_level.save_path = slice;
+            level_state.save_path = slice;
         }
         if (imgui.igButton("Load level", .{ .x = 0.0, .y = 0.0 })) {
-            current_level.load_path = slice;
-            current_level.need_to_clean = true;
+            level_state.load_path = slice;
+            level_state.need_to_clean = true;
             state_stack.pop_state();
         }
 
