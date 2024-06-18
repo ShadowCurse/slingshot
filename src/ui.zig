@@ -15,6 +15,7 @@ const GameStateStack = __game.GameStateStack;
 const __level = @import("level.zig");
 const Levels = __level.Levels;
 const LevelState = __level.LevelState;
+const CurrentLevel = __level.CurrentLevel;
 
 const __settings = @import("settings.zig");
 const Settings = __settings.Settings;
@@ -27,11 +28,15 @@ const Vector2 = @import("vector.zig");
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
 
+pub const UI_LEVEL_FONT_SIZE = 50.0;
+pub const UI_LEVEL_FONT_SPACING = 2.0;
+pub const UI_LEVEL_FONT_COLOR = rl.WHITE;
+pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
+pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
+pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
+
 pub const UiTimer = struct {
     time: f32 = 0.0,
-    color: rl.Color = rl.WHITE,
-    font_size: f32 = 50.0,
-    spacing: f32 = 1.0,
 };
 
 fn update_timer(
@@ -104,12 +109,14 @@ fn draw_level_selection(
     _settings: SINGLETON(Settings),
     _levels: SINGLETON_MUT(Levels),
     _level_state: SINGLETON_MUT(LevelState),
+    _current_level: SINGLETON_MUT(CurrentLevel),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _editor_state: SINGLETON_MUT(EditorState),
 ) void {
     const settings = _settings.get();
     const levels = _levels.get_mut();
     const level_state = _level_state.get_mut();
+    const current_level = _current_level.get_mut();
     const state_stack = _state_stack.get_mut();
     const editor_state = _editor_state.get_mut();
 
@@ -143,7 +150,13 @@ fn draw_level_selection(
         if (levels.active != -1) {
             const i: usize = @intCast(levels.active);
             const level_idx = levels.unlocked_idx.items[i];
-            const level_path = levels.levels_metadata.items[level_idx].path;
+            const level_metadata = &levels.levels_metadata.items[level_idx];
+
+            current_level.name = level_metadata.name;
+            current_level.finished = level_metadata.finished;
+            current_level.best_time = level_metadata.best_time;
+
+            const level_path = level_metadata.path;
             level_state.load_path = level_path;
             // Editor needs to have it's own copy
             @memcpy(
@@ -164,30 +177,69 @@ fn draw_level_selection(
 }
 
 fn draw_timer(
-    _state_stack: SINGLETON_MUT(GameStateStack),
     _timer: SINGLETON(UiTimer),
+    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const state_stack = _state_stack.get_mut();
     const timer = _timer.get();
+    const state_stack = _state_stack.get_mut();
 
     if (state_stack.current_state() != .Running) {
         return;
     }
 
     const font = rl.GetFontDefault();
-    const position = Vector2.ZERO;
 
-    var buf: [8:0]u8 = undefined;
-    const s = std.fmt.bufPrintZ(&buf, "{d:.2}", .{timer.time}) catch unreachable;
+    var buf: [16:0]u8 = undefined;
+    const s = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
 
     rl.DrawTextEx(
         font,
         s.ptr,
-        position.to_rl_as_pos(),
-        timer.font_size,
-        timer.spacing,
-        timer.color,
+        UI_TIMER_POSITION.to_rl(),
+        UI_LEVEL_FONT_SIZE,
+        UI_LEVEL_FONT_SPACING,
+        UI_LEVEL_FONT_COLOR,
     );
+}
+
+fn draw_current_level_info(
+    _current_level: SINGLETON(CurrentLevel),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+) void {
+    const current_level = _current_level.get();
+    const state_stack = _state_stack.get_mut();
+
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    const font = rl.GetFontDefault();
+
+    {
+        var buf: [64:0]u8 = undefined;
+        const s = std.fmt.bufPrintZ(&buf, "Level: {s}", .{current_level.name.?}) catch unreachable;
+        rl.DrawTextEx(
+            font,
+            s.ptr,
+            UI_LEVEL_NAME_POSITION.to_rl(),
+            UI_LEVEL_FONT_SIZE,
+            UI_LEVEL_FONT_SPACING,
+            UI_LEVEL_FONT_COLOR,
+        );
+    }
+
+    {
+        var buf: [16:0]u8 = undefined;
+        const s = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{current_level.best_time}) catch unreachable;
+        rl.DrawTextEx(
+            font,
+            s.ptr,
+            UI_BEST_TIME_POSITION.to_rl(),
+            UI_LEVEL_FONT_SIZE,
+            UI_LEVEL_FONT_SPACING,
+            UI_LEVEL_FONT_COLOR,
+        );
+    }
 }
 
 fn draw_settings(
@@ -357,6 +409,7 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
     flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
     flecs.ADD_SYSTEM(world, "draw_timer", flecs.PreStore, draw_timer);
+    flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
     flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
     flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
     flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
