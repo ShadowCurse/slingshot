@@ -276,17 +276,21 @@ pub fn update_physics(
 }
 
 pub fn check_win_contidion(
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _timer: SINGLETON(UiTimer),
     _sensor_events: SINGLETON(SensorEvents),
+    _state_stack: SINGLETON_MUT(GameStateStack),
+    _current_level: SINGLETON_MUT(CurrentLevel),
     _shapes: COMPONENT(ShapeId, .In),
     _: TAG(RectangleTag),
     _: TAG(WinTarget),
 ) void {
-    const state_stack = _state_stack.get_mut();
+    const timer = _timer.get();
     const sensor_events = _sensor_events.get();
+    const state_stack = _state_stack.get_mut();
+    const current_level = _current_level.get_mut();
     const shapes = _shapes.get();
 
-    if (state_stack.current_state() == .Win) {
+    if (state_stack.current_state() != .Running) {
         return;
     }
 

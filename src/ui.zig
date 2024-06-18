@@ -376,15 +376,25 @@ fn draw_win(
         return;
     }
 
-    const win_button_rect = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-        .width = 100.0,
-        .height = 100.0,
+    var button_rect = rl.Rectangle{
+        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
+        .width = UI_ELEMENT_WIDTH,
+        .height = UI_ELEMENT_HEIGHT,
     };
+    const restart_button = rl.GuiButton(
+        button_rect,
+        "Restart",
+    );
+    if (restart_button != 0) {
+        state_stack.pop_state();
+        level_state.need_to_restart = true;
+    }
+
+    button_rect.y += UI_ELEMENT_HEIGHT;
     const win_button = rl.GuiButton(
-        win_button_rect,
-        "You won",
+        button_rect,
+        "Main menu",
     );
     if (win_button != 0) {
         state_stack.pop_state();
