@@ -12,13 +12,13 @@ const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 const COMPONENT_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 
 const __game = @import("game.zig");
+const LevelTimer = __game.LevelTimer;
 const GameStateStack = __game.GameStateStack;
 const PhysicsWorld = __game.PhysicsWorld;
 
 const __ui = @import("ui.zig");
 const UI_ELEMENT_WIDTH = __ui.UI_ELEMENT_WIDTH;
 const UI_ELEMENT_HEIGHT = __ui.UI_ELEMENT_HEIGHT;
-const UiTimer = __ui.UiTimer;
 
 const __objects = @import("objects.zig");
 const ObjectParams = __objects.ObjectParams;
@@ -299,7 +299,7 @@ pub fn start_level(
     _world: WORLD(),
     _ctx: STATIC(StartLevelCtx),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _timer: SINGLETON_MUT(UiTimer),
+    _timer: SINGLETON_MUT(LevelTimer),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();

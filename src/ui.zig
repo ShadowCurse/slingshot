@@ -9,6 +9,7 @@ const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
 const __game = @import("game.zig");
+const LevelTimer = __game.LevelTimer;
 const GameCamera = __game.GameCamera;
 const GameStateStack = __game.GameStateStack;
 
@@ -34,26 +35,6 @@ pub const UI_LEVEL_FONT_COLOR = rl.WHITE;
 pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
 pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
 pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
-
-pub const UiTimer = struct {
-    time: f32 = 0.0,
-};
-
-fn update_timer(
-    _delta_time: DELTA_TIME(),
-    _state_stack: SINGLETON(GameStateStack),
-    _timer: SINGLETON_MUT(UiTimer),
-) void {
-    const time = _delta_time.get();
-    const state_stack = _state_stack.get();
-    var timer = _timer.get_mut();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
-
-    timer.time += time;
-}
 
 fn draw_main_menu(
     _settings: SINGLETON(Settings),
@@ -177,7 +158,7 @@ fn draw_level_selection(
 }
 
 fn draw_timer(
-    _timer: SINGLETON(UiTimer),
+    _timer: SINGLETON(LevelTimer),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const timer = _timer.get();
@@ -368,7 +349,7 @@ pub fn draw_paused(
 }
 
 fn draw_win(
-    _timer: SINGLETON(UiTimer),
+    _timer: SINGLETON(LevelTimer),
     _current_level: SINGLETON(CurrentLevel),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
@@ -446,17 +427,12 @@ fn draw_win(
 }
 
 pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
+    _ = world;
     _ = allocator;
-
-    flecs.COMPONENT(world, UiTimer);
-
-    _ = flecs.singleton_set(world, UiTimer, .{});
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
-    flecs.ADD_SYSTEM(world, "update_timer", flecs.PreFrame, update_timer);
-
     flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
     flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
     flecs.ADD_SYSTEM(world, "draw_timer", flecs.PreStore, draw_timer);

@@ -14,8 +14,9 @@ const COMPONENT = flecs.SYSTEM_PARAMETER_COMPONENT;
 const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
+const __game = @import("game.zig");
+
 const __ui = @import("ui.zig");
-const UiTimer = __ui.UiTimer;
 const UI_FLECS_INIT_SYSTEMS = __ui.FLECS_INIT_SYSTEMS;
 const UI_FLECS_INIT_COMPONENTS = __ui.FLECS_INIT_COMPONENTS;
 
@@ -134,6 +135,26 @@ pub const MousePosition = struct {
     world_position: Vector2,
     screen_position: Vector2,
 };
+
+pub const LevelTimer = struct {
+    time: f32 = 0.0,
+};
+
+fn update_timer(
+    _delta_time: DELTA_TIME(),
+    _state_stack: SINGLETON(GameStateStack),
+    _timer: SINGLETON_MUT(LevelTimer),
+) void {
+    const time = _delta_time.get();
+    const state_stack = _state_stack.get();
+    var timer = _timer.get_mut();
+
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    timer.time += time;
+}
 
 fn initial_setup(settings: *const Settings) void {
     rl.InitWindow(
@@ -277,7 +298,7 @@ pub fn update_physics(
 }
 
 pub fn check_win_contidion(
-    _timer: SINGLETON(UiTimer),
+    _timer: SINGLETON(LevelTimer),
     _sensor_events: SINGLETON(SensorEvents),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _current_level: SINGLETON_MUT(CurrentLevel),
@@ -364,6 +385,9 @@ pub const GameV2 = struct {
         flecs.COMPONENT(ecs_world, GameCamera);
         flecs.COMPONENT(ecs_world, PhysicsWorld);
         flecs.COMPONENT(ecs_world, MousePosition);
+        flecs.COMPONENT(ecs_world, LevelTimer);
+
+        _ = flecs.singleton_set(ecs_world, LevelTimer, .{});
 
         _ = flecs.singleton_set(ecs_world, Allocator, allocator);
         _ = flecs.singleton_set(ecs_world, Settings, settings);
@@ -399,6 +423,7 @@ pub const GameV2 = struct {
         flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 
         // Game
+        flecs.ADD_SYSTEM(ecs_world, "update_timer", flecs.PreUpdate, update_timer);
         flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics);
         flecs.ADD_SYSTEM(ecs_world, "process_keys", flecs.PreUpdate, process_keys);
         flecs.ADD_SYSTEM(ecs_world, "update_mouse_pos", flecs.PreUpdate, update_mouse_pos);
