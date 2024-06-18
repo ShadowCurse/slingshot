@@ -230,7 +230,11 @@ fn draw_current_level_info(
 
     {
         var buf: [16:0]u8 = undefined;
-        const s = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{current_level.best_time}) catch unreachable;
+        const s = if (current_level.best_time) |bt| blk: {
+            break :blk std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{bt}) catch unreachable;
+        } else blk: {
+            break :blk "Best: ---";
+        };
         rl.DrawTextEx(
             font,
             s.ptr,

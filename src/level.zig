@@ -76,7 +76,7 @@ pub const LevelMetadata = struct {
     name: [:0]const u8,
     path: []const u8,
     finished: bool,
-    best_time: f32,
+    best_time: ?f32,
     locked: bool,
     unlocks: [][]const u8,
 
@@ -120,7 +120,7 @@ pub const LevelSave = struct {
 pub const CurrentLevel = struct {
     name: ?[]const u8 = null,
     finished: bool = false,
-    best_time: f32 = 0.0,
+    best_time: ?f32 = null,
 };
 
 pub const LevelState = struct {

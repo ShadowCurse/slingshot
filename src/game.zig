@@ -20,7 +20,8 @@ const UI_FLECS_INIT_SYSTEMS = __ui.FLECS_INIT_SYSTEMS;
 const UI_FLECS_INIT_COMPONENTS = __ui.FLECS_INIT_COMPONENTS;
 
 const __level = @import("level.zig");
-const LevelCurrent = __level.LevelState;
+const LevelState = __level.LevelState;
+const CurrentLevel = __level.CurrentLevel;
 const LEVEL_FLECS_INIT_SYSTES = __level.FLECS_INIT_SYSTEMS;
 const LEVEL_FLECS_INIT_COMPONENTS = __level.FLECS_INIT_COMPONENTS;
 
@@ -208,7 +209,7 @@ fn draw_mouse_pos(
 
 pub fn process_keys(
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _level_state: SINGLETON_MUT(LevelCurrent),
+    _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
@@ -298,6 +299,11 @@ pub fn check_win_contidion(
         for (sensor_events.begin_events) |be| {
             if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(shape.id))) {
                 state_stack.push_state(.Win);
+                if (current_level.best_time) |bt| {
+                    current_level.best_time = @min(bt, timer.time);
+                } else {
+                    current_level.best_time = timer.time;
+                }
             }
         }
     }
