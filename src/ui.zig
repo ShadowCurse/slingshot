@@ -368,10 +368,14 @@ pub fn draw_paused(
 }
 
 fn draw_win(
+    _timer: SINGLETON(UiTimer),
+    _current_level: SINGLETON(CurrentLevel),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
+    const timer = _timer.get();
+    const current_level = _current_level.get();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
@@ -380,14 +384,47 @@ fn draw_win(
         return;
     }
 
-    var button_rect = rl.Rectangle{
+    const font = rl.GetFontDefault();
+
+    var rect = rl.Rectangle{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
         .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
         .width = UI_ELEMENT_WIDTH,
         .height = UI_ELEMENT_HEIGHT,
     };
+
+    {
+        const positin = Vector2{ .x = rect.x - UI_ELEMENT_WIDTH / 2.0, .y = rect.y };
+        const best_time = current_level.best_time.?;
+        var buf: [16:0]u8 = undefined;
+        const s = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{best_time}) catch unreachable;
+        rl.DrawTextEx(
+            font,
+            s.ptr,
+            positin.to_rl(),
+            UI_LEVEL_FONT_SIZE,
+            UI_LEVEL_FONT_SPACING,
+            UI_LEVEL_FONT_COLOR,
+        );
+    }
+    {
+        const positin = Vector2{ .x = rect.x + UI_ELEMENT_WIDTH / 2.0, .y = rect.y };
+        const current_time = timer.time;
+        var buf: [16:0]u8 = undefined;
+        const s = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{current_time}) catch unreachable;
+        rl.DrawTextEx(
+            font,
+            s.ptr,
+            positin.to_rl(),
+            UI_LEVEL_FONT_SIZE,
+            UI_LEVEL_FONT_SPACING,
+            UI_LEVEL_FONT_COLOR,
+        );
+    }
+
+    rect.y += UI_ELEMENT_WIDTH / 2.0;
     const restart_button = rl.GuiButton(
-        button_rect,
+        rect,
         "Restart",
     );
     if (restart_button != 0) {
@@ -395,9 +432,9 @@ fn draw_win(
         level_state.need_to_restart = true;
     }
 
-    button_rect.y += UI_ELEMENT_HEIGHT;
+    rect.y += UI_ELEMENT_HEIGHT;
     const win_button = rl.GuiButton(
-        button_rect,
+        rect,
         "Main menu",
     );
     if (win_button != 0) {
@@ -426,5 +463,5 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
     flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
     flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
-    flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
+    flecs.ADD_SYSTEM(world, "t raw_win", flecs.PreStore, draw_win);
 }
