@@ -109,12 +109,6 @@ pub const LevelSave = struct {
     objects: []ObjectParams,
 };
 
-pub const CurrentLevel = struct {
-    name: ?[]const u8 = null,
-    finished: bool = false,
-    best_time: ?f32 = null,
-};
-
 pub const LevelState = struct {
     load_path: ?[]const u8 = null,
     save_path: ?[]const u8 = null,
@@ -204,7 +198,7 @@ pub fn load_level(
     _allocator: SINGLETON(Allocator),
     _physical_world: SINGLETON(PhysicsWorld),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(LevelState),
+    _level_state: SINGLETON_MUT(LevelState),
     _: COMPONENT_ID(&flecs.Wildcard, .{
         .inout = .Out,
         .src = .{ .flags = flecs.IsEntity, .id = 0 },
@@ -214,14 +208,14 @@ pub fn load_level(
     const allocator = _allocator.get();
     const physics_world = _physical_world.get();
     const state_stack = _state_stack.get_mut();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
 
-    if (current_level.load_path == null) {
+    if (level_state.load_path == null) {
         return;
     }
 
-    const path = current_level.load_path.?;
-    current_level.load_path = null;
+    const path = level_state.load_path.?;
+    level_state.load_path = null;
 
     std.log.debug("Loading level from path: {s}", .{path});
 
@@ -365,17 +359,17 @@ const CleanLevelCtx = struct {
 pub fn clean_level(
     _world: WORLD(),
     _ctx: STATIC(CleanLevelCtx),
-    _current_level: SINGLETON_MUT(LevelState),
+    _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
 
-    if (!current_level.need_to_clean) {
+    if (!level_state.need_to_clean) {
         return;
     }
 
-    current_level.need_to_clean = false;
+    level_state.need_to_clean = false;
 
     var level_object_iter = flecs.query_iter(world, ctx.level_objects_query);
     while (flecs.query_next(&level_object_iter)) {
@@ -414,19 +408,19 @@ const RecreateLevelCtx = struct {
 pub fn recreate_level(
     _world: WORLD(),
     _ctx: STATIC(RecreateLevelCtx),
-    _current_level: SINGLETON_MUT(LevelState),
+    _level_state: SINGLETON_MUT(LevelState),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
     const state_stack = _state_stack.get_mut();
 
-    if (!current_level.need_to_restart) {
+    if (!level_state.need_to_restart) {
         return;
     }
 
-    current_level.need_to_restart = false;
+    level_state.need_to_restart = false;
 
     const joint_query: *flecs.query_t = ctx.joint_query;
     var joint_iter = flecs.query_iter(world, joint_query);
@@ -515,21 +509,21 @@ pub fn save_level(
     _world: WORLD(),
     _ctx: STATIC(SaveLevelCtx),
     _allocator: SINGLETON(Allocator),
-    _current_level: SINGLETON_MUT(LevelState),
+    _level_state: SINGLETON_MUT(LevelState),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
     const allocator = _allocator.get();
-    const current_level = _current_level.get_mut();
+    const level_state = _level_state.get_mut();
     const state_stack = _state_stack.get_mut();
 
-    if (current_level.save_path == null) {
+    if (level_state.save_path == null) {
         return;
     }
 
-    const path = current_level.save_path.?;
-    current_level.save_path = null;
+    const path = level_state.save_path.?;
+    level_state.save_path = null;
 
     std.log.debug("Saving level to path: {s}", .{path});
 
@@ -630,13 +624,11 @@ pub fn save_level(
 
 pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.COMPONENT(world, Levels);
-    flecs.COMPONENT(world, CurrentLevel);
     flecs.COMPONENT(world, LevelState);
     flecs.COMPONENT(world, LevelObject);
 
     const levels = try Levels.init(allocator);
     _ = flecs.singleton_set(world, Levels, levels);
-    _ = flecs.singleton_set(world, CurrentLevel, .{});
     _ = flecs.singleton_set(world, LevelState, .{});
 }
 

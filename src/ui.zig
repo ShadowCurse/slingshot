@@ -90,14 +90,12 @@ fn draw_level_selection(
     _settings: SINGLETON(Settings),
     _levels: SINGLETON_MUT(Levels),
     _level_state: SINGLETON_MUT(LevelState),
-    _current_level: SINGLETON_MUT(CurrentLevel),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _editor_state: SINGLETON_MUT(EditorState),
 ) void {
     const settings = _settings.get();
     const levels = _levels.get_mut();
     const level_state = _level_state.get_mut();
-    const current_level = _current_level.get_mut();
     const state_stack = _state_stack.get_mut();
     const editor_state = _editor_state.get_mut();
 
@@ -129,10 +127,6 @@ fn draw_level_selection(
     );
     if (load != 0) {
         if (levels.active_level()) |level_metadata| {
-            current_level.name = level_metadata.name;
-            current_level.finished = level_metadata.finished;
-            current_level.best_time = level_metadata.best_time;
-
             const level_path = level_metadata.path;
             level_state.load_path = level_path;
             // Editor needs to have it's own copy
@@ -180,21 +174,22 @@ fn draw_timer(
 }
 
 fn draw_current_level_info(
-    _current_level: SINGLETON(CurrentLevel),
+    _levels: SINGLETON(Levels),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const current_level = _current_level.get();
+    const levels = _levels.get();
     const state_stack = _state_stack.get_mut();
 
     if (state_stack.current_state() != .Running) {
         return;
     }
 
+    const current_level = levels.active_level().?;
     const font = rl.GetFontDefault();
 
     {
         var buf: [64:0]u8 = undefined;
-        const s = std.fmt.bufPrintZ(&buf, "Level: {s}", .{current_level.name.?}) catch unreachable;
+        const s = std.fmt.bufPrintZ(&buf, "Level: {s}", .{current_level.name}) catch unreachable;
         rl.DrawTextEx(
             font,
             s.ptr,
@@ -346,13 +341,13 @@ pub fn draw_paused(
 
 fn draw_win(
     _timer: SINGLETON(LevelTimer),
-    _current_level: SINGLETON(CurrentLevel),
+    _levels: SINGLETON(Levels),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const timer = _timer.get();
-    const current_level = _current_level.get();
+    const levels = _levels.get();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
@@ -361,6 +356,7 @@ fn draw_win(
         return;
     }
 
+    const current_level = levels.active_level().?;
     const font = rl.GetFontDefault();
 
     var rect = rl.Rectangle{

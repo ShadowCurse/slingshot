@@ -21,6 +21,7 @@ const UI_FLECS_INIT_SYSTEMS = __ui.FLECS_INIT_SYSTEMS;
 const UI_FLECS_INIT_COMPONENTS = __ui.FLECS_INIT_COMPONENTS;
 
 const __level = @import("level.zig");
+const Levels = __level.Levels;
 const LevelState = __level.LevelState;
 const CurrentLevel = __level.CurrentLevel;
 const LEVEL_FLECS_INIT_SYSTES = __level.FLECS_INIT_SYSTEMS;
@@ -301,7 +302,7 @@ pub fn check_win_contidion(
     _timer: SINGLETON(LevelTimer),
     _sensor_events: SINGLETON(SensorEvents),
     _state_stack: SINGLETON_MUT(GameStateStack),
-    _current_level: SINGLETON_MUT(CurrentLevel),
+    _levels: SINGLETON_MUT(Levels),
     _shapes: COMPONENT(ShapeId, .In),
     _: TAG(RectangleTag),
     _: TAG(WinTarget),
@@ -309,12 +310,14 @@ pub fn check_win_contidion(
     const timer = _timer.get();
     const sensor_events = _sensor_events.get();
     const state_stack = _state_stack.get_mut();
-    const current_level = _current_level.get_mut();
+    const levels = _levels.get_mut();
     const shapes = _shapes.get();
 
     if (state_stack.current_state() != .Running) {
         return;
     }
+
+    const current_level = levels.active_level().?;
 
     for (shapes) |shape| {
         for (sensor_events.begin_events) |be| {
