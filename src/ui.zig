@@ -60,7 +60,7 @@ fn draw_main_menu(
         "Start",
     );
     if (start_button != 0) {
-        levels.reload_metadata() catch {
+        levels.reload() catch {
             state_stack.push_state(.Exit);
             return;
         };

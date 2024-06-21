@@ -150,7 +150,7 @@ pub const Levels = struct {
         self.unlocked_names.deinit();
     }
 
-    pub fn reload_metadata(self: *Self) !void {
+    pub fn reload(self: *Self) !void {
         var file = try std.fs.cwd().openFile(DEFAULT_LEVELS_METADATA_PATH, .{});
         defer file.close();
 
