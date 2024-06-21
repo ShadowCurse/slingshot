@@ -187,6 +187,16 @@ pub const Levels = struct {
             }
         }
     }
+
+    pub fn active_level(self: *const Self) ?*LevelMetadata {
+        if (self.active != -1) {
+            const i: usize = @intCast(self.active);
+            const level_idx = self.unlocked_idx.items[i];
+            return &self.levels_metadata.items[level_idx];
+        } else {
+            return null;
+        }
+    }
 };
 
 pub fn load_level(

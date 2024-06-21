@@ -128,11 +128,7 @@ fn draw_level_selection(
         "Load",
     );
     if (load != 0) {
-        if (levels.active != -1) {
-            const i: usize = @intCast(levels.active);
-            const level_idx = levels.unlocked_idx.items[i];
-            const level_metadata = &levels.levels_metadata.items[level_idx];
-
+        if (levels.active_level()) |level_metadata| {
             current_level.name = level_metadata.name;
             current_level.finished = level_metadata.finished;
             current_level.best_time = level_metadata.best_time;
