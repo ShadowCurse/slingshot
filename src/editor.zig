@@ -887,6 +887,7 @@ pub fn draw_editor_anchor(
     _body_ids: COMPONENT(BodyId, .In),
     _colors: COMPONENT_MUT(Color, .InOut),
     _positions: COMPONENT_MUT(Position, .InOut),
+    _aabbs: COMPONENT_MUT(AABB, .InOut),
     _shapes: COMPONENT_MUT(AnchorShape, .InOut),
     _joint_params: COMPONENT_MUT(AnchoraJointParams, .InOut),
 ) void {
@@ -896,6 +897,7 @@ pub fn draw_editor_anchor(
     const body_ids = _body_ids.get();
     const colors = _colors.get_mut();
     const positions = _positions.get_mut();
+    const aabbs = _aabbs.get_mut();
     const shapes = _shapes.get_mut();
     const joint_params = _joint_params.get_mut();
 
@@ -923,6 +925,7 @@ pub fn draw_editor_anchor(
         if (e == selected) {
             const color = &colors[i];
             const position = &positions[i];
+            const aabb = &aabbs[i];
             const shape = &shapes[i];
             const joint_param = &joint_params[i];
             const body_id = &body_ids[i];
@@ -954,6 +957,8 @@ pub fn draw_editor_anchor(
                 if (LocalCtx.editor_radius.draw("radius")) {
                     if (LocalCtx.editor_radius.get_value()) |v| {
                         shape.radius = v;
+                        const new_aabb = AABB.new_square(v);
+                        aabb.* = new_aabb;
                     }
                 }
 

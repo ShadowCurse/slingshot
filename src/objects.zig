@@ -602,16 +602,7 @@ pub fn create_anchor(
 
     _ = flecs.set(ecs_world, n, AnchoraJointParams, anchor_joint_params);
 
-    const aabb = AABB.from_b2(b2.b2AABB{
-        .lowerBound = (Vector2{
-            .x = -params.radius,
-            .y = -params.radius,
-        }).to_b2(),
-        .upperBound = (Vector2{
-            .x = params.radius,
-            .y = params.radius,
-        }).to_b2(),
-    });
+    const aabb = AABB.new_square(params.radius);
     _ = flecs.set(ecs_world, n, AABB, aabb);
 
     _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
