@@ -67,7 +67,6 @@ pub const LevelObject = struct {
 pub const LevelMetadata = struct {
     name: [:0]const u8,
     path: []const u8,
-    finished: bool,
     best_time: ?f32,
     locked: bool,
     unlocks: [][:0]const u8,
@@ -84,7 +83,6 @@ pub const LevelMetadata = struct {
         return .{
             .name = name,
             .path = path,
-            .finished = self.finished,
             .best_time = self.best_time,
             .locked = self.locked,
             .unlocks = unlocks,

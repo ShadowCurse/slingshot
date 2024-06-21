@@ -3,7 +3,6 @@
         {
             "name": "Totorial: detach",
             "path": "resources/levels/tutorial_detach.json",
-            "finished": false,
             "best_time": null,
             "locked": false,
             "unlocks": [
@@ -13,9 +12,8 @@
         {
             "name": "Totorial: drag",
             "path": "resources/levels/tutorial_drag.json",
-            "finished": false,
             "best_time": null,
-            "locked": false,
+            "locked": true,
             "unlocks": [
                 "Totorial: sling"
             ]
@@ -23,9 +21,8 @@
         {
             "name": "Totorial: sling",
             "path": "resources/levels/tutorial_sling.json",
-            "finished": false,
             "best_time": null,
-            "locked": false,
+            "locked": true,
             "unlocks": [
                 "Level 1"
             ]
@@ -33,9 +30,8 @@
         {
             "name": "Level 1",
             "path": "resources/levels/level_1.json",
-            "finished": false,
             "best_time": null,
-            "locked": false,
+            "locked": true,
             "unlocks": []
         }
     ]
