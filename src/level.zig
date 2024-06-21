@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
 const rl = @import("deps/raylib.zig");
 const b2 = @import("deps/box2d.zig");
@@ -60,13 +59,6 @@ const Allocator = std.mem.Allocator;
 pub const DEFAULT_LEVELS_METADATA_PATH = "resources/levels_meta.json";
 pub const DEFAULT_LEVELS_PATH = "resources/levels";
 pub const DEFAULT_SAVE_PATH = "resources/levels/save.json";
-
-pub const EMSCRIPTEN_LEVEL_NAMES = [_][]const u8{
-    "level_1.json",
-    "tutorial_detach.json",
-    "tutorial_drag.json",
-    "tutorial_sling.json",
-};
 
 pub const LevelObject = struct {
     destruction_order: usize,
