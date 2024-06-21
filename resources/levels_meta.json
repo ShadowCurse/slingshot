@@ -6,7 +6,9 @@
             "finished": false,
             "best_time": null,
             "locked": false,
-            "unlocks": ["Totorial: drag"]
+            "unlocks": [
+                "Totorial: drag"
+            ]
         },
         {
             "name": "Totorial: drag",
@@ -14,7 +16,9 @@
             "finished": false,
             "best_time": null,
             "locked": false,
-            "unlocks": ["Totorial: sling"]
+            "unlocks": [
+                "Totorial: sling"
+            ]
         },
         {
             "name": "Totorial: sling",
@@ -22,7 +26,9 @@
             "finished": false,
             "best_time": null,
             "locked": false,
-            "unlocks": ["Level 1"]
+            "unlocks": [
+                "Level 1"
+            ]
         },
         {
             "name": "Level 1",
