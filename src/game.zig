@@ -328,6 +328,10 @@ pub fn check_win_contidion(
                 } else {
                     current_level.best_time = timer.time;
                 }
+                levels.save() catch {
+                    state_stack.push_state(.Exit);
+                    return;
+                };
             }
         }
     }

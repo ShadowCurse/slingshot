@@ -182,6 +182,20 @@ pub const Levels = struct {
         }
     }
 
+    pub fn save(self: *const Self) !void {
+        const save_state = LevelMetadataSave{
+            .metas = self.levels_metadata.items,
+        };
+
+        var file = try std.fs.cwd().openFile(DEFAULT_LEVELS_METADATA_PATH, .{ .mode = .write_only });
+        defer file.close();
+
+        const options = std.json.StringifyOptions{
+            .whitespace = .indent_4,
+        };
+        try std.json.stringify(save_state, options, file.writer());
+    }
+
     pub fn active_level(self: *const Self) ?*LevelMetadata {
         if (self.active != -1) {
             const i: usize = @intCast(self.active);
