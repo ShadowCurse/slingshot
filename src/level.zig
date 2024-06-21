@@ -70,16 +70,16 @@ pub const LevelMetadata = struct {
     finished: bool,
     best_time: ?f32,
     locked: bool,
-    unlocks: [][]const u8,
+    unlocks: [][:0]const u8,
 
     const Self = @This();
 
     pub fn clone(self: *const Self, allocator: Allocator) !Self {
         const name = try allocator.dupeZ(u8, self.name);
         const path = try allocator.dupe(u8, self.path);
-        const unlocks = try allocator.dupe([]const u8, self.unlocks);
+        const unlocks = try allocator.dupe([:0]const u8, self.unlocks);
         for (unlocks, self.unlocks) |*u, su| {
-            u.* = try allocator.dupe(u8, su);
+            u.* = try allocator.dupeZ(u8, su);
         }
         return .{
             .name = name,
@@ -203,6 +203,17 @@ pub const Levels = struct {
             return &self.levels_metadata.items[level_idx];
         } else {
             return null;
+        }
+    }
+
+    pub fn finish_active_level(self: *Self) void {
+        const al = self.active_level().?;
+        for (al.unlocks) |level_to_unlock| {
+            for (self.levels_metadata.items) |*meta| {
+                if (std.mem.eql(u8, meta.name, level_to_unlock)) {
+                    meta.locked = false;
+                }
+            }
         }
     }
 };
