@@ -10,6 +10,7 @@ const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 
 const __game = @import("game.zig");
 const LevelTimer = __game.LevelTimer;
+const MousePosition = __game.MousePosition;
 const GameCamera = __game.GameCamera;
 const GameStateStack = __game.GameStateStack;
 
@@ -36,6 +37,11 @@ pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
 pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
 pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
 
+const UiTextSize = enum {
+    Default,
+    Big,
+};
+
 const UiStyle = struct {
     font: rl.Font,
     font_default_size: f32 = 20.0,
@@ -43,15 +49,109 @@ const UiStyle = struct {
     font_big_size: f32 = 50.0,
     font_big_spacing: f32 = 2.0,
 
+    button_text_color_defaul: rl.Color = rl.WHITE,
+    button_text_color_hovered: rl.Color = rl.RED,
+    button_text_color_disabled: rl.Color = rl.BLUE,
+
     color_white: rl.Color = rl.WHITE,
+
+    const Self = @This();
+
+    fn text_params(self: *const Self, text_size: UiTextSize) struct { size: f32, spacing: f32 } {
+        return switch (text_size) {
+            .Default => .{ .size = self.font_default_size, .spacing = self.font_default_spacing },
+            .Big => .{ .size = self.font_big_size, .spacing = self.font_big_spacing },
+        };
+    }
+
+    fn text_width(self: *const Self, text: []const u8, text_size: UiTextSize) f32 {
+        const parms = self.text_params(text_size);
+        const scale_factor = parms.size / @as(f32, @floatFromInt(self.font.baseSize));
+        var width: f32 = 0;
+        var i: i32 = 0;
+        var codepoint_size: i32 = 0;
+        while (i < text.len) : (i += codepoint_size) {
+            const index: usize = @intCast(i);
+            const codepoint = rl.GetCodepointNext(&text[index], &codepoint_size);
+            const codepoint_index: usize = @intCast(rl.GetGlyphIndex(self.font, codepoint));
+            const glyph_widht = if (self.font.glyphs[codepoint_index].advanceX == 0) blk: {
+                break :blk self.font.recs[codepoint_index].width * scale_factor;
+            } else blk: {
+                break :blk @as(f32, @floatFromInt(self.font.glyphs[codepoint_index].advanceX)) * scale_factor;
+            };
+            width += (glyph_widht + parms.spacing);
+        }
+        return width;
+    }
+};
+
+const UiButton = struct {
+    position: Vector2,
+    size: Vector2,
+    text: []const u8,
+    disabled: bool,
+
+    const Self = @This();
+
+    fn is_hovered(self: *const Self, mouse_pos: Vector2) bool {
+        const left = self.position.x - self.size.x / 2.0;
+        const right = self.position.x + self.size.x / 2.0;
+        const top = -self.position.y + self.size.y / 2.0;
+        const bottom = -self.position.y - self.size.y / 2.0;
+        return left < mouse_pos.x and mouse_pos.x < right and bottom < mouse_pos.y and mouse_pos.y < top;
+    }
+
+    fn is_clicked(self: *const Self, mouse_pos: Vector2) bool {
+        return self.is_hovered(mouse_pos) and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT);
+    }
+
+    fn draw(self: *const Self, mouse_pos: Vector2, style: *const UiStyle, text_size: UiTextSize) void {
+        const color = if (self.disabled) blk: {
+            break :blk style.button_text_color_disabled;
+        } else if (self.is_hovered(mouse_pos)) blk: {
+            break :blk style.button_text_color_hovered;
+        } else blk: {
+            break :blk style.button_text_color_defaul;
+        };
+
+        const rect_pos = (Vector2{
+            .x = self.position.x - self.size.x / 2.0,
+            .y = self.position.y - self.size.y / 2.0,
+        }).to_rl();
+        const rect_size = self.size.to_rl();
+        rl.DrawRectangleV(
+            rect_pos,
+            rect_size,
+            rl.BLANK,
+        );
+
+        const text_width = style.text_width(self.text, .Default);
+        const text_parms = style.text_params(text_size);
+        const text_pos = (Vector2{
+            .x = self.position.x - text_width / 2.0,
+            .y = self.position.y - text_parms.size / 2.0,
+        }).to_rl();
+        rl.DrawTextEx(
+            style.font,
+            self.text.ptr,
+            text_pos,
+            text_parms.size,
+            text_parms.spacing,
+            color,
+        );
+    }
 };
 
 fn draw_main_menu(
     _settings: SINGLETON(Settings),
+    _ui_style: SINGLETON(UiStyle),
+    _mouse_pos: SINGLETON(MousePosition),
     _levels: SINGLETON_MUT(Levels),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const settings = _settings.get();
+    const ui_style = _ui_style.get();
+    const mouse_pos = _mouse_pos.get();
     const levels = _levels.get_mut();
     const state_stack = _state_stack.get_mut();
 
@@ -59,17 +159,24 @@ fn draw_main_menu(
         return;
     }
 
-    var rectangle = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT,
+    var position = Vector2{
+        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
     };
-    const start_button = rl.GuiButton(
-        rectangle,
-        "Start",
-    );
-    if (start_button != 0) {
+
+    const size = Vector2{
+        .x = UI_ELEMENT_WIDTH,
+        .y = UI_ELEMENT_HEIGHT,
+    };
+
+    const select_level_button = UiButton{
+        .position = position,
+        .size = size,
+        .text = "Select level",
+        .disabled = false,
+    };
+    select_level_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (select_level_button.is_clicked(mouse_pos.screen_position)) {
         levels.reload() catch {
             state_stack.push_state(.Exit);
             return;
@@ -77,21 +184,27 @@ fn draw_main_menu(
         state_stack.push_state(.LevelSelection);
     }
 
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const settings_button = rl.GuiButton(
-        rectangle,
-        "Settings",
-    );
-    if (settings_button != 0) {
+    position.y += UI_ELEMENT_HEIGHT;
+    const settings_button = UiButton{
+        .position = position,
+        .size = size,
+        .text = "Settings",
+        .disabled = false,
+    };
+    settings_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (settings_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.push_state(.Settings);
     }
 
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const exit_button = rl.GuiButton(
-        rectangle,
-        "Exit",
-    );
-    if (exit_button != 0) {
+    position.y += UI_ELEMENT_HEIGHT;
+    const exit_button = UiButton{
+        .position = position,
+        .size = size,
+        .text = "Exit",
+        .disabled = false,
+    };
+    exit_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (exit_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.push_state(.Exit);
     }
 }
@@ -434,7 +547,8 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
     flecs.COMPONENT(world, UiStyle);
 
-    const font = rl.GetFontDefault();
+    // const font = rl.GetFontDefault();
+    const font = rl.LoadFont("resources/font.ttf");
     const style = UiStyle{
         .font = font,
     };
