@@ -36,6 +36,16 @@ pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
 pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
 pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
 
+const UiStyle = struct {
+    font: rl.Font,
+    font_default_size: f32 = 20.0,
+    font_default_spacing: f32 = 1.0,
+    font_big_size: f32 = 50.0,
+    font_big_spacing: f32 = 2.0,
+
+    color_white: rl.Color = rl.WHITE,
+};
+
 fn draw_main_menu(
     _settings: SINGLETON(Settings),
     _levels: SINGLETON_MUT(Levels),
@@ -149,35 +159,37 @@ fn draw_level_selection(
 
 fn draw_timer(
     _timer: SINGLETON(LevelTimer),
+    _ui_style: SINGLETON(UiStyle),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const timer = _timer.get();
+    const ui_style = _ui_style.get();
     const state_stack = _state_stack.get_mut();
 
     if (state_stack.current_state() != .Running) {
         return;
     }
 
-    const font = rl.GetFontDefault();
-
     var buf: [16:0]u8 = undefined;
     const s = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
 
     rl.DrawTextEx(
-        font,
+        ui_style.font,
         s.ptr,
         UI_TIMER_POSITION.to_rl(),
-        UI_LEVEL_FONT_SIZE,
-        UI_LEVEL_FONT_SPACING,
-        UI_LEVEL_FONT_COLOR,
+        ui_style.font_big_size,
+        ui_style.font_big_spacing,
+        ui_style.color_white,
     );
 }
 
 fn draw_current_level_info(
     _levels: SINGLETON(Levels),
+    _ui_style: SINGLETON(UiStyle),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const levels = _levels.get();
+    const ui_style = _ui_style.get();
     const state_stack = _state_stack.get_mut();
 
     if (state_stack.current_state() != .Running) {
@@ -185,18 +197,16 @@ fn draw_current_level_info(
     }
 
     const current_level = levels.active_level().?;
-    const font = rl.GetFontDefault();
-
     {
         var buf: [64:0]u8 = undefined;
         const s = std.fmt.bufPrintZ(&buf, "Level: {s}", .{current_level.name}) catch unreachable;
         rl.DrawTextEx(
-            font,
+            ui_style.font,
             s.ptr,
             UI_LEVEL_NAME_POSITION.to_rl(),
-            UI_LEVEL_FONT_SIZE,
-            UI_LEVEL_FONT_SPACING,
-            UI_LEVEL_FONT_COLOR,
+            ui_style.font_big_size,
+            ui_style.font_big_spacing,
+            ui_style.color_white,
         );
     }
 
@@ -208,12 +218,12 @@ fn draw_current_level_info(
             break :blk "Best: ---";
         };
         rl.DrawTextEx(
-            font,
+            ui_style.font,
             s.ptr,
             UI_BEST_TIME_POSITION.to_rl(),
-            UI_LEVEL_FONT_SIZE,
-            UI_LEVEL_FONT_SPACING,
-            UI_LEVEL_FONT_COLOR,
+            ui_style.font_big_size,
+            ui_style.font_big_spacing,
+            ui_style.color_white,
         );
     }
 }
@@ -341,12 +351,14 @@ pub fn draw_paused(
 
 fn draw_win(
     _timer: SINGLETON(LevelTimer),
+    _ui_style: SINGLETON(UiStyle),
     _levels: SINGLETON(Levels),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const timer = _timer.get();
+    const ui_style = _ui_style.get();
     const levels = _levels.get();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
@@ -357,7 +369,6 @@ fn draw_win(
     }
 
     const current_level = levels.active_level().?;
-    const font = rl.GetFontDefault();
 
     var rect = rl.Rectangle{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
@@ -372,12 +383,12 @@ fn draw_win(
         var buf: [16:0]u8 = undefined;
         const s = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{best_time}) catch unreachable;
         rl.DrawTextEx(
-            font,
+            ui_style.font,
             s.ptr,
             positin.to_rl(),
-            UI_LEVEL_FONT_SIZE,
-            UI_LEVEL_FONT_SPACING,
-            UI_LEVEL_FONT_COLOR,
+            ui_style.font_big_size,
+            ui_style.font_big_spacing,
+            ui_style.color_white,
         );
     }
     {
@@ -386,12 +397,12 @@ fn draw_win(
         var buf: [16:0]u8 = undefined;
         const s = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{current_time}) catch unreachable;
         rl.DrawTextEx(
-            font,
+            ui_style.font,
             s.ptr,
             positin.to_rl(),
-            UI_LEVEL_FONT_SIZE,
-            UI_LEVEL_FONT_SPACING,
-            UI_LEVEL_FONT_COLOR,
+            ui_style.font_big_size,
+            ui_style.font_big_spacing,
+            ui_style.color_white,
         );
     }
 
@@ -419,8 +430,16 @@ fn draw_win(
 }
 
 pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
-    _ = world;
     _ = allocator;
+
+    flecs.COMPONENT(world, UiStyle);
+
+    const font = rl.GetFontDefault();
+    const style = UiStyle{
+        .font = font,
+    };
+
+    _ = flecs.singleton_set(world, UiStyle, style);
 }
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
