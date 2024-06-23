@@ -30,9 +30,6 @@ const Vector2 = @import("vector.zig");
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
 
-pub const UI_LEVEL_FONT_SIZE = 50.0;
-pub const UI_LEVEL_FONT_SPACING = 2.0;
-pub const UI_LEVEL_FONT_COLOR = rl.WHITE;
 pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
 pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
 pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
@@ -211,12 +208,16 @@ fn draw_main_menu(
 
 fn draw_level_selection(
     _settings: SINGLETON(Settings),
+    _ui_style: SINGLETON(UiStyle),
+    _mouse_pos: SINGLETON(MousePosition),
     _levels: SINGLETON_MUT(Levels),
     _level_state: SINGLETON_MUT(LevelState),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _editor_state: SINGLETON_MUT(EditorState),
 ) void {
     const settings = _settings.get();
+    const ui_style = _ui_style.get();
+    const mouse_pos = _mouse_pos.get();
     const levels = _levels.get_mut();
     const level_state = _level_state.get_mut();
     const state_stack = _state_stack.get_mut();
@@ -226,13 +227,12 @@ fn draw_level_selection(
         return;
     }
 
-    var rectangle = rl.Rectangle{
+    const rectangle = rl.Rectangle{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
         .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
         .width = UI_ELEMENT_WIDTH,
         .height = UI_ELEMENT_HEIGHT * 2.0,
     };
-
     _ = rl.GuiListViewEx(
         rectangle,
         @ptrCast(levels.unlocked_names.items.ptr),
@@ -242,13 +242,24 @@ fn draw_level_selection(
         &levels.focus,
     );
 
-    rectangle.y += UI_ELEMENT_HEIGHT * 3.0;
-    rectangle.height = UI_ELEMENT_HEIGHT;
-    const load = rl.GuiButton(
-        rectangle,
-        "Load",
-    );
-    if (load != 0) {
+    var position = Vector2{
+        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
+    };
+
+    const size = Vector2{
+        .x = UI_ELEMENT_WIDTH,
+        .y = UI_ELEMENT_HEIGHT,
+    };
+
+    const load_button = UiButton{
+        .position = position,
+        .size = size,
+        .text = "Load",
+        .disabled = false,
+    };
+    load_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (load_button.is_clicked(mouse_pos.screen_position)) {
         if (levels.active_level()) |level_metadata| {
             const level_path = level_metadata.path;
             level_state.load_path = level_path;
@@ -260,12 +271,15 @@ fn draw_level_selection(
         }
     }
 
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const main_menu = rl.GuiButton(
-        rectangle,
-        "Main menu",
-    );
-    if (main_menu != 0) {
+    position.y += UI_ELEMENT_HEIGHT;
+    const back_button = UiButton{
+        .position = position,
+        .size = size,
+        .text = "Back",
+        .disabled = false,
+    };
+    back_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (back_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.pop_state();
     }
 }
