@@ -114,6 +114,41 @@ const UiBox = struct {
     }
 };
 
+const UiText = struct {
+    box: UiBox,
+    text: []const u8,
+
+    const Self = @This();
+
+    fn draw(self: *const Self, style: *const UiStyle, text_size: UiTextSize) void {
+        const rect_pos = (Vector2{
+            .x = self.box.position.x - self.box.size.x / 2.0,
+            .y = self.box.position.y - self.box.size.y / 2.0,
+        }).to_rl();
+        const rect_size = self.box.size.to_rl();
+        rl.DrawRectangleV(
+            rect_pos,
+            rect_size,
+            rl.BLANK,
+        );
+
+        const text_width = style.text_width(self.text, .Default);
+        const text_parms = style.text_params(text_size);
+        const text_pos = (Vector2{
+            .x = self.box.position.x - text_width / 2.0,
+            .y = self.box.position.y - text_parms.size / 2.0,
+        }).to_rl();
+        rl.DrawTextEx(
+            style.font,
+            self.text.ptr,
+            text_pos,
+            text_parms.size,
+            text_parms.spacing,
+            style.color_default,
+        );
+    }
+};
+
 const UiButton = struct {
     box: UiBox,
     text: []const u8,
@@ -221,36 +256,6 @@ const UiButton = struct {
                 rl.DrawTriangle(v1, v2, v3, color);
             },
         }
-    }
-
-    fn draw_text(self: *const Self, style: *const UiStyle, text_size: UiTextSize) void {
-        const color = style.color_default;
-
-        const rect_pos = (Vector2{
-            .x = self.box.position.x - self.box.size.x / 2.0,
-            .y = self.box.position.y - self.box.size.y / 2.0,
-        }).to_rl();
-        const rect_size = self.box.size.to_rl();
-        rl.DrawRectangleV(
-            rect_pos,
-            rect_size,
-            rl.BLANK,
-        );
-
-        const text_width = style.text_width(self.text, .Default);
-        const text_parms = style.text_params(text_size);
-        const text_pos = (Vector2{
-            .x = self.box.position.x - text_width / 2.0,
-            .y = self.box.position.y - text_parms.size / 2.0,
-        }).to_rl();
-        rl.DrawTextEx(
-            style.font,
-            self.text.ptr,
-            text_pos,
-            text_parms.size,
-            text_parms.spacing,
-            color,
-        );
     }
 };
 
@@ -558,7 +563,7 @@ fn draw_settings(
         return;
     }
 
-    const resolution_text = UiButton{
+    const resolution_text = UiText{
         .box = .{
             .position = Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
@@ -571,7 +576,7 @@ fn draw_settings(
         },
         .text = "Resolution",
     };
-    resolution_text.draw_text(ui_style, .Default);
+    resolution_text.draw(ui_style, .Default);
 
     const resolution_prev = UiButton{
         .box = .{
@@ -591,7 +596,7 @@ fn draw_settings(
         settings.prev_resolution();
     }
 
-    const resolution_value_text = UiButton{
+    const resolution_value_text = UiText{
         .box = .{
             .position = Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE + UI_ELEMENT_WIDTH / 2.0,
@@ -604,7 +609,7 @@ fn draw_settings(
         },
         .text = Settings.RESOLUTIONS_STRINGS[settings.selected_resolution],
     };
-    resolution_value_text.draw_text(ui_style, .Default);
+    resolution_value_text.draw(ui_style, .Default);
 
     const resolution_next = UiButton{
         .box = .{
@@ -624,7 +629,7 @@ fn draw_settings(
         settings.next_resolution();
     }
 
-    const fullscreen_text = UiButton{
+    const fullscreen_text = UiText{
         .box = .{
             .position = Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
@@ -637,7 +642,7 @@ fn draw_settings(
         },
         .text = "Fullscreen",
     };
-    fullscreen_text.draw_text(ui_style, .Default);
+    fullscreen_text.draw(ui_style, .Default);
 
     const fullscreen_toggle = UiToggle{
         .box = .{
@@ -657,7 +662,7 @@ fn draw_settings(
         settings.is_fullscreen = !settings.is_fullscreen;
     }
 
-    const borderless_text = UiButton{
+    const borderless_text = UiText{
         .box = .{
             .position = Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
@@ -670,7 +675,7 @@ fn draw_settings(
         },
         .text = "Borderless",
     };
-    borderless_text.draw_text(ui_style, .Default);
+    borderless_text.draw(ui_style, .Default);
 
     const borderless_toggle = UiToggle{
         .box = .{
