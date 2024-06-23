@@ -57,6 +57,10 @@ const UiStyle = struct {
     color_hovered: rl.Color = rl.RED,
     color_active: rl.Color = rl.GREEN,
 
+    debug: bool = false,
+    color_background_default: rl.Color = rl.BLANK,
+    color_background_debug: rl.Color = rl.BROWN,
+
     toggle_border_size: f32 = 5.0,
     toggle_rondness: f32 = 0.1,
     toggle_segments: i32 = 10.0,
@@ -129,7 +133,7 @@ const UiText = struct {
         rl.DrawRectangleV(
             rect_pos,
             rect_size,
-            rl.BLANK,
+            if (style.debug) style.color_background_debug else style.color_background_default,
         );
 
         const text_width = style.text_width(self.text, .Default);
@@ -178,7 +182,7 @@ const UiButton = struct {
         rl.DrawRectangleV(
             rect_pos,
             rect_size,
-            rl.BLANK,
+            if (style.debug) style.color_background_debug else style.color_background_default,
         );
 
         const text_width = style.text_width(self.text, .Default);
@@ -231,7 +235,7 @@ const UiArrow = struct {
         rl.DrawRectangleV(
             rect_pos,
             rect_size,
-            rl.BLANK,
+            if (style.debug) style.color_background_debug else style.color_background_default,
         );
 
         const sin_30 = 0.5;
