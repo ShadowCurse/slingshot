@@ -53,14 +53,10 @@ const UiStyle = struct {
     font_big_size: f32 = 50.0,
     font_big_spacing: f32 = 2.0,
 
-    button_text_color_defaul: rl.Color = rl.WHITE,
-    button_text_color_hovered: rl.Color = rl.RED,
-    button_text_color_disabled: rl.Color = rl.BLUE,
+    color_default: rl.Color = rl.WHITE,
+    color_hovered: rl.Color = rl.RED,
+    color_active: rl.Color = rl.GREEN,
 
-    toggle_color_defaul: rl.Color = rl.WHITE,
-    toggle_color_toggled: rl.Color = rl.GREEN,
-    toggle_color_hovered: rl.Color = rl.RED,
-    toggle_color_disabled: rl.Color = rl.BLUE,
     toggle_border_size: f32 = 5.0,
     toggle_rondness: f32 = 0.1,
     toggle_segments: i32 = 10.0,
@@ -120,12 +116,10 @@ const UiButton = struct {
     }
 
     fn draw(self: *const Self, mouse_pos: Vector2, style: *const UiStyle, text_size: UiTextSize) void {
-        const color = if (self.disabled) blk: {
-            break :blk style.button_text_color_disabled;
-        } else if (self.is_hovered(mouse_pos)) blk: {
-            break :blk style.button_text_color_hovered;
+        const color = if (self.is_hovered(mouse_pos)) blk: {
+            break :blk style.color_hovered;
         } else blk: {
-            break :blk style.button_text_color_defaul;
+            break :blk style.color_default;
         };
 
         const rect_pos = (Vector2{
@@ -161,12 +155,10 @@ const UiButton = struct {
         style: *const UiStyle,
         arrow_direction: UiArrowDirection,
     ) void {
-        const color = if (self.disabled) blk: {
-            break :blk style.button_text_color_disabled;
-        } else if (self.is_hovered(mouse_pos)) blk: {
-            break :blk style.button_text_color_hovered;
+        const color = if (self.is_hovered(mouse_pos)) blk: {
+            break :blk style.color_hovered;
         } else blk: {
-            break :blk style.button_text_color_defaul;
+            break :blk style.color_default;
         };
 
         const rect_pos = (Vector2{
@@ -219,7 +211,7 @@ const UiButton = struct {
     }
 
     fn draw_text(self: *const Self, style: *const UiStyle, text_size: UiTextSize) void {
-        const color = style.button_text_color_defaul;
+        const color = style.color_default;
 
         const rect_pos = (Vector2{
             .x = self.position.x - self.size.x / 2.0,
@@ -270,14 +262,12 @@ const UiToggle = struct {
     }
 
     fn draw(self: *const Self, mouse_pos: Vector2, style: *const UiStyle) void {
-        const color = if (self.disabled) blk: {
-            break :blk style.toggle_color_disabled;
-        } else if (self.is_hovered(mouse_pos)) blk: {
-            break :blk style.toggle_color_hovered;
+        const color = if (self.is_hovered(mouse_pos)) blk: {
+            break :blk style.color_hovered;
         } else if (self.toggled) blk: {
-            break :blk style.toggle_color_toggled;
+            break :blk style.color_active;
         } else blk: {
-            break :blk style.toggle_color_defaul;
+            break :blk style.color_default;
         };
 
         // Outer rect
