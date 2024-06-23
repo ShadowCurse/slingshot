@@ -196,8 +196,22 @@ const UiButton = struct {
             color,
         );
     }
+};
 
-    fn draw_arrow(
+const UiArrow = struct {
+    box: UiBox,
+
+    const Self = @This();
+
+    fn is_hovered(self: *const Self, mouse_pos: Vector2) bool {
+        return self.box.is_hovered(mouse_pos);
+    }
+
+    fn is_clicked(self: *const Self, mouse_pos: Vector2) bool {
+        return self.box.is_clicked(mouse_pos);
+    }
+
+    fn draw(
         self: *const Self,
         mouse_pos: Vector2,
         style: *const UiStyle,
@@ -578,7 +592,7 @@ fn draw_settings(
     };
     resolution_text.draw(ui_style, .Default);
 
-    const resolution_prev = UiButton{
+    const resolution_prev = UiArrow{
         .box = .{
             .position = Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE / 2.0,
@@ -589,9 +603,8 @@ fn draw_settings(
                 .y = UI_ARROW_SIZE,
             },
         },
-        .text = "",
     };
-    resolution_prev.draw_arrow(mouse_pos.screen_position, ui_style, .Left);
+    resolution_prev.draw(mouse_pos.screen_position, ui_style, .Left);
     if (resolution_prev.is_clicked(mouse_pos.screen_position)) {
         settings.prev_resolution();
     }
@@ -611,7 +624,7 @@ fn draw_settings(
     };
     resolution_value_text.draw(ui_style, .Default);
 
-    const resolution_next = UiButton{
+    const resolution_next = UiArrow{
         .box = .{
             .position = Vector2{
                 .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE + UI_ELEMENT_WIDTH,
@@ -622,9 +635,8 @@ fn draw_settings(
                 .y = UI_ARROW_SIZE,
             },
         },
-        .text = "",
     };
-    resolution_next.draw_arrow(mouse_pos.screen_position, ui_style, .Right);
+    resolution_next.draw(mouse_pos.screen_position, ui_style, .Right);
     if (resolution_next.is_clicked(mouse_pos.screen_position)) {
         settings.next_resolution();
     }
