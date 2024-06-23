@@ -86,8 +86,8 @@ pub const Settings = struct {
                 .y = @as(f32, @floatFromInt(self.resolution_height)) / 2.0,
             },
             .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-            .rotation = 0.0,
-            .zoom = 1.0,
+            .rotation = camera.camera.rotation,
+            .zoom = camera.camera.zoom,
         };
         camera.camera = c;
         rl.SetWindowSize(
