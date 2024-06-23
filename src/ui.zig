@@ -547,7 +547,6 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
     flecs.COMPONENT(world, UiStyle);
 
-    // const font = rl.GetFontDefault();
     const font = rl.LoadFont("resources/font.ttf");
     const style = UiStyle{
         .font = font,
