@@ -29,6 +29,8 @@ const Vector2 = @import("vector.zig");
 
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
+pub const UI_TOGGLE_SIZE = 50.0;
+pub const UI_ARROW_SIZE = 20.0;
 
 pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
 pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
@@ -37,6 +39,11 @@ pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
 const UiTextSize = enum {
     Default,
     Big,
+};
+
+const UiArrowDirection = enum {
+    Left,
+    Right,
 };
 
 const UiStyle = struct {
@@ -49,6 +56,16 @@ const UiStyle = struct {
     button_text_color_defaul: rl.Color = rl.WHITE,
     button_text_color_hovered: rl.Color = rl.RED,
     button_text_color_disabled: rl.Color = rl.BLUE,
+
+    toggle_color_defaul: rl.Color = rl.WHITE,
+    toggle_color_toggled: rl.Color = rl.GREEN,
+    toggle_color_hovered: rl.Color = rl.RED,
+    toggle_color_disabled: rl.Color = rl.BLUE,
+    toggle_border_size: f32 = 5.0,
+    toggle_rondness: f32 = 0.1,
+    toggle_segments: i32 = 10.0,
+
+    arrow_size: f32 = 15.0,
 
     color_white: rl.Color = rl.WHITE,
 
@@ -136,6 +153,173 @@ const UiButton = struct {
             text_parms.spacing,
             color,
         );
+    }
+
+    fn draw_arrow(
+        self: *const Self,
+        mouse_pos: Vector2,
+        style: *const UiStyle,
+        arrow_direction: UiArrowDirection,
+    ) void {
+        const color = if (self.disabled) blk: {
+            break :blk style.button_text_color_disabled;
+        } else if (self.is_hovered(mouse_pos)) blk: {
+            break :blk style.button_text_color_hovered;
+        } else blk: {
+            break :blk style.button_text_color_defaul;
+        };
+
+        const rect_pos = (Vector2{
+            .x = self.position.x - self.size.x / 2.0,
+            .y = self.position.y - self.size.y / 2.0,
+        }).to_rl();
+        const rect_size = self.size.to_rl();
+        rl.DrawRectangleV(
+            rect_pos,
+            rect_size,
+            rl.BLANK,
+        );
+
+        const sin_30 = 0.5;
+        const cos_30 = std.math.sqrt(3.0) / 2.0;
+        const dx = style.arrow_size * sin_30;
+        const dy = style.arrow_size * cos_30;
+        switch (arrow_direction) {
+            .Left => {
+                const v1 = (Vector2{
+                    .x = self.position.x - style.arrow_size,
+                    .y = self.position.y,
+                }).to_rl();
+                const v2 = (Vector2{
+                    .x = self.position.x + dx,
+                    .y = self.position.y + dy,
+                }).to_rl();
+                const v3 = (Vector2{
+                    .x = self.position.x + dx,
+                    .y = self.position.y - dy,
+                }).to_rl();
+                rl.DrawTriangle(v1, v2, v3, color);
+            },
+            .Right => {
+                const v1 = (Vector2{
+                    .x = self.position.x + style.arrow_size,
+                    .y = self.position.y,
+                }).to_rl();
+                const v2 = (Vector2{
+                    .x = self.position.x - dx,
+                    .y = self.position.y - dy,
+                }).to_rl();
+                const v3 = (Vector2{
+                    .x = self.position.x - dx,
+                    .y = self.position.y + dy,
+                }).to_rl();
+                rl.DrawTriangle(v1, v2, v3, color);
+            },
+        }
+    }
+
+    fn draw_text(self: *const Self, style: *const UiStyle, text_size: UiTextSize) void {
+        const color = style.button_text_color_defaul;
+
+        const rect_pos = (Vector2{
+            .x = self.position.x - self.size.x / 2.0,
+            .y = self.position.y - self.size.y / 2.0,
+        }).to_rl();
+        const rect_size = self.size.to_rl();
+        rl.DrawRectangleV(
+            rect_pos,
+            rect_size,
+            rl.BLANK,
+        );
+
+        const text_width = style.text_width(self.text, .Default);
+        const text_parms = style.text_params(text_size);
+        const text_pos = (Vector2{
+            .x = self.position.x - text_width / 2.0,
+            .y = self.position.y - text_parms.size / 2.0,
+        }).to_rl();
+        rl.DrawTextEx(
+            style.font,
+            self.text.ptr,
+            text_pos,
+            text_parms.size,
+            text_parms.spacing,
+            color,
+        );
+    }
+};
+
+const UiToggle = struct {
+    position: Vector2,
+    size: Vector2,
+    toggled: bool,
+    disabled: bool,
+
+    const Self = @This();
+
+    fn is_hovered(self: *const Self, mouse_pos: Vector2) bool {
+        const left = self.position.x - self.size.x / 2.0;
+        const right = self.position.x + self.size.x / 2.0;
+        const top = -self.position.y + self.size.y / 2.0;
+        const bottom = -self.position.y - self.size.y / 2.0;
+        return left < mouse_pos.x and mouse_pos.x < right and bottom < mouse_pos.y and mouse_pos.y < top;
+    }
+
+    fn is_clicked(self: *const Self, mouse_pos: Vector2) bool {
+        return self.is_hovered(mouse_pos) and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT);
+    }
+
+    fn draw(self: *const Self, mouse_pos: Vector2, style: *const UiStyle) void {
+        const color = if (self.disabled) blk: {
+            break :blk style.toggle_color_disabled;
+        } else if (self.is_hovered(mouse_pos)) blk: {
+            break :blk style.toggle_color_hovered;
+        } else if (self.toggled) blk: {
+            break :blk style.toggle_color_toggled;
+        } else blk: {
+            break :blk style.toggle_color_defaul;
+        };
+
+        // Outer rect
+        rl.DrawRectangleRounded(
+            rl.Rectangle{
+                .x = self.position.x - self.size.x / 2.0,
+                .y = self.position.y - self.size.y / 2.0,
+                .width = self.size.x,
+                .height = self.size.y,
+            },
+            style.toggle_rondness,
+            style.toggle_segments,
+            color,
+        );
+
+        // Inner rect background
+        rl.DrawRectangleRounded(
+            rl.Rectangle{
+                .x = self.position.x - self.size.x / 2.0 + style.toggle_border_size,
+                .y = self.position.y - self.size.y / 2.0 + style.toggle_border_size,
+                .width = self.size.x - style.toggle_border_size * 2.0,
+                .height = self.size.y - style.toggle_border_size * 2.0,
+            },
+            style.toggle_rondness,
+            style.toggle_segments,
+            rl.BLACK,
+        );
+
+        // Inner rect foreground
+        if (self.toggled) {
+            rl.DrawRectangleRounded(
+                rl.Rectangle{
+                    .x = self.position.x - self.size.x / 2.0 + style.toggle_border_size * 2.0,
+                    .y = self.position.y - self.size.y / 2.0 + style.toggle_border_size * 2.0,
+                    .width = self.size.x - style.toggle_border_size * 4.0,
+                    .height = self.size.y - style.toggle_border_size * 4.0,
+                },
+                style.toggle_rondness,
+                style.toggle_segments,
+                color,
+            );
+        }
     }
 };
 
@@ -356,10 +540,14 @@ fn draw_current_level_info(
 }
 
 fn draw_settings(
+    _ui_style: SINGLETON(UiStyle),
+    _mouse_pos: SINGLETON(MousePosition),
     _camera: SINGLETON_MUT(GameCamera),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
+    const ui_style = _ui_style.get();
+    const mouse_pos = _mouse_pos.get();
     const camera = _camera.get_mut();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
@@ -368,42 +556,144 @@ fn draw_settings(
         return;
     }
 
-    var rectangle = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT,
+    const resolution_text = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+        },
+        .size = Vector2{
+            .x = UI_ELEMENT_WIDTH,
+            .y = UI_ELEMENT_HEIGHT,
+        },
+        .text = "Resolution",
+        .disabled = false,
     };
-    _ = rl.GuiToggle(rectangle, "Fullscreen", &settings.is_fullscreen);
+    resolution_text.draw_text(ui_style, .Default);
 
-    rectangle.x += UI_ELEMENT_WIDTH;
-    _ = rl.GuiToggle(rectangle, "Borderless", &settings.is_borderless);
-
-    rectangle.x -= UI_ELEMENT_WIDTH;
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    _ = rl.GuiLabel(
-        rectangle,
-        "Resolution",
-    );
-
-    rectangle.x += UI_ELEMENT_WIDTH;
-    const r = rl.GuiDropdownBox(
-        rectangle,
-        Settings.RESOLUTIONS_STR,
-        &settings.selected_resolution,
-        settings.select_resolution_active,
-    );
-    if (r == 1) {
-        settings.select_resolution_active = !settings.select_resolution_active;
+    const resolution_prev = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+        },
+        .size = Vector2{
+            .x = UI_ARROW_SIZE,
+            .y = UI_ARROW_SIZE,
+        },
+        .text = "",
+        .disabled = false,
+    };
+    resolution_prev.draw_arrow(mouse_pos.screen_position, ui_style, .Left);
+    if (resolution_prev.is_clicked(mouse_pos.screen_position)) {
+        settings.prev_resolution();
     }
 
-    rectangle.x -= UI_ELEMENT_WIDTH / 2.0;
-    rectangle.y += UI_ELEMENT_HEIGHT * 2.5;
-    const apply_button = rl.GuiButton(
-        rectangle,
-        "Apply",
-    );
-    if (apply_button != 0) {
+    const resolution_value_text = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE + UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+        },
+        .size = Vector2{
+            .x = UI_ELEMENT_WIDTH,
+            .y = UI_ELEMENT_HEIGHT,
+        },
+        .text = Settings.RESOLUTIONS_STRINGS[settings.selected_resolution],
+        .disabled = false,
+    };
+    resolution_value_text.draw_text(ui_style, .Default);
+
+    const resolution_next = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE + UI_ELEMENT_WIDTH,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+        },
+        .size = Vector2{
+            .x = UI_ARROW_SIZE,
+            .y = UI_ARROW_SIZE,
+        },
+        .text = "",
+        .disabled = false,
+    };
+    resolution_next.draw_arrow(mouse_pos.screen_position, ui_style, .Right);
+    if (resolution_next.is_clicked(mouse_pos.screen_position)) {
+        settings.next_resolution();
+    }
+
+    const fullscreen_text = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT / 2.0 + 10.0,
+        },
+        .size = Vector2{
+            .x = UI_ELEMENT_WIDTH,
+            .y = UI_ELEMENT_HEIGHT,
+        },
+        .text = "Fullscreen",
+        .disabled = false,
+    };
+    fullscreen_text.draw_text(ui_style, .Default);
+
+    const fullscreen_toggle = UiToggle{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT / 2.0 + 10.0,
+        },
+        .size = Vector2{
+            .x = UI_TOGGLE_SIZE,
+            .y = UI_TOGGLE_SIZE,
+        },
+        .toggled = settings.is_fullscreen,
+        .disabled = false,
+    };
+    fullscreen_toggle.draw(mouse_pos.screen_position, ui_style);
+    if (fullscreen_toggle.is_clicked(mouse_pos.screen_position)) {
+        settings.is_fullscreen = !settings.is_fullscreen;
+    }
+
+    const borderless_text = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
+        },
+        .size = Vector2{
+            .x = UI_ELEMENT_WIDTH,
+            .y = UI_ELEMENT_HEIGHT,
+        },
+        .text = "Borderless",
+        .disabled = false,
+    };
+    borderless_text.draw_text(ui_style, .Default);
+
+    const borderless_toggle = UiToggle{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ELEMENT_WIDTH / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
+        },
+        .size = Vector2{
+            .x = UI_TOGGLE_SIZE,
+            .y = UI_TOGGLE_SIZE,
+        },
+        .toggled = settings.is_borderless,
+        .disabled = false,
+    };
+    borderless_toggle.draw(mouse_pos.screen_position, ui_style);
+    if (borderless_toggle.is_clicked(mouse_pos.screen_position)) {
+        settings.is_borderless = !settings.is_borderless;
+    }
+
+    const apply_button = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 3.0,
+        },
+        .size = Vector2{
+            .x = UI_ELEMENT_WIDTH,
+            .y = UI_ELEMENT_HEIGHT,
+        },
+        .text = "Apply",
+        .disabled = false,
+    };
+    apply_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (apply_button.is_clicked(mouse_pos.screen_position)) {
         if (settings.fullscreen != settings.is_fullscreen) {
             settings.toggle_fullscreen();
         } else if (settings.borderless != settings.is_borderless) {
@@ -417,12 +707,20 @@ fn draw_settings(
         };
     }
 
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const back_button = rl.GuiButton(
-        rectangle,
-        "Back",
-    );
-    if (back_button != 0) {
+    const back_button = UiButton{
+        .position = Vector2{
+            .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 4.0,
+        },
+        .size = Vector2{
+            .x = UI_ELEMENT_WIDTH,
+            .y = UI_ELEMENT_HEIGHT,
+        },
+        .text = "Back",
+        .disabled = false,
+    };
+    back_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (back_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.pop_state();
     }
 }

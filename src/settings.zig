@@ -27,17 +27,17 @@ pub const Settings = struct {
         .{ 1920, 1080 },
         .{ 2560, 1440 },
     };
-    pub const RESOLUTIONS_STR: [:0]const u8 = std.fmt.comptimePrint("{};{};{};{}", .{
-        RESOLUTIONS[0],
-        RESOLUTIONS[1],
-        RESOLUTIONS[2],
-        RESOLUTIONS[3],
-    });
+    pub const RESOLUTIONS_STRINGS = [_][:0]const u8{
+        std.fmt.comptimePrint("{}x{}", .{ RESOLUTIONS[0][0], RESOLUTIONS[0][1] }),
+        std.fmt.comptimePrint("{}x{}", .{ RESOLUTIONS[1][0], RESOLUTIONS[1][1] }),
+        std.fmt.comptimePrint("{}x{}", .{ RESOLUTIONS[2][0], RESOLUTIONS[2][1] }),
+        std.fmt.comptimePrint("{}x{}", .{ RESOLUTIONS[3][0], RESOLUTIONS[3][1] }),
+    };
 
     const Self = @This();
 
     // UI state
-    selected_resolution: i32 = 0,
+    selected_resolution: usize = 0,
     select_resolution_active: bool = false,
     is_fullscreen: bool = false,
     is_borderless: bool = false,
@@ -47,10 +47,22 @@ pub const Settings = struct {
     fullscreen: bool = false,
     borderless: bool = false,
 
+    pub fn next_resolution(self: *Self) void {
+        self.selected_resolution += 1;
+        self.selected_resolution = self.selected_resolution % Self.RESOLUTIONS_STRINGS.len;
+    }
+
+    pub fn prev_resolution(self: *Self) void {
+        if (self.selected_resolution == 0) {
+            self.selected_resolution = Self.RESOLUTIONS_STRINGS.len - 1;
+        } else {
+            self.selected_resolution -= 1;
+        }
+    }
+
     pub fn use_selected_resolution(self: *Self) void {
-        const selected_resolution: usize = @intCast(self.selected_resolution);
-        self.resolution_width = Self.RESOLUTIONS[selected_resolution][0];
-        self.resolution_height = Self.RESOLUTIONS[selected_resolution][1];
+        self.resolution_width = Self.RESOLUTIONS[self.selected_resolution][0];
+        self.resolution_height = Self.RESOLUTIONS[self.selected_resolution][1];
     }
 
     pub fn toggle_fullscreen(self: *Self) void {
