@@ -844,6 +844,7 @@ pub fn draw_paused(
 fn draw_win(
     _timer: SINGLETON(LevelTimer),
     _ui_style: SINGLETON(UiStyle),
+    _mouse_pos: SINGLETON(MousePosition),
     _levels: SINGLETON(Levels),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
@@ -851,6 +852,7 @@ fn draw_win(
 ) void {
     const timer = _timer.get();
     const ui_style = _ui_style.get();
+    const mouse_pos = _mouse_pos.get();
     const levels = _levels.get();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
@@ -862,58 +864,77 @@ fn draw_win(
 
     const current_level = levels.active_level().?;
 
-    var rect = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT,
+    {
+        var buf: [16:0]u8 = undefined;
+        const best_time = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{current_level.best_time.?}) catch unreachable;
+        const best_time_text = UiText{
+            .box = .{
+                .position = Vector2{
+                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
+                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = best_time,
+        };
+        best_time_text.draw(ui_style, .Default);
+    }
+    {
+        var buf: [16:0]u8 = undefined;
+        const current_time = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
+        const best_time_text = UiText{
+            .box = .{
+                .position = Vector2{
+                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ELEMENT_WIDTH / 2.0,
+                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = current_time,
+        };
+        best_time_text.draw(ui_style, .Default);
+    }
+
+    const restart_button = UiButton{
+        .box = .{
+            .position = Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
+            },
+            .size = Vector2{
+                .x = UI_ELEMENT_WIDTH,
+                .y = UI_ELEMENT_HEIGHT,
+            },
+        },
+        .text = "Restart",
     };
-
-    {
-        const positin = Vector2{ .x = rect.x - UI_ELEMENT_WIDTH / 2.0, .y = rect.y };
-        const best_time = current_level.best_time.?;
-        var buf: [16:0]u8 = undefined;
-        const s = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{best_time}) catch unreachable;
-        rl.DrawTextEx(
-            ui_style.font,
-            s.ptr,
-            positin.to_rl(),
-            ui_style.font_big_size,
-            ui_style.font_big_spacing,
-            ui_style.color_white,
-        );
-    }
-    {
-        const positin = Vector2{ .x = rect.x + UI_ELEMENT_WIDTH / 2.0, .y = rect.y };
-        const current_time = timer.time;
-        var buf: [16:0]u8 = undefined;
-        const s = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{current_time}) catch unreachable;
-        rl.DrawTextEx(
-            ui_style.font,
-            s.ptr,
-            positin.to_rl(),
-            ui_style.font_big_size,
-            ui_style.font_big_spacing,
-            ui_style.color_white,
-        );
-    }
-
-    rect.y += UI_ELEMENT_WIDTH / 2.0;
-    const restart_button = rl.GuiButton(
-        rect,
-        "Restart",
-    );
-    if (restart_button != 0) {
+    restart_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (restart_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.pop_state();
         level_state.need_to_restart = true;
     }
 
-    rect.y += UI_ELEMENT_HEIGHT;
-    const win_button = rl.GuiButton(
-        rect,
-        "Main menu",
-    );
-    if (win_button != 0) {
+    const main_menu_button = UiButton{
+        .box = .{
+            .position = Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT * 2.0,
+            },
+            .size = Vector2{
+                .x = UI_ELEMENT_WIDTH,
+                .y = UI_ELEMENT_HEIGHT,
+            },
+        },
+        .text = "Main Menu",
+    };
+    main_menu_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (main_menu_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.pop_state();
         state_stack.pop_state();
         state_stack.pop_state();
