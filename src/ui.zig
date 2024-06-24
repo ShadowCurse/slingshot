@@ -767,10 +767,14 @@ fn draw_settings(
 }
 
 pub fn draw_paused(
+    _ui_style: SINGLETON(UiStyle),
+    _mouse_pos: SINGLETON(MousePosition),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
+    const ui_style = _ui_style.get();
+    const mouse_pos = _mouse_pos.get();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
@@ -779,35 +783,57 @@ pub fn draw_paused(
         return;
     }
 
-    var rectangle = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT / 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT,
+    const resume_button = UiButton{
+        .box = .{
+            .position = Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
+            },
+            .size = Vector2{
+                .x = UI_ELEMENT_WIDTH,
+                .y = UI_ELEMENT_HEIGHT,
+            },
+        },
+        .text = "Resume",
     };
-    const resume_button = rl.GuiButton(
-        rectangle,
-        "Resume",
-    );
-    if (resume_button != 0) {
+    resume_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (resume_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.pop_state();
     }
 
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const settings_button = rl.GuiButton(
-        rectangle,
-        "Settings",
-    );
-    if (settings_button != 0) {
+    const settings_button = UiButton{
+        .box = .{
+            .position = Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
+            },
+            .size = Vector2{
+                .x = UI_ELEMENT_WIDTH,
+                .y = UI_ELEMENT_HEIGHT,
+            },
+        },
+        .text = "Settings",
+    };
+    settings_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (settings_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.push_state(.Settings);
     }
 
-    rectangle.y += UI_ELEMENT_HEIGHT;
-    const main_menu_button = rl.GuiButton(
-        rectangle,
-        "Main menu",
-    );
-    if (main_menu_button != 0) {
+    const main_menu_button = UiButton{
+        .box = .{
+            .position = Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT * 2.0,
+            },
+            .size = Vector2{
+                .x = UI_ELEMENT_WIDTH,
+                .y = UI_ELEMENT_HEIGHT,
+            },
+        },
+        .text = "Main menu",
+    };
+    main_menu_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (main_menu_button.is_clicked(mouse_pos.screen_position)) {
         state_stack.pop_state();
         state_stack.pop_state();
         state_stack.pop_state();
