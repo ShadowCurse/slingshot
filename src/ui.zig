@@ -50,8 +50,8 @@ const UiStyle = struct {
     font: rl.Font,
     font_default_size: f32 = 20.0,
     font_default_spacing: f32 = 1.0,
-    font_big_size: f32 = 50.0,
-    font_big_spacing: f32 = 2.0,
+    font_big_size: f32 = 25.0,
+    font_big_spacing: f32 = 1.0,
 
     color_default: rl.Color = rl.WHITE,
     color_hovered: rl.Color = rl.RED,
@@ -493,37 +493,13 @@ fn draw_level_selection(
     }
 }
 
-fn draw_timer(
-    _timer: SINGLETON(LevelTimer),
-    _ui_style: SINGLETON(UiStyle),
-    _state_stack: SINGLETON_MUT(GameStateStack),
-) void {
-    const timer = _timer.get();
-    const ui_style = _ui_style.get();
-    const state_stack = _state_stack.get_mut();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
-
-    var buf: [16:0]u8 = undefined;
-    const s = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
-
-    rl.DrawTextEx(
-        ui_style.font,
-        s.ptr,
-        UI_TIMER_POSITION.to_rl(),
-        ui_style.font_big_size,
-        ui_style.font_big_spacing,
-        ui_style.color_white,
-    );
-}
-
 fn draw_current_level_info(
+    _timer: SINGLETON(LevelTimer),
     _levels: SINGLETON(Levels),
     _ui_style: SINGLETON(UiStyle),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
+    const timer = _timer.get();
     const levels = _levels.get();
     const ui_style = _ui_style.get();
     const state_stack = _state_stack.get_mut();
@@ -534,33 +510,65 @@ fn draw_current_level_info(
 
     const current_level = levels.active_level().?;
     {
-        var buf: [64:0]u8 = undefined;
-        const s = std.fmt.bufPrintZ(&buf, "Level: {s}", .{current_level.name}) catch unreachable;
-        rl.DrawTextEx(
-            ui_style.font,
-            s.ptr,
-            UI_LEVEL_NAME_POSITION.to_rl(),
-            ui_style.font_big_size,
-            ui_style.font_big_spacing,
-            ui_style.color_white,
-        );
+        const text_width = ui_style.text_width(current_level.name, .Default);
+        const level_name_text = UiText{
+            .box = .{
+                .position = Vector2{
+                    .x = 10.0 + text_width / 2.0,
+                    .y = 40.0,
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = current_level.name,
+        };
+        level_name_text.draw(ui_style, .Big);
     }
-
     {
         var buf: [16:0]u8 = undefined;
-        const s = if (current_level.best_time) |bt| blk: {
+        const current_time = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
+        const text_width = ui_style.text_width(current_time, .Default);
+
+        const timer_text = UiText{
+            .box = .{
+                .position = Vector2{
+                    .x = 10.0 + text_width / 2.0,
+                    .y = 40.0 + UI_ELEMENT_HEIGHT / 2.0,
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = current_time,
+        };
+        timer_text.draw(ui_style, .Big);
+    }
+    {
+        var buf: [16:0]u8 = undefined;
+        const best_time = if (current_level.best_time) |bt| blk: {
             break :blk std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{bt}) catch unreachable;
         } else blk: {
             break :blk "Best: ---";
         };
-        rl.DrawTextEx(
-            ui_style.font,
-            s.ptr,
-            UI_BEST_TIME_POSITION.to_rl(),
-            ui_style.font_big_size,
-            ui_style.font_big_spacing,
-            ui_style.color_white,
-        );
+        const text_width = ui_style.text_width(best_time, .Default);
+
+        const timer_text = UiText{
+            .box = .{
+                .position = Vector2{
+                    .x = 10.0 + text_width / 2.0,
+                    .y = 40.0 + UI_ELEMENT_HEIGHT,
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = best_time,
+        };
+        timer_text.draw(ui_style, .Big);
     }
 }
 
@@ -904,7 +912,6 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
     flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
     flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
-    flecs.ADD_SYSTEM(world, "draw_timer", flecs.PreStore, draw_timer);
     flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
     flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
     flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
