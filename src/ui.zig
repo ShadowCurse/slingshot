@@ -156,6 +156,7 @@ const UiText = struct {
 const UiButton = struct {
     box: UiBox,
     text: []const u8,
+    active: bool = false,
 
     const Self = @This();
 
@@ -170,6 +171,8 @@ const UiButton = struct {
     fn draw(self: *const Self, mouse_pos: Vector2, style: *const UiStyle, text_size: UiTextSize) void {
         const color = if (self.is_hovered(mouse_pos)) blk: {
             break :blk style.color_hovered;
+        } else if (self.active) blk: {
+            break :blk style.color_active;
         } else blk: {
             break :blk style.color_default;
         };
@@ -434,20 +437,30 @@ fn draw_level_selection(
         return;
     }
 
-    const rectangle = rl.Rectangle{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * 2.0,
-        .width = UI_ELEMENT_WIDTH,
-        .height = UI_ELEMENT_HEIGHT * 2.0,
-    };
-    _ = rl.GuiListViewEx(
-        rectangle,
-        @ptrCast(levels.unlocked_names.items.ptr),
-        @intCast(levels.unlocked_names.items.len),
-        &levels.scroll_index,
-        &levels.active,
-        &levels.focus,
-    );
+    for (levels.levels_metadata.items, 0..) |metadata, i| {
+        if (metadata.locked) {
+            continue;
+        }
+        const name = metadata.name;
+        const level_button = UiButton{
+            .box = .{
+                .position = Vector2{
+                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = name,
+            .active = levels.active == i,
+        };
+        level_button.draw(mouse_pos.screen_position, ui_style, .Default);
+        if (level_button.is_clicked(mouse_pos.screen_position)) {
+            levels.active = i;
+        }
+    }
 
     var position = Vector2{
         .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,

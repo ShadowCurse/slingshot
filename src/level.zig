@@ -117,25 +117,18 @@ pub const LevelState = struct {
 pub const Levels = struct {
     allocator: Allocator,
     levels_metadata: std.ArrayList(LevelMetadata),
-    unlocked_idx: std.ArrayList(usize),
-    unlocked_names: std.ArrayList(*const u8),
 
     scroll_index: i32 = 0,
-    active: i32 = 0,
-    focus: i32 = 0,
+    active: ?usize = null,
 
     const Self = @This();
 
     pub fn init(allocator: Allocator) !Self {
         const levels_metadata = std.ArrayList(LevelMetadata).init(allocator);
-        const unlocked_idx = std.ArrayList(usize).init(allocator);
-        const unlocked_names = std.ArrayList(*const u8).init(allocator);
 
         return Self{
             .allocator = allocator,
             .levels_metadata = levels_metadata,
-            .unlocked_idx = unlocked_idx,
-            .unlocked_names = unlocked_names,
         };
     }
 
@@ -144,8 +137,6 @@ pub const Levels = struct {
             m.deinit(self.allocator);
         }
         self.levels_metadata.deinit();
-        self.unlocked_idx.deinit();
-        self.unlocked_names.deinit();
     }
 
     pub fn reload(self: *Self) !void {
@@ -169,15 +160,6 @@ pub const Levels = struct {
         for (self.levels_metadata.items, data.metas) |*i, *m| {
             i.* = try m.clone(self.allocator);
         }
-
-        self.unlocked_idx.clearRetainingCapacity();
-        self.unlocked_names.clearRetainingCapacity();
-        for (self.levels_metadata.items, 0..) |m, i| {
-            if (!m.locked) {
-                try self.unlocked_idx.append(i);
-                try self.unlocked_names.append(@ptrCast(m.name.ptr));
-            }
-        }
     }
 
     pub fn save(self: *const Self) !void {
@@ -195,10 +177,8 @@ pub const Levels = struct {
     }
 
     pub fn active_level(self: *const Self) ?*LevelMetadata {
-        if (self.active != -1) {
-            const i: usize = @intCast(self.active);
-            const level_idx = self.unlocked_idx.items[i];
-            return &self.levels_metadata.items[level_idx];
+        if (self.active) |a| {
+            return &self.levels_metadata.items[a];
         } else {
             return null;
         }
