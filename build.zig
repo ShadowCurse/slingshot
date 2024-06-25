@@ -61,7 +61,7 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
         .{
-            .raygui = true,
+            .raygui = false,
             .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
@@ -71,7 +71,7 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
         .{
-            .raygui = true,
+            .raygui = false,
             .linux_display_backend = raylib_build.LinuxDisplayBackend.X11,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
@@ -229,7 +229,6 @@ pub fn build(b: *std.Build) void {
         lib.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
         lib.addIncludePath(.{ .path = "cimgui" });
         lib.addIncludePath(.{ .path = "raylib/src" });
-        lib.addIncludePath(.{ .path = "raygui/src" });
         lib.addIncludePath(.{ .path = "rlImGui" });
         lib.addIncludePath(.{ .path = "box2c/include" });
         lib.addIncludePath(.{ .path = "flecs/include" });
@@ -246,7 +245,6 @@ pub fn build(b: *std.Build) void {
             c.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
             c.addIncludePath(.{ .path = "cimgui" });
             c.addIncludePath(.{ .path = "raylib/src" });
-            c.addIncludePath(.{ .path = "raygui/src" });
             c.addIncludePath(.{ .path = "rlImGui" });
             c.addIncludePath(.{ .path = "box2c/include" });
             c.addIncludePath(.{ .path = "flecs/include" });

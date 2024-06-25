@@ -164,7 +164,6 @@ fn initial_setup(settings: *const Settings) void {
         "Slingshot",
     );
     rl.SetExitKey(rl.KEY_NULL);
-    rl.GuiLoadStyleDefault();
     rl.SetTargetFPS(TARGET_FPS);
     imgui.rlImGuiSetup(true);
 }

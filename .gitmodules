@@ -1,9 +1,6 @@
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/raysan5/raylib
-[submodule "raygui"]
-	path = raygui
-	url = https://github.com/raysan5/raygui
 [submodule "flecs"]
 	path = flecs
 	url = https://github.com/SanderMertens/flecs
