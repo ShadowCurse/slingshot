@@ -454,11 +454,11 @@ fn draw_level_selection(
                 },
             },
             .text = name,
-            .active = levels.active == i,
+            .active = levels.active_level == i,
         };
         level_button.draw(mouse_pos.screen_position, ui_style, .Default);
         if (level_button.is_clicked(mouse_pos.screen_position)) {
-            levels.active = i;
+            levels.active_level = i;
         }
     }
 
@@ -481,7 +481,7 @@ fn draw_level_selection(
     };
     load_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (load_button.is_clicked(mouse_pos.screen_position)) {
-        if (levels.active_level()) |level_metadata| {
+        if (levels.active_level_metadata()) |level_metadata| {
             const level_path = level_metadata.path;
             level_state.load_path = level_path;
             // Editor needs to have it's own copy
@@ -521,7 +521,7 @@ fn draw_current_level_info(
         return;
     }
 
-    const current_level = levels.active_level().?;
+    const current_level = levels.active_level_metadata().?;
     {
         const text_width = ui_style.text_width(current_level.name, .Default);
         const level_name_text = UiText{
@@ -875,7 +875,7 @@ fn draw_win(
         return;
     }
 
-    const current_level = levels.active_level().?;
+    const current_level = levels.active_level_metadata().?;
 
     {
         var buf: [16:0]u8 = undefined;

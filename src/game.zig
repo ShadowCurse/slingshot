@@ -316,7 +316,7 @@ pub fn check_win_contidion(
         return;
     }
 
-    const current_level = levels.active_level().?;
+    const current_level = levels.active_level_metadata().?;
 
     for (shapes) |shape| {
         for (sensor_events.begin_events) |be| {

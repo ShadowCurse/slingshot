@@ -146,7 +146,7 @@ pub const LevelState = struct {
 pub const Levels = struct {
     allocator: Allocator,
     level_groups: std.ArrayList(LevelGroup),
-    active: ?usize = null,
+    active_level: ?usize = null,
 
     const Self = @This();
 
@@ -203,8 +203,8 @@ pub const Levels = struct {
         try std.json.stringify(save_state, options, file.writer());
     }
 
-    pub fn active_level(self: *const Self) ?*LevelMetadata {
-        if (self.active) |a| {
+    pub fn active_level_metadata(self: *const Self) ?*LevelMetadata {
+        if (self.active_level) |a| {
             return &self.level_groups.items[0].levels[a];
         } else {
             return null;
