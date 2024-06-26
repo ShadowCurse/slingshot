@@ -437,7 +437,7 @@ fn draw_level_selection(
         return;
     }
 
-    for (levels.levels_metadata.items, 0..) |metadata, i| {
+    for (levels.level_groups.items[0].levels, 0..) |metadata, i| {
         if (metadata.locked) {
             continue;
         }

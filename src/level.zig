@@ -56,7 +56,7 @@ const Settings = @import("settings.zig").Settings;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
-pub const DEFAULT_LEVELS_METADATA_PATH = "resources/levels_meta.json";
+pub const DEFAULT_LEVEL_GROUPS_PATH = "resources/level_groups.json";
 pub const DEFAULT_LEVELS_PATH = "resources/levels";
 pub const DEFAULT_SAVE_PATH = "resources/levels/save.json";
 
@@ -99,8 +99,37 @@ pub const LevelMetadata = struct {
     }
 };
 
-pub const LevelMetadataSave = struct {
-    metas: []LevelMetadata,
+pub const LevelGroup = struct {
+    name: [:0]const u8,
+    locked: bool,
+    levels: []LevelMetadata,
+
+    const Self = @This();
+
+    pub fn clone(self: *const Self, allocator: Allocator) !Self {
+        const name = try allocator.dupeZ(u8, self.name);
+        const levels = try allocator.alloc(LevelMetadata, self.levels.len);
+        for (self.levels, levels) |*sl, *l| {
+            l.* = try sl.clone(allocator);
+        }
+        return .{
+            .name = name,
+            .locked = self.locked,
+            .levels = levels,
+        };
+    }
+
+    pub fn deinit(self: *const Self, allocator: Allocator) void {
+        allocator.free(self.name);
+        for (self.levels) |*level| {
+            level.deinit(allocator);
+        }
+        allocator.free(self.levels);
+    }
+};
+
+pub const LevelGroupsSave = struct {
+    groups: []LevelGroup,
 };
 
 pub const LevelSave = struct {
@@ -116,7 +145,8 @@ pub const LevelState = struct {
 
 pub const Levels = struct {
     allocator: Allocator,
-    levels_metadata: std.ArrayList(LevelMetadata),
+    // levels_metadata: std.ArrayList(LevelMetadata),
+    level_groups: std.ArrayList(LevelGroup),
 
     scroll_index: i32 = 0,
     active: ?usize = null,
@@ -124,50 +154,50 @@ pub const Levels = struct {
     const Self = @This();
 
     pub fn init(allocator: Allocator) !Self {
-        const levels_metadata = std.ArrayList(LevelMetadata).init(allocator);
+        const levels_groups = std.ArrayList(LevelGroup).init(allocator);
 
         return Self{
             .allocator = allocator,
-            .levels_metadata = levels_metadata,
+            .level_groups = levels_groups,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.levels_metadata.items) |*m| {
-            m.deinit(self.allocator);
+        for (self.level_groups.items) |*group| {
+            group.deinit(self.allocator);
         }
-        self.levels_metadata.deinit();
+        self.level_groups.deinit();
     }
 
     pub fn reload(self: *Self) !void {
-        var file = try std.fs.cwd().openFile(DEFAULT_LEVELS_METADATA_PATH, .{});
+        var file = try std.fs.cwd().openFile(DEFAULT_LEVEL_GROUPS_PATH, .{});
         defer file.close();
 
         const file_data = try file.readToEndAlloc(self.allocator, 1024 * 1024 * 1024);
         defer self.allocator.free(file_data);
 
-        const level_metadata = try std.json.parseFromSlice(LevelMetadataSave, self.allocator, file_data, .{});
-        defer level_metadata.deinit();
+        const level_groups = try std.json.parseFromSlice(LevelGroupsSave, self.allocator, file_data, .{});
+        defer level_groups.deinit();
 
-        const data = &level_metadata.value;
+        const data = &level_groups.value;
 
-        for (self.levels_metadata.items) |*m| {
-            m.deinit(self.allocator);
+        for (self.level_groups.items) |*group| {
+            group.deinit(self.allocator);
         }
-        self.levels_metadata.clearRetainingCapacity();
-        try self.levels_metadata.resize(data.metas.len);
+        self.level_groups.clearRetainingCapacity();
+        try self.level_groups.resize(data.groups.len);
 
-        for (self.levels_metadata.items, data.metas) |*i, *m| {
-            i.* = try m.clone(self.allocator);
+        for (self.level_groups.items, data.groups) |*i, *g| {
+            i.* = try g.clone(self.allocator);
         }
     }
 
     pub fn save(self: *const Self) !void {
-        const save_state = LevelMetadataSave{
-            .metas = self.levels_metadata.items,
+        const save_state = LevelGroupsSave{
+            .groups = self.level_groups.items,
         };
 
-        var file = try std.fs.cwd().openFile(DEFAULT_LEVELS_METADATA_PATH, .{ .mode = .write_only });
+        var file = try std.fs.cwd().openFile(DEFAULT_LEVEL_GROUPS_PATH, .{ .mode = .write_only });
         defer file.close();
 
         const options = std.json.StringifyOptions{
@@ -178,21 +208,22 @@ pub const Levels = struct {
 
     pub fn active_level(self: *const Self) ?*LevelMetadata {
         if (self.active) |a| {
-            return &self.levels_metadata.items[a];
+            return &self.level_groups.items[0].levels[a];
         } else {
             return null;
         }
     }
 
     pub fn finish_active_level(self: *Self) void {
-        const al = self.active_level().?;
-        for (al.unlocks) |level_to_unlock| {
-            for (self.levels_metadata.items) |*meta| {
-                if (std.mem.eql(u8, meta.name, level_to_unlock)) {
-                    meta.locked = false;
-                }
-            }
-        }
+        _ = self;
+        // const al = self.active_level().?;
+        // for (al.unlocks) |level_to_unlock| {
+        //     for (self.levels_metadata.items) |*meta| {
+        //         if (std.mem.eql(u8, meta.name, level_to_unlock)) {
+        //             meta.locked = false;
+        //         }
+        //     }
+        // }
     }
 };
 
