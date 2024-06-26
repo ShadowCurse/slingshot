@@ -145,10 +145,7 @@ pub const LevelState = struct {
 
 pub const Levels = struct {
     allocator: Allocator,
-    // levels_metadata: std.ArrayList(LevelMetadata),
     level_groups: std.ArrayList(LevelGroup),
-
-    scroll_index: i32 = 0,
     active: ?usize = null,
 
     const Self = @This();
