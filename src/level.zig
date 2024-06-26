@@ -69,33 +69,23 @@ pub const LevelMetadata = struct {
     path: []const u8,
     best_time: ?f32,
     locked: bool,
-    unlocks: [][:0]const u8,
 
     const Self = @This();
 
     pub fn clone(self: *const Self, allocator: Allocator) !Self {
         const name = try allocator.dupeZ(u8, self.name);
         const path = try allocator.dupe(u8, self.path);
-        const unlocks = try allocator.dupe([:0]const u8, self.unlocks);
-        for (unlocks, self.unlocks) |*u, su| {
-            u.* = try allocator.dupeZ(u8, su);
-        }
         return .{
             .name = name,
             .path = path,
             .best_time = self.best_time,
             .locked = self.locked,
-            .unlocks = unlocks,
         };
     }
 
     pub fn deinit(self: *const Self, allocator: Allocator) void {
         allocator.free(self.name);
         allocator.free(self.path);
-        for (self.unlocks) |u| {
-            allocator.free(u);
-        }
-        allocator.free(self.unlocks);
     }
 };
 
