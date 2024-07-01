@@ -474,6 +474,32 @@ fn draw_level_selection(
                 levels.active_level = i;
             }
         }
+
+        const load_button = UiButton{
+            .box = .{
+                .position = Vector2{
+                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
+                },
+                .size = Vector2{
+                    .x = UI_ELEMENT_WIDTH,
+                    .y = UI_ELEMENT_HEIGHT,
+                },
+            },
+            .text = "Load",
+        };
+        load_button.draw(mouse_pos.screen_position, ui_style, .Default);
+        if (load_button.is_clicked(mouse_pos.screen_position)) {
+            if (levels.active_level_metadata()) |level_metadata| {
+                const level_path = level_metadata.path;
+                level_state.load_path = level_path;
+                // Editor needs to have it's own copy
+                @memcpy(
+                    editor_state.level_path[0..level_path.len],
+                    level_path,
+                );
+            }
+        }
     } else {
         for (levels.level_groups.items, 0..) |group, i| {
             if (group.locked) {
@@ -502,41 +528,16 @@ fn draw_level_selection(
         }
     }
 
-    var position = Vector2{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
-    };
-
-    const size = Vector2{
-        .x = UI_ELEMENT_WIDTH,
-        .y = UI_ELEMENT_HEIGHT,
-    };
-
-    const load_button = UiButton{
-        .box = .{
-            .position = position,
-            .size = size,
-        },
-        .text = "Load",
-    };
-    load_button.draw(mouse_pos.screen_position, ui_style, .Default);
-    if (load_button.is_clicked(mouse_pos.screen_position)) {
-        if (levels.active_level_metadata()) |level_metadata| {
-            const level_path = level_metadata.path;
-            level_state.load_path = level_path;
-            // Editor needs to have it's own copy
-            @memcpy(
-                editor_state.level_path[0..level_path.len],
-                level_path,
-            );
-        }
-    }
-
-    position.y += UI_ELEMENT_HEIGHT;
     const back_button = UiButton{
         .box = .{
-            .position = position,
-            .size = size,
+            .position = Vector2{
+                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT * 2.0,
+            },
+            .size = Vector2{
+                .x = UI_ELEMENT_WIDTH,
+                .y = UI_ELEMENT_HEIGHT,
+            },
         },
         .text = "Back",
     };
