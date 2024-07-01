@@ -36,6 +36,9 @@ pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
 pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
 pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
 
+// TODO find a better way
+var BUTTON_PRESSED_THIS_FRAME: bool = false;
+
 const UiTextSize = enum {
     Default,
     Big,
@@ -114,7 +117,12 @@ const UiBox = struct {
     }
 
     fn is_clicked(self: *const Self, mouse_pos: Vector2) bool {
-        return self.is_hovered(mouse_pos) and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT);
+        if (self.is_hovered(mouse_pos) and rl.IsMouseButtonPressed(rl.MOUSE_BUTTON_LEFT) and !BUTTON_PRESSED_THIS_FRAME) {
+            BUTTON_PRESSED_THIS_FRAME = true;
+            return true;
+        } else {
+            return false;
+        }
     }
 };
 
@@ -346,6 +354,10 @@ const UiToggle = struct {
     }
 };
 
+fn reset_button() void {
+    BUTTON_PRESSED_THIS_FRAME = false;
+}
+
 fn draw_main_menu(
     _settings: SINGLETON(Settings),
     _ui_style: SINGLETON(UiStyle),
@@ -437,28 +449,56 @@ fn draw_level_selection(
         return;
     }
 
-    for (levels.level_groups.items[0].levels, 0..) |metadata, i| {
-        if (metadata.locked) {
-            continue;
+    if (levels.active_group) |ag| {
+        for (levels.level_groups.items[ag].levels, 0..) |metadata, i| {
+            if (metadata.locked) {
+                continue;
+            }
+            const name = metadata.name;
+            const level_button = UiButton{
+                .box = .{
+                    .position = Vector2{
+                        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
+                    },
+                    .size = Vector2{
+                        .x = UI_ELEMENT_WIDTH,
+                        .y = UI_ELEMENT_HEIGHT,
+                    },
+                },
+                .text = name,
+                .active = levels.active_level == i,
+            };
+            level_button.draw(mouse_pos.screen_position, ui_style, .Default);
+            if (level_button.is_clicked(mouse_pos.screen_position)) {
+                levels.active_level = i;
+            }
         }
-        const name = metadata.name;
-        const level_button = UiButton{
-            .box = .{
-                .position = Vector2{
-                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
+    } else {
+        for (levels.level_groups.items, 0..) |group, i| {
+            if (group.locked) {
+                continue;
+            }
+            const name = group.name;
+            const group_button = UiButton{
+                .box = .{
+                    .position = Vector2{
+                        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
+                        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
+                    },
+                    .size = Vector2{
+                        .x = UI_ELEMENT_WIDTH,
+                        .y = UI_ELEMENT_HEIGHT,
+                    },
                 },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
-            },
-            .text = name,
-            .active = levels.active_level == i,
-        };
-        level_button.draw(mouse_pos.screen_position, ui_style, .Default);
-        if (level_button.is_clicked(mouse_pos.screen_position)) {
-            levels.active_level = i;
+                .text = name,
+                .active = levels.active_group == i,
+            };
+            group_button.draw(mouse_pos.screen_position, ui_style, .Default);
+            if (group_button.is_clicked(mouse_pos.screen_position)) {
+                std.log.info("group button pressed", .{});
+                levels.active_group = i;
+            }
         }
     }
 
@@ -502,7 +542,11 @@ fn draw_level_selection(
     };
     back_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (back_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.pop_state();
+        if (levels.active_group) |_| {
+            levels.active_group = null;
+        } else {
+            state_stack.pop_state();
+        }
     }
 }
 
@@ -970,10 +1014,11 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
+    flecs.ADD_SYSTEM(world, "reset_button", flecs.PreStore, reset_button);
     flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
     flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
     flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
     flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
     flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
-    flecs.ADD_SYSTEM(world, "t raw_win", flecs.PreStore, draw_win);
+    flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
 }

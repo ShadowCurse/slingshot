@@ -136,6 +136,7 @@ pub const LevelState = struct {
 pub const Levels = struct {
     allocator: Allocator,
     level_groups: std.ArrayList(LevelGroup),
+    active_group: ?usize = null,
     active_level: ?usize = null,
 
     const Self = @This();
