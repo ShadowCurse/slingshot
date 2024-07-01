@@ -195,8 +195,12 @@ pub const Levels = struct {
     }
 
     pub fn active_level_metadata(self: *const Self) ?*LevelMetadata {
-        if (self.active_level) |a| {
-            return &self.level_groups.items[0].levels[a];
+        if (self.active_group) |ag| {
+            if (self.active_level) |al| {
+                return &self.level_groups.items[ag].levels[al];
+            } else {
+                return null;
+            }
         } else {
             return null;
         }
