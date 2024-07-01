@@ -27,8 +27,14 @@ const EditorState = __editor.EditorState;
 
 const Vector2 = @import("vector.zig");
 
+pub const UI_DEFAULT_SCREEN_WIDTH: f32 = 1280.0;
+
 pub const UI_ELEMENT_WIDTH = 300.0;
 pub const UI_ELEMENT_HEIGHT = 100.0;
+pub const UI_ELEMENT_SIZE = Vector2{
+    .x = UI_ELEMENT_WIDTH,
+    .y = UI_ELEMENT_HEIGHT,
+};
 pub const UI_TOGGLE_SIZE = 50.0;
 pub const UI_ARROW_SIZE = 20.0;
 
@@ -50,6 +56,8 @@ const UiArrowDirection = enum {
 };
 
 const UiStyle = struct {
+    scale: f32 = 1.0,
+
     font: rl.Font,
     font_default_size: f32 = 20.0,
     font_default_spacing: f32 = 1.0,
@@ -74,10 +82,21 @@ const UiStyle = struct {
 
     const Self = @This();
 
+    fn update_scale(self: *Self, width: f32) void {
+        self.scale = width / UI_DEFAULT_SCREEN_WIDTH;
+    }
+
+    fn apply_scale(self: *const Self, v: Vector2) Vector2 {
+        return .{
+            .x = v.x * self.scale,
+            .y = v.y * self.scale,
+        };
+    }
+
     fn text_params(self: *const Self, text_size: UiTextSize) struct { size: f32, spacing: f32 } {
         return switch (text_size) {
-            .Default => .{ .size = self.font_default_size, .spacing = self.font_default_spacing },
-            .Big => .{ .size = self.font_big_size, .spacing = self.font_big_spacing },
+            .Default => .{ .size = self.font_default_size * self.scale, .spacing = self.font_default_spacing * self.scale },
+            .Big => .{ .size = self.font_big_size * self.scale, .spacing = self.font_big_spacing * self.scale },
         };
     }
 
@@ -129,8 +148,14 @@ const UiBox = struct {
 const UiText = struct {
     box: UiBox,
     text: []const u8,
+    alignment: Aligment = .Center,
 
     const Self = @This();
+
+    const Aligment = enum {
+        Left,
+        Center,
+    };
 
     fn draw(self: *const Self, style: *const UiStyle, text_size: UiTextSize) void {
         const rect_pos = (Vector2{
@@ -146,10 +171,17 @@ const UiText = struct {
 
         const text_width = style.text_width(self.text, .Default);
         const text_parms = style.text_params(text_size);
-        const text_pos = (Vector2{
-            .x = self.box.position.x - text_width / 2.0,
-            .y = self.box.position.y - text_parms.size / 2.0,
-        }).to_rl();
+        const text_pos = switch (self.alignment) {
+            .Left => (Vector2{
+                .x = self.box.position.x,
+                .y = self.box.position.y,
+            }).to_rl(),
+            .Center => (Vector2{
+                .x = self.box.position.x - text_width / 2.0,
+                .y = self.box.position.y - text_parms.size / 2.0,
+            }).to_rl(),
+        };
+
         rl.DrawTextEx(
             style.font,
             self.text.ptr,
@@ -455,16 +487,16 @@ fn draw_level_selection(
                 continue;
             }
             const name = metadata.name;
+
             const level_button = UiButton{
                 .box = .{
-                    .position = Vector2{
-                        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
-                    },
-                    .size = Vector2{
-                        .x = UI_ELEMENT_WIDTH,
-                        .y = UI_ELEMENT_HEIGHT,
-                    },
+                    .position = settings.screen_center().add(
+                        &ui_style.apply_scale(.{
+                            .x = 0,
+                            .y = -UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
+                        }),
+                    ),
+                    .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
                 },
                 .text = name,
                 .active = levels.active_level == i,
@@ -477,14 +509,13 @@ fn draw_level_selection(
 
         const load_button = UiButton{
             .box = .{
-                .position = Vector2{
-                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
-                },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
+                .position = settings.screen_center().add(
+                    &ui_style.apply_scale(.{
+                        .x = 0,
+                        .y = UI_ELEMENT_HEIGHT,
+                    }),
+                ),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
             .text = "Load",
         };
@@ -508,21 +539,19 @@ fn draw_level_selection(
             const name = group.name;
             const group_button = UiButton{
                 .box = .{
-                    .position = Vector2{
-                        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 - UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
-                    },
-                    .size = Vector2{
-                        .x = UI_ELEMENT_WIDTH,
-                        .y = UI_ELEMENT_HEIGHT,
-                    },
+                    .position = settings.screen_center().add(
+                        &ui_style.apply_scale(.{
+                            .x = 0,
+                            .y = -UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
+                        }),
+                    ),
+                    .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
                 },
                 .text = name,
                 .active = levels.active_group == i,
             };
             group_button.draw(mouse_pos.screen_position, ui_style, .Default);
             if (group_button.is_clicked(mouse_pos.screen_position)) {
-                std.log.info("group button pressed", .{});
                 levels.active_group = i;
             }
         }
@@ -530,14 +559,13 @@ fn draw_level_selection(
 
     const back_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT * 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0,
+                    .y = UI_ELEMENT_HEIGHT * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Back",
     };
@@ -569,39 +597,33 @@ fn draw_current_level_info(
 
     const current_level = levels.active_level_metadata().?;
     {
-        const text_width = ui_style.text_width(current_level.name, .Default);
         const level_name_text = UiText{
             .box = .{
-                .position = Vector2{
-                    .x = 10.0 + text_width / 2.0,
-                    .y = 40.0,
-                },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
+                .position = ui_style.apply_scale(.{
+                    .x = 10.0,
+                    .y = 10.0,
+                }),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
             .text = current_level.name,
+            .alignment = .Left,
         };
         level_name_text.draw(ui_style, .Big);
     }
     {
         var buf: [16:0]u8 = undefined;
         const current_time = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
-        const text_width = ui_style.text_width(current_time, .Default);
 
         const timer_text = UiText{
             .box = .{
-                .position = Vector2{
-                    .x = 10.0 + text_width / 2.0,
-                    .y = 40.0 + UI_ELEMENT_HEIGHT / 2.0,
-                },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
+                .position = ui_style.apply_scale(.{
+                    .x = 10.0,
+                    .y = 10.0 + UI_ELEMENT_HEIGHT / 2.0,
+                }),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
             .text = current_time,
+            .alignment = .Left,
         };
         timer_text.draw(ui_style, .Big);
     }
@@ -612,34 +634,30 @@ fn draw_current_level_info(
         } else blk: {
             break :blk "Best: ---";
         };
-        const text_width = ui_style.text_width(best_time, .Default);
-
         const timer_text = UiText{
             .box = .{
-                .position = Vector2{
-                    .x = 10.0 + text_width / 2.0,
-                    .y = 40.0 + UI_ELEMENT_HEIGHT,
-                },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
+                .position = ui_style.apply_scale(.{
+                    .x = 10.0,
+                    .y = 10.0 + UI_ELEMENT_HEIGHT,
+                }),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
             .text = best_time,
+            .alignment = .Left,
         };
         timer_text.draw(ui_style, .Big);
     }
 }
 
 fn draw_settings(
-    _ui_style: SINGLETON(UiStyle),
     _mouse_pos: SINGLETON(MousePosition),
+    _ui_style: SINGLETON_MUT(UiStyle),
     _camera: SINGLETON_MUT(GameCamera),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
-    const ui_style = _ui_style.get();
     const mouse_pos = _mouse_pos.get();
+    const ui_style = _ui_style.get_mut();
     const camera = _camera.get_mut();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
@@ -650,14 +668,13 @@ fn draw_settings(
 
     const resolution_text = UiText{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = -UI_ELEMENT_WIDTH / 2.0,
+                    .y = 0.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Resolution",
     };
@@ -665,14 +682,16 @@ fn draw_settings(
 
     const resolution_prev = UiArrow{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-            },
-            .size = Vector2{
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = UI_ARROW_SIZE / 2.0,
+                    .y = 0.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(.{
                 .x = UI_ARROW_SIZE,
                 .y = UI_ARROW_SIZE,
-            },
+            }),
         },
     };
     resolution_prev.draw(mouse_pos.screen_position, ui_style, .Left);
@@ -682,14 +701,13 @@ fn draw_settings(
 
     const resolution_value_text = UiText{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE + UI_ELEMENT_WIDTH / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = UI_ARROW_SIZE + UI_ELEMENT_WIDTH / 2.0,
+                    .y = 0.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = Settings.RESOLUTIONS_STRINGS[settings.selected_resolution],
     };
@@ -697,14 +715,16 @@ fn draw_settings(
 
     const resolution_next = UiArrow{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ARROW_SIZE + UI_ELEMENT_WIDTH,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-            },
-            .size = Vector2{
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = UI_ARROW_SIZE + UI_ELEMENT_WIDTH,
+                    .y = 0.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(.{
                 .x = UI_ARROW_SIZE,
                 .y = UI_ARROW_SIZE,
-            },
+            }),
         },
     };
     resolution_next.draw(mouse_pos.screen_position, ui_style, .Right);
@@ -714,14 +734,13 @@ fn draw_settings(
 
     const fullscreen_text = UiText{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT / 2.0 + 10.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = -UI_ELEMENT_WIDTH / 2.0,
+                    .y = UI_ELEMENT_HEIGHT / 2.0 + 10.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Fullscreen",
     };
@@ -729,14 +748,16 @@ fn draw_settings(
 
     const fullscreen_toggle = UiToggle{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ELEMENT_WIDTH / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT / 2.0 + 10.0,
-            },
-            .size = Vector2{
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = UI_ELEMENT_WIDTH / 2.0,
+                    .y = UI_ELEMENT_HEIGHT / 2.0 + 10.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(.{
                 .x = UI_TOGGLE_SIZE,
                 .y = UI_TOGGLE_SIZE,
-            },
+            }),
         },
         .toggled = settings.is_fullscreen,
     };
@@ -747,14 +768,13 @@ fn draw_settings(
 
     const borderless_text = UiText{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = -UI_ELEMENT_WIDTH / 2.0,
+                    .y = (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Borderless",
     };
@@ -762,14 +782,16 @@ fn draw_settings(
 
     const borderless_toggle = UiToggle{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ELEMENT_WIDTH / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
-            },
-            .size = Vector2{
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = UI_ELEMENT_WIDTH / 2.0,
+                    .y = (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(.{
                 .x = UI_TOGGLE_SIZE,
                 .y = UI_TOGGLE_SIZE,
-            },
+            }),
         },
         .toggled = settings.is_borderless,
     };
@@ -780,14 +802,13 @@ fn draw_settings(
 
     const apply_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 3.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0.0,
+                    .y = (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 3.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Apply",
     };
@@ -801,6 +822,7 @@ fn draw_settings(
             settings.use_selected_resolution();
         }
         settings.set_window_size(camera);
+        ui_style.update_scale(@floatFromInt(settings.resolution_width));
         settings.save() catch {
             state_stack.push_state(.Exit);
         };
@@ -808,14 +830,13 @@ fn draw_settings(
 
     const back_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 4.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0.0,
+                    .y = (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 4.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Back",
     };
@@ -844,14 +865,8 @@ pub fn draw_paused(
 
     const resume_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center(),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Resume",
     };
@@ -862,14 +877,13 @@ pub fn draw_paused(
 
     const settings_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0.0,
+                    .y = UI_ELEMENT_HEIGHT,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Settings",
     };
@@ -880,14 +894,13 @@ pub fn draw_paused(
 
     const main_menu_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT * 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0.0,
+                    .y = UI_ELEMENT_HEIGHT * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Main menu",
     };
@@ -928,14 +941,13 @@ fn draw_win(
         const best_time = std.fmt.bufPrintZ(&buf, "Best: {d:.2}", .{current_level.best_time.?}) catch unreachable;
         const best_time_text = UiText{
             .box = .{
-                .position = Vector2{
-                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 - UI_ELEMENT_WIDTH / 2.0,
-                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-                },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
+                .position = settings.screen_center().add(
+                    &ui_style.apply_scale(.{
+                        .x = -UI_ELEMENT_WIDTH / 2.0,
+                        .y = 0.0,
+                    }),
+                ),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
             .text = best_time,
         };
@@ -946,14 +958,13 @@ fn draw_win(
         const current_time = std.fmt.bufPrintZ(&buf, "Current: {d:.2}", .{timer.time}) catch unreachable;
         const best_time_text = UiText{
             .box = .{
-                .position = Vector2{
-                    .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0 + UI_ELEMENT_WIDTH / 2.0,
-                    .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-                },
-                .size = Vector2{
-                    .x = UI_ELEMENT_WIDTH,
-                    .y = UI_ELEMENT_HEIGHT,
-                },
+                .position = settings.screen_center().add(
+                    &ui_style.apply_scale(.{
+                        .x = UI_ELEMENT_WIDTH / 2.0,
+                        .y = 0.0,
+                    }),
+                ),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
             .text = current_time,
         };
@@ -962,14 +973,13 @@ fn draw_win(
 
     const restart_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0.0,
+                    .y = UI_ELEMENT_HEIGHT,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Restart",
     };
@@ -981,14 +991,13 @@ fn draw_win(
 
     const main_menu_button = UiButton{
         .box = .{
-            .position = Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0 + UI_ELEMENT_HEIGHT * 2.0,
-            },
-            .size = Vector2{
-                .x = UI_ELEMENT_WIDTH,
-                .y = UI_ELEMENT_HEIGHT,
-            },
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0.0,
+                    .y = UI_ELEMENT_HEIGHT * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Main Menu",
     };

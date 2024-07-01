@@ -11,6 +11,8 @@ const __ui = @import("ui.zig");
 const UI_ELEMENT_WIDTH = __ui.UI_ELEMENT_WIDTH;
 const UI_ELEMENT_HEIGHT = __ui.UI_ELEMENT_HEIGHT;
 
+const Vector2 = @import("vector.zig");
+
 pub const DEFAULT_SETTINGS_PATH = "resources/settings.json";
 
 pub const SettingsSave = struct {
@@ -109,6 +111,13 @@ pub const Settings = struct {
         // NOTE: this needs a modification to raylib to make this
         // method extern
         rl.SetupViewport(@intCast(self.resolution_width), @intCast(self.resolution_height));
+    }
+
+    pub fn screen_center(self: *const Self) Vector2 {
+        return Vector2{
+            .x = @as(f32, @floatFromInt(self.resolution_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(self.resolution_height)) / 2.0,
+        };
     }
 
     pub fn save(self: *const Self) !void {
