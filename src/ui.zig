@@ -544,6 +544,7 @@ fn draw_level_selection(
     if (back_button.is_clicked(mouse_pos.screen_position)) {
         if (levels.active_group) |_| {
             levels.active_group = null;
+            levels.active_level = null;
         } else {
             state_stack.pop_state();
         }
