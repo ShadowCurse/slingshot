@@ -21,7 +21,13 @@
                     "path": "resources/levels/tutorial_sling.json",
                     "best_time": null,
                     "locked": false
-                },
+                }
+            ]
+        },
+        {
+            "name": "1-1",
+            "locked": false,
+            "levels": [
                 {
                     "name": "Level 1",
                     "path": "resources/levels/level_1.json",
