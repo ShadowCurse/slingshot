@@ -407,25 +407,29 @@ fn draw_main_menu(
         return;
     }
 
-    var position = Vector2{
-        .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-        .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-    };
-
-    const size = Vector2{
-        .x = UI_ELEMENT_WIDTH,
-        .y = UI_ELEMENT_HEIGHT,
-    };
-
-    const select_level_button = UiButton{
+    const title_text = UiText{
         .box = .{
-            .position = position,
-            .size = size,
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = -20.0,
+                    .y = -UI_ELEMENT_HEIGHT * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
-        .text = "Select level",
+        .text = "SLINGSHOT",
     };
-    select_level_button.draw(mouse_pos.screen_position, ui_style, .Default);
-    if (select_level_button.is_clicked(mouse_pos.screen_position)) {
+    title_text.draw(ui_style, .Big);
+
+    const play_button = UiButton{
+        .box = .{
+            .position = settings.screen_center(),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
+        },
+        .text = "Play",
+    };
+    play_button.draw(mouse_pos.screen_position, ui_style, .Default);
+    if (play_button.is_clicked(mouse_pos.screen_position)) {
         levels.reload() catch {
             state_stack.push_state(.Exit);
             return;
@@ -433,11 +437,15 @@ fn draw_main_menu(
         state_stack.push_state(.LevelSelection);
     }
 
-    position.y += UI_ELEMENT_HEIGHT;
     const settings_button = UiButton{
         .box = .{
-            .position = position,
-            .size = size,
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0,
+                    .y = UI_ELEMENT_HEIGHT,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Settings",
     };
@@ -446,11 +454,15 @@ fn draw_main_menu(
         state_stack.push_state(.Settings);
     }
 
-    position.y += UI_ELEMENT_HEIGHT;
     const exit_button = UiButton{
         .box = .{
-            .position = position,
-            .size = size,
+            .position = settings.screen_center().add(
+                &ui_style.apply_scale(.{
+                    .x = 0,
+                    .y = UI_ELEMENT_HEIGHT * 2.0,
+                }),
+            ),
+            .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
         },
         .text = "Exit",
     };
