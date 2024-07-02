@@ -412,7 +412,7 @@ fn draw_main_menu(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = -20.0,
-                    .y = -UI_ELEMENT_HEIGHT * 2.0,
+                    .y = -UI_ELEMENT_HEIGHT * 3.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -494,6 +494,20 @@ fn draw_level_selection(
     }
 
     if (levels.active_group) |ag| {
+        const level_title_text = UiText{
+            .box = .{
+                .position = settings.screen_center().add(
+                    &ui_style.apply_scale(.{
+                        .x = -20.0,
+                        .y = -UI_ELEMENT_HEIGHT * 3.0,
+                    }),
+                ),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
+            },
+            .text = "LEVEL",
+        };
+        level_title_text.draw(ui_style, .Big);
+
         for (levels.level_groups.items[ag].levels, 0..) |metadata, i| {
             if (metadata.locked) {
                 continue;
@@ -504,7 +518,7 @@ fn draw_level_selection(
                 .box = .{
                     .position = settings.screen_center().add(
                         &ui_style.apply_scale(.{
-                            .x = 0,
+                            .x = 0.0,
                             .y = -UI_ELEMENT_HEIGHT * @as(f32, @floatFromInt(i)),
                         }),
                     ),
@@ -544,6 +558,20 @@ fn draw_level_selection(
             }
         }
     } else {
+        const group_title_text = UiText{
+            .box = .{
+                .position = settings.screen_center().add(
+                    &ui_style.apply_scale(.{
+                        .x = -20.0,
+                        .y = -UI_ELEMENT_HEIGHT * 3.0,
+                    }),
+                ),
+                .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
+            },
+            .text = "GROUP",
+        };
+        group_title_text.draw(ui_style, .Big);
+
         for (levels.level_groups.items, 0..) |group, i| {
             if (group.locked) {
                 continue;
