@@ -42,10 +42,6 @@ pub const UI_ARROW_SIZE = Vector2{
     .y = 20.0,
 };
 
-pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
-pub const UI_TIMER_POSITION = Vector2{ .x = 10.0, .y = 70.0 };
-pub const UI_BEST_TIME_POSITION = Vector2{ .x = 10.0, .y = 150.0 };
-
 // TODO find a better way
 var BUTTON_PRESSED_THIS_FRAME: bool = false;
 
