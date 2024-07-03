@@ -35,7 +35,10 @@ pub const UI_ELEMENT_SIZE = Vector2{
     .x = UI_ELEMENT_WIDTH,
     .y = UI_ELEMENT_HEIGHT,
 };
-pub const UI_TOGGLE_SIZE = 50.0;
+pub const UI_TOGGLE_SIZE = Vector2{
+    .x = 50.0,
+    .y = 50.0,
+};
 pub const UI_ARROW_SIZE = 20.0;
 
 pub const UI_LEVEL_NAME_POSITION = Vector2{ .x = 10.0, .y = 10.0 };
@@ -794,10 +797,7 @@ fn draw_settings(
                     .y = UI_ELEMENT_HEIGHT / 2.0 + 10.0,
                 }),
             ),
-            .size = ui_style.apply_scale(.{
-                .x = UI_TOGGLE_SIZE,
-                .y = UI_TOGGLE_SIZE,
-            }),
+            .size = ui_style.apply_scale(UI_TOGGLE_SIZE),
         },
         .toggled = settings.is_fullscreen,
     };
@@ -828,10 +828,7 @@ fn draw_settings(
                     .y = (UI_ELEMENT_HEIGHT / 2.0 + 10.0) * 2.0,
                 }),
             ),
-            .size = ui_style.apply_scale(.{
-                .x = UI_TOGGLE_SIZE,
-                .y = UI_TOGGLE_SIZE,
-            }),
+            .size = ui_style.apply_scale(UI_TOGGLE_SIZE),
         },
         .toggled = settings.is_borderless,
     };
