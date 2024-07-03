@@ -30,8 +30,12 @@ const Vector2 = @import("vector.zig");
 pub const UI_DEFAULT_SCREEN_WIDTH: f32 = 1280.0;
 
 pub const UI_ELEMENT_SIZE = Vector2{
-    .x = 300.0,
-    .y = 100.0,
+    .x = 200.0,
+    .y = 50.0,
+};
+pub const UI_ELEMENT_OFFSET_SIZE = Vector2{
+    .x = UI_ELEMENT_SIZE.x + 50.0,
+    .y = UI_ELEMENT_SIZE.y + 20.0,
 };
 pub const UI_TOGGLE_SIZE = Vector2{
     .x = 50.0,
@@ -412,7 +416,7 @@ fn draw_main_menu(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = -20.0,
-                    .y = -UI_ELEMENT_SIZE.y * 3.0,
+                    .y = -UI_ELEMENT_OFFSET_SIZE.y * 2.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -442,7 +446,7 @@ fn draw_main_menu(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0,
-                    .y = UI_ELEMENT_SIZE.y,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -459,7 +463,7 @@ fn draw_main_menu(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0,
-                    .y = UI_ELEMENT_SIZE.y * 2.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y * 2.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -499,7 +503,7 @@ fn draw_level_selection(
                 .position = settings.screen_center().add(
                     &ui_style.apply_scale(.{
                         .x = -20.0,
-                        .y = -UI_ELEMENT_SIZE.y * 3.0,
+                        .y = -UI_ELEMENT_OFFSET_SIZE.y * 3.0,
                     }),
                 ),
                 .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -519,7 +523,7 @@ fn draw_level_selection(
                     .position = settings.screen_center().add(
                         &ui_style.apply_scale(.{
                             .x = 0.0,
-                            .y = -UI_ELEMENT_SIZE.y * @as(f32, @floatFromInt(i)),
+                            .y = -UI_ELEMENT_OFFSET_SIZE.y * @as(f32, @floatFromInt(i)),
                         }),
                     ),
                     .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -538,7 +542,7 @@ fn draw_level_selection(
                 .position = settings.screen_center().add(
                     &ui_style.apply_scale(.{
                         .x = 0,
-                        .y = UI_ELEMENT_SIZE.y,
+                        .y = UI_ELEMENT_OFFSET_SIZE.y,
                     }),
                 ),
                 .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -563,7 +567,7 @@ fn draw_level_selection(
                 .position = settings.screen_center().add(
                     &ui_style.apply_scale(.{
                         .x = -20.0,
-                        .y = -UI_ELEMENT_SIZE.y * 3.0,
+                        .y = -UI_ELEMENT_OFFSET_SIZE.y * 3.0,
                     }),
                 ),
                 .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -582,7 +586,7 @@ fn draw_level_selection(
                     .position = settings.screen_center().add(
                         &ui_style.apply_scale(.{
                             .x = 0,
-                            .y = -UI_ELEMENT_SIZE.y * @as(f32, @floatFromInt(i)),
+                            .y = -UI_ELEMENT_OFFSET_SIZE.y * @as(f32, @floatFromInt(i)),
                         }),
                     ),
                     .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -602,7 +606,7 @@ fn draw_level_selection(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0,
-                    .y = UI_ELEMENT_SIZE.y * 2.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y * 2.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -658,7 +662,7 @@ fn draw_current_level_info(
             .box = .{
                 .position = ui_style.apply_scale(.{
                     .x = 10.0,
-                    .y = 10.0 + UI_ELEMENT_SIZE.y / 2.0,
+                    .y = 10.0 + UI_ELEMENT_OFFSET_SIZE.y,
                 }),
                 .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
@@ -678,7 +682,7 @@ fn draw_current_level_info(
             .box = .{
                 .position = ui_style.apply_scale(.{
                     .x = 10.0,
-                    .y = 10.0 + UI_ELEMENT_SIZE.y,
+                    .y = 10.0 + UI_ELEMENT_OFFSET_SIZE.y * 2.0,
                 }),
                 .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
             },
@@ -710,8 +714,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = -UI_ELEMENT_SIZE.x / 2.0,
-                    .y = 0.0,
+                    .x = -UI_ELEMENT_OFFSET_SIZE.x / 2.0,
+                    .y = -UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -725,7 +729,7 @@ fn draw_settings(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = UI_ARROW_SIZE.x / 2.0,
-                    .y = 0.0,
+                    .y = -UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ARROW_SIZE),
@@ -740,8 +744,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = UI_ARROW_SIZE.x + UI_ELEMENT_SIZE.x / 2.0,
-                    .y = 0.0,
+                    .x = UI_ARROW_SIZE.x + UI_ELEMENT_OFFSET_SIZE.x / 2.0,
+                    .y = -UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -754,8 +758,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = UI_ARROW_SIZE.x + UI_ELEMENT_SIZE.x,
-                    .y = 0.0,
+                    .x = UI_ARROW_SIZE.x + UI_ELEMENT_OFFSET_SIZE.x,
+                    .y = -UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ARROW_SIZE),
@@ -770,8 +774,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = -UI_ELEMENT_SIZE.x / 2.0,
-                    .y = UI_ELEMENT_SIZE.y / 2.0 + 10.0,
+                    .x = -UI_ELEMENT_OFFSET_SIZE.x / 2.0,
+                    .y = 0.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -784,8 +788,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = UI_ELEMENT_SIZE.x / 2.0,
-                    .y = UI_ELEMENT_SIZE.y / 2.0 + 10.0,
+                    .x = UI_ELEMENT_OFFSET_SIZE.x / 2.0,
+                    .y = 0.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_TOGGLE_SIZE),
@@ -801,8 +805,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = -UI_ELEMENT_SIZE.x / 2.0,
-                    .y = (UI_ELEMENT_SIZE.y / 2.0 + 10.0) * 2.0,
+                    .x = -UI_ELEMENT_OFFSET_SIZE.x / 2.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -815,8 +819,8 @@ fn draw_settings(
         .box = .{
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
-                    .x = UI_ELEMENT_SIZE.x / 2.0,
-                    .y = (UI_ELEMENT_SIZE.y / 2.0 + 10.0) * 2.0,
+                    .x = UI_ELEMENT_OFFSET_SIZE.x / 2.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_TOGGLE_SIZE),
@@ -833,7 +837,7 @@ fn draw_settings(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0.0,
-                    .y = (UI_ELEMENT_SIZE.y / 2.0 + 10.0) * 3.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y * 3.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -861,7 +865,7 @@ fn draw_settings(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0.0,
-                    .y = (UI_ELEMENT_SIZE.y / 2.0 + 10.0) * 4.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y * 4.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -908,7 +912,7 @@ pub fn draw_paused(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0.0,
-                    .y = UI_ELEMENT_SIZE.y,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -925,7 +929,7 @@ pub fn draw_paused(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0.0,
-                    .y = UI_ELEMENT_SIZE.y * 2.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y * 2.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -971,7 +975,7 @@ fn draw_win(
             .box = .{
                 .position = settings.screen_center().add(
                     &ui_style.apply_scale(.{
-                        .x = -UI_ELEMENT_SIZE.x / 2.0,
+                        .x = -UI_ELEMENT_OFFSET_SIZE.x,
                         .y = 0.0,
                     }),
                 ),
@@ -988,7 +992,7 @@ fn draw_win(
             .box = .{
                 .position = settings.screen_center().add(
                     &ui_style.apply_scale(.{
-                        .x = UI_ELEMENT_SIZE.x / 2.0,
+                        .x = UI_ELEMENT_OFFSET_SIZE.x,
                         .y = 0.0,
                     }),
                 ),
@@ -1004,7 +1008,7 @@ fn draw_win(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0.0,
-                    .y = UI_ELEMENT_SIZE.y,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
@@ -1022,7 +1026,7 @@ fn draw_win(
             .position = settings.screen_center().add(
                 &ui_style.apply_scale(.{
                     .x = 0.0,
-                    .y = UI_ELEMENT_SIZE.y * 2.0,
+                    .y = UI_ELEMENT_OFFSET_SIZE.y * 2.0,
                 }),
             ),
             .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
