@@ -440,7 +440,7 @@ fn pre_draw_balls(
             rl.BeginTextureMode(shaders.render_texture);
             defer rl.EndTextureMode();
 
-            rl.ClearBackground(rl.BLACK);
+            rl.ClearBackground(rl.BLANK);
 
             rl.BeginMode2D(camera);
             defer rl.EndMode2D();
@@ -1132,10 +1132,10 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
     flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
 
-    flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
     flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
-    flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
     flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
     flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
+    flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
+    flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
 }
