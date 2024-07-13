@@ -93,17 +93,7 @@ pub const Settings = struct {
         }
     }
 
-    pub fn set_window_size(self: *Self, camera: *GameCamera) void {
-        const c = rl.Camera2D{
-            .offset = rl.Vector2{
-                .x = @as(f32, @floatFromInt(self.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(self.resolution_height)) / 2.0,
-            },
-            .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-            .rotation = camera.camera.rotation,
-            .zoom = camera.camera.zoom,
-        };
-        camera.camera = c;
+    pub fn set_window_size(self: *Self) void {
         rl.SetWindowSize(
             @intCast(self.resolution_width),
             @intCast(self.resolution_height),

@@ -49,6 +49,7 @@ const OBJECTS_FLECS_INIT_COMPONENTS = __objects.FLECS_INIT_COMPONENTS;
 const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
+pub const DEFAULT_SCREEN_WIDTH: f32 = 1280.0;
 const TARGET_FPS = 80;
 const BACKGROUND_COLOR = rl.BLACK;
 const AABB_LINE_THICKNESS = 1.5;
@@ -126,6 +127,16 @@ pub const WinTarget = struct {};
 
 pub const GameCamera = struct {
     camera: rl.Camera2D,
+
+    const Self = @This();
+
+    pub fn update_resolution(self: *Self, resolution_width: u32, resolution_height: u32) void {
+        self.camera.offset = rl.Vector2{
+            .x = @as(f32, @floatFromInt(resolution_width)) / 2.0,
+            .y = @as(f32, @floatFromInt(resolution_height)) / 2.0,
+        };
+        self.camera.zoom = @as(f32, @floatFromInt(resolution_width)) / DEFAULT_SCREEN_WIDTH;
+    }
 };
 
 pub const PhysicsWorld = struct {
@@ -378,7 +389,7 @@ pub const GameV2 = struct {
 
         initial_setup(&settings);
 
-        try UI_FLECS_INIT_COMPONENTS(ecs_world, allocator);
+        try UI_FLECS_INIT_COMPONENTS(ecs_world, &settings);
         try LEVEL_FLECS_INIT_COMPONENTS(ecs_world, allocator);
         try EDITOR_FLECS_INIT_COMPONENTS(ecs_world, allocator);
         try OBJECTS_FLECS_INIT_COMPONENTS(ecs_world, allocator);
@@ -405,16 +416,11 @@ pub const GameV2 = struct {
         const sensor_events = SensorEvents.new(physics_world);
         _ = flecs.singleton_set(ecs_world, SensorEvents, sensor_events);
 
-        const camera = rl.Camera2D{
-            .offset = rl.Vector2{
-                .x = @as(f32, @floatFromInt(settings.resolution_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(settings.resolution_height)) / 2.0,
-            },
-            .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-            .rotation = 0.0,
-            .zoom = 1.0,
+        var camera = GameCamera{
+            .camera = std.mem.zeroInit(rl.Camera2D, .{}),
         };
-        _ = flecs.singleton_set(ecs_world, GameCamera, .{ .camera = camera });
+        camera.update_resolution(settings.resolution_width, settings.resolution_height);
+        _ = flecs.singleton_set(ecs_world, GameCamera, camera);
 
         _ = flecs.singleton_set(ecs_world, PhysicsWorld, .{ .id = physics_world });
         _ = flecs.singleton_set(ecs_world, MousePosition, .{

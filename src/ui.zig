@@ -13,6 +13,7 @@ const LevelTimer = __game.LevelTimer;
 const MousePosition = __game.MousePosition;
 const GameCamera = __game.GameCamera;
 const GameStateStack = __game.GameStateStack;
+const DEFAULT_SCREEN_WIDTH = __game.DEFAULT_SCREEN_WIDTH;
 
 const __level = @import("level.zig");
 const Levels = __level.Levels;
@@ -26,8 +27,6 @@ const __editor = @import("editor.zig");
 const EditorState = __editor.EditorState;
 
 const Vector2 = @import("vector.zig");
-
-pub const UI_DEFAULT_SCREEN_WIDTH: f32 = 1280.0;
 
 pub const UI_ELEMENT_SIZE = Vector2{
     .x = 200.0,
@@ -86,8 +85,8 @@ const UiStyle = struct {
 
     const Self = @This();
 
-    fn update_scale(self: *Self, width: f32) void {
-        self.scale = width / UI_DEFAULT_SCREEN_WIDTH;
+    fn update_scale(self: *Self, resolution_width: u32) void {
+        self.scale = @as(f32, @floatFromInt(resolution_width)) / DEFAULT_SCREEN_WIDTH;
     }
 
     fn apply_scale(self: *const Self, v: Vector2) Vector2 {
@@ -853,8 +852,11 @@ fn draw_settings(
         } else if (!settings.fullscreen and !settings.borderless) {
             settings.use_selected_resolution();
         }
-        settings.set_window_size(camera);
-        ui_style.update_scale(@floatFromInt(settings.resolution_width));
+
+        settings.set_window_size();
+        camera.update_resolution(settings.resolution_width, settings.resolution_height);
+        ui_style.update_scale(settings.resolution_width);
+
         settings.save() catch {
             state_stack.push_state(.Exit);
         };
@@ -1042,15 +1044,14 @@ fn draw_win(
     }
 }
 
-pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
-    _ = allocator;
-
+pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, settings: *const Settings) !void {
     flecs.COMPONENT(world, UiStyle);
 
     const font = rl.LoadFont("resources/font.ttf");
-    const style = UiStyle{
+    var style = UiStyle{
         .font = font,
     };
+    style.update_scale(settings.resolution_width);
 
     _ = flecs.singleton_set(world, UiStyle, style);
 }
