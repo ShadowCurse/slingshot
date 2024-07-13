@@ -21,6 +21,12 @@
                     "path": "resources/levels/tutorial_sling.json",
                     "best_time": null,
                     "locked": false
+                },
+                {
+                    "name": "Totorial: portal",
+                    "path": "resources/levels/tutorial_portal.json",
+                    "best_time": null,
+                    "locked": false
                 }
             ]
         },

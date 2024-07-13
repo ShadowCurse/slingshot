@@ -20,6 +20,7 @@ const WinTarget = __game.WinTarget;
 const GameStateStack = __game.GameStateStack;
 const MousePosition = __game.MousePosition;
 const PhysicsWorld = __game.PhysicsWorld;
+const SensorEvents = __game.SensorEvents;
 
 const __level = @import("level.zig");
 const LevelObject = __level.LevelObject;
@@ -856,6 +857,193 @@ fn update_joints(
     }
 }
 
+pub const PortalTag = struct {};
+
+pub const PortalShape = struct {
+    radius: f32,
+};
+
+pub const PortalId = struct { id: i32 };
+
+pub const PortalTarget = struct { id: i32 };
+
+pub const PortalParams = struct {
+    color: rl.Color = rl.BLUE,
+    position: Vector2 = Vector2.ZERO,
+    radius: f32 = 10.0,
+    id: i32 = 0,
+    target: i32 = 0,
+
+    const Self = @This();
+
+    pub fn new(
+        color: *const Color,
+        position: *const Position,
+        shape: *const PortalShape,
+        id: *const PortalId,
+        target: *const PortalTarget,
+    ) Self {
+        return Self{
+            .position = position.value,
+            .radius = shape.radius,
+            .color = color.value,
+            .id = id.id,
+            .target = target.id,
+        };
+    }
+};
+
+pub fn create_portal(
+    ecs_world: *flecs.world_t,
+    physics_world: b2.b2WorldId,
+    params: *const PortalParams,
+) void {
+    var body_def = b2.b2DefaultBodyDef();
+    body_def.type = b2.b2_staticBody;
+    body_def.position = params.position.to_b2();
+    const body_id = b2.b2CreateBody(physics_world, &body_def);
+
+    var shape_def = b2.b2DefaultShapeDef();
+    shape_def.isSensor = true;
+
+    const circle = b2.b2Circle{
+        .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
+        .radius = params.radius,
+    };
+    const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
+
+    const n = flecs.new_id(ecs_world);
+    _ = flecs.add(ecs_world, n, PortalTag);
+
+    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
+    _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
+    _ = flecs.set(ecs_world, n, BodyId, .{ .id = body_id });
+    _ = flecs.set(ecs_world, n, ShapeId, .{ .id = shape_id });
+    _ = flecs.set(ecs_world, n, PortalShape, .{ .radius = params.radius });
+    _ = flecs.set(ecs_world, n, PortalId, .{ .id = params.id });
+    _ = flecs.set(ecs_world, n, PortalTarget, .{ .id = params.target });
+
+    const aabb = AABB.new_square(params.radius);
+    _ = flecs.set(ecs_world, n, AABB, aabb);
+
+    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
+}
+
+fn draw_portals(
+    _state_stack: SINGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _colors: COMPONENT(Color, .In),
+    _shapes: COMPONENT(PortalShape, .In),
+) void {
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
+    const colors = _colors.get();
+    const shapes = _shapes.get();
+
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
+    for (positions, colors, shapes) |*position, *color, *shape| {
+        rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
+    }
+}
+
+const UpdatePortalsCtx = struct {
+    ball_query: *flecs.query_t,
+    portal_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn init(world: *flecs.world_t) !Self {
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].id = flecs.id(BodyId);
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(ShapeId);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[2].id = flecs.id(BallAttachment);
+        ball_query.filter.terms[2].inout = .In;
+        const bq = try flecs.query_init(world, &ball_query);
+
+        var portal_query: flecs.query_desc_t = .{};
+        portal_query.filter.terms[0].inout = .In;
+        portal_query.filter.terms[0].id = flecs.id(Position);
+        portal_query.filter.terms[1].inout = .In;
+        portal_query.filter.terms[1].id = flecs.id(PortalId);
+        const pq = try flecs.query_init(world, &portal_query);
+
+        return .{
+            .ball_query = bq,
+            .portal_query = pq,
+        };
+    }
+};
+fn update_portals(
+    _world: WORLD(),
+    _ctx: STATIC(UpdatePortalsCtx),
+    _sensor_events: SINGLETON(SensorEvents),
+    _state_stack: SINGLETON(GameStateStack),
+    _shapes: COMPONENT(ShapeId, .In),
+    _ids: COMPONENT(PortalId, .In),
+    _targets: COMPONENT(PortalTarget, .In),
+) void {
+    const world = _world.get_mut();
+    const ctx = _ctx.get();
+    const sensor_events = _sensor_events.get();
+    const state_stack = _state_stack.get();
+    const shapes = _shapes.get();
+    const targets = _targets.get();
+    const ids = _ids.get();
+
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    var ball_iter = flecs.query_iter(world, ctx.ball_query);
+    std.debug.assert(flecs.query_next(&ball_iter));
+    const ball_body = flecs.field(&ball_iter, BodyId, 1).?[0];
+    const ball_shape = flecs.field(&ball_iter, ShapeId, 2).?[0];
+    const ball_attachment = &flecs.field(&ball_iter, BallAttachment, 3).?[0];
+    std.debug.assert(!flecs.query_next(&ball_iter));
+
+    if (ball_attachment.attached) {
+        return;
+    }
+
+    var target_portal: ?i32 = null;
+    for (shapes, targets, ids) |*shape, *target, *id| blk: {
+        // Skip invalid portals
+        if (target.id == id.id) {
+            continue;
+        }
+        for (sensor_events.begin_events) |be| {
+            if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(shape.id)) and
+                @as(u64, @bitCast(be.visitorShapeId)) == @as(u64, @bitCast(ball_shape.id)))
+            {
+                target_portal = target.id;
+                break :blk;
+            }
+        }
+    }
+
+    if (target_portal) |tp| {
+        const portal_query: *flecs.query_t = @ptrCast(ctx.portal_query);
+        var portal_iter = flecs.query_iter(world, portal_query);
+        while (flecs.query_next(&portal_iter)) {
+            const target_positions = flecs.field(&portal_iter, Position, 1).?;
+            const target_ids = flecs.field(&portal_iter, PortalId, 2).?;
+            for (target_positions, target_ids) |*position, *id| {
+                if (id.id == tp) {
+                    b2.b2Body_SetTransform(ball_body.id, position.value.to_b2(), 0.0);
+                }
+            }
+        }
+    }
+}
+
 pub const RectangleTag = struct {};
 
 pub const RectangleShape = struct {
@@ -1078,6 +1266,7 @@ pub const ObjectTags = enum {
     Spawner,
     Ball,
     Anchor,
+    Portal,
     Rectangle,
 };
 
@@ -1086,6 +1275,7 @@ pub const ObjectParams = union(ObjectTags) {
     Spawner: SpawnerParams,
     Ball: BallParams,
     Anchor: AnchorParams,
+    Portal: PortalParams,
     Rectangle: RectangleParams,
 };
 
@@ -1116,6 +1306,11 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     flecs.COMPONENT(world, JointId);
     flecs.COMPONENT(world, JointStrength);
 
+    flecs.TAG(world, PortalTag);
+    flecs.COMPONENT(world, PortalShape);
+    flecs.COMPONENT(world, PortalId);
+    flecs.COMPONENT(world, PortalTarget);
+
     flecs.TAG(world, RectangleTag);
     flecs.COMPONENT(world, RectangleShape);
 
@@ -1130,10 +1325,12 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls);
     flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
     flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
+    flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals);
     flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
 
     flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
+    flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals);
     flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
     flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
     flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);

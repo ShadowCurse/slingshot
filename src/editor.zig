@@ -47,6 +47,12 @@ const AnchorTag = __objects.AnchorTag;
 const AnchorShape = __objects.AnchorShape;
 const AnchoraJointParams = __objects.AnchoraJointParams;
 
+const create_portal = __objects.create_portal;
+const PortalTag = __objects.PortalTag;
+const PortalShape = __objects.PortalShape;
+const PortalId = __objects.PortalId;
+const PortalTarget = __objects.PortalTarget;
+
 const create_rectangle = __objects.create_rectangle;
 const RectangleTag = __objects.RectangleTag;
 const RectangleShape = __objects.RectangleShape;
@@ -92,6 +98,39 @@ pub const EditorBool = struct {
     }
 
     pub fn get_value(self: *const Self) ?bool {
+        return self.state;
+    }
+};
+
+pub const EditorI32 = struct {
+    state: i32,
+
+    const SPEED: f32 = 0.01;
+    const MIN: i32 = -1000.0;
+    const MAX: i32 = 1000.0;
+    const FORMAT: [:0]const u8 = "%d";
+
+    const Self = @This();
+
+    pub fn new(value: *const i32) Self {
+        return Self{
+            .state = value.*,
+        };
+    }
+
+    pub fn draw(self: *Self, label: [:0]const u8) bool {
+        return imgui.igDragInt(
+            label,
+            &self.state,
+            Self.SPEED,
+            Self.MIN,
+            Self.MAX,
+            Self.FORMAT,
+            0,
+        );
+    }
+
+    pub fn get_value(self: *const Self) ?i32 {
         return self.state;
     }
 };
@@ -371,6 +410,7 @@ const SelectEntityCtx = struct {
     spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
+    portal_query: *flecs.query_t,
     rectangle_query: *flecs.query_t,
 
     const Self = @This();
@@ -411,6 +451,15 @@ const SelectEntityCtx = struct {
         anchor_query.filter.terms[2].id = flecs.id(AnchorTag);
         const aq = try flecs.query_init(world, &anchor_query);
 
+        var portal_query: flecs.query_desc_t = .{};
+        portal_query.filter.terms[0].inout = .In;
+        portal_query.filter.terms[0].id = flecs.id(AABB);
+        portal_query.filter.terms[1].inout = .In;
+        portal_query.filter.terms[1].id = flecs.id(Position);
+        portal_query.filter.terms[2].inout = .In;
+        portal_query.filter.terms[2].id = flecs.id(PortalTag);
+        const pq = try flecs.query_init(world, &portal_query);
+
         var rectangle_query: flecs.query_desc_t = .{};
         rectangle_query.filter.terms[0].inout = .In;
         rectangle_query.filter.terms[0].id = flecs.id(AABB);
@@ -425,6 +474,7 @@ const SelectEntityCtx = struct {
             .spawner_query = sq,
             .ball_query = bq,
             .anchor_query = aq,
+            .portal_query = pq,
             .rectangle_query = rq,
         };
     }
@@ -499,6 +549,18 @@ fn select_entity(
         const aabbs = flecs.field(&anchor_iter, AABB, 1).?;
         const positions = flecs.field(&anchor_iter, Position, 2).?;
         for (anchor_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
+                selected = e;
+            }
+        }
+    }
+
+    const portal_query: *flecs.query_t = @ptrCast(ctx.portal_query);
+    var portal_iter = flecs.query_iter(world, portal_query);
+    while (flecs.query_next(&portal_iter)) {
+        const aabbs = flecs.field(&portal_iter, AABB, 1).?;
+        const positions = flecs.field(&portal_iter, Position, 2).?;
+        for (portal_iter.entities(), aabbs, positions) |e, aabb, position| {
             if (aabb.contains(position.value, mouse_pos.world_position)) {
                 selected = e;
             }
@@ -653,6 +715,43 @@ fn draw_anchors_aabb(
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(AnchorTag),
+) void {
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
+
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    for (entities, aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
+
+        const color = c: {
+            if (selected_entity.entity) |selected| {
+                break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
+            } else {
+                break :c AABB_COLOR;
+            }
+        };
+
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
+    }
+}
+
+fn draw_portalss_aabb(
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(PortalTag),
 ) void {
     const entities = _entities.get();
     const state_stack = _state_stack.get();
@@ -972,6 +1071,109 @@ pub fn draw_editor_anchor(
     }
 }
 
+pub fn draw_editor_portal(
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _body_ids: COMPONENT(BodyId, .In),
+    _colors: COMPONENT_MUT(Color, .InOut),
+    _positions: COMPONENT_MUT(Position, .InOut),
+    _aabbs: COMPONENT_MUT(AABB, .InOut),
+    _shapes: COMPONENT_MUT(PortalShape, .InOut),
+    _ids: COMPONENT_MUT(PortalId, .InOut),
+    _targets: COMPONENT_MUT(PortalTarget, .InOut),
+) void {
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const body_ids = _body_ids.get();
+    const colors = _colors.get_mut();
+    const positions = _positions.get_mut();
+    const aabbs = _aabbs.get_mut();
+    const shapes = _shapes.get_mut();
+    const ids = _ids.get_mut();
+    const targets = _targets.get_mut();
+
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const LocalCtx = struct {
+        // used to detect when entity is first
+        // selected for editors initialization.
+        var current_entity: flecs.entity_t = 0;
+        var editor_color: EditorColor = undefined;
+        var editor_position: EditorVector2 = undefined;
+        var editor_radius: EditorF32 = undefined;
+        var editor_id: EditorI32 = undefined;
+        var editor_target: EditorI32 = undefined;
+    };
+
+    const selected = selected_entity.entity.?;
+
+    for (entities, 0..) |e, i| {
+        if (e == selected) {
+            const body_id = &body_ids[i];
+            const color = &colors[i];
+            const position = &positions[i];
+            const aabb = &aabbs[i];
+            const shape = &shapes[i];
+            const id = &ids[i];
+            const target = &targets[i];
+
+            if (LocalCtx.current_entity != selected) {
+                LocalCtx.editor_color = EditorColor.new(&color.value);
+                LocalCtx.editor_position = EditorVector2.new(&position.value);
+                LocalCtx.editor_radius = EditorF32.new(&shape.radius);
+                LocalCtx.editor_id = EditorI32.new(&id.id);
+                LocalCtx.editor_target = EditorI32.new(&target.id);
+            }
+
+            var open = true;
+            if (imgui.igBegin("EditorPortal", &open, 0)) {
+                defer imgui.igEnd();
+
+                if (LocalCtx.editor_color.draw("color")) {
+                    if (LocalCtx.editor_color.get_value()) |v| {
+                        color.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_position.draw("position")) {
+                    if (LocalCtx.editor_position.get_value()) |v| {
+                        position.value = v;
+                        b2.b2Body_SetTransform(body_id.id, v.to_b2(), 0.0);
+                    }
+                }
+
+                if (LocalCtx.editor_radius.draw("radius")) {
+                    if (LocalCtx.editor_radius.get_value()) |v| {
+                        shape.radius = v;
+                        const new_aabb = AABB.new_square(v);
+                        aabb.* = new_aabb;
+                    }
+                }
+
+                if (LocalCtx.editor_id.draw("id")) {
+                    if (LocalCtx.editor_id.get_value()) |v| {
+                        id.id = v;
+                    }
+                }
+
+                if (LocalCtx.editor_target.draw("target")) {
+                    if (LocalCtx.editor_target.get_value()) |v| {
+                        target.id = v;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn draw_editor_rectangle(
     _entities: ENTITIES(),
     _state_stack: SINGLETON(GameStateStack),
@@ -1141,6 +1343,10 @@ fn draw_editor_level(
             create_anchor(world, physics_world.id, &.{});
         }
 
+        if (imgui.igButton("Add portal", .{ .x = 0.0, .y = 0.0 })) {
+            create_portal(world, physics_world.id, &.{});
+        }
+
         if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
             create_rectangle(world, physics_world.id, &.{}) catch {
                 state_stack.push_state(.Exit);
@@ -1189,11 +1395,13 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb);
     flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb);
     flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb);
+    flecs.ADD_SYSTEM(world, "draw_portalss_aabb", flecs.OnValidate, draw_portalss_aabb);
     flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb);
 
     flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
     flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text);
     flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
     flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
+    flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal);
     flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
 }

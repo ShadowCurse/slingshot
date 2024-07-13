@@ -47,6 +47,12 @@ const AnchoraJointParams = __objects.AnchoraJointParams;
 
 const JointTag = __objects.JointTag;
 
+const create_portal = __objects.create_portal;
+const PortalShape = __objects.PortalShape;
+const PortalId = __objects.PortalId;
+const PortalTarget = __objects.PortalTarget;
+const PortalParams = __objects.PortalParams;
+
 const create_rectangle = __objects.create_rectangle;
 const RectangleShape = __objects.RectangleShape;
 const RectangleParams = __objects.RectangleParams;
@@ -279,6 +285,9 @@ pub fn load_level(
             .Anchor => |*r| {
                 create_anchor(world, physics_world.id, r);
             },
+            .Portal => |*r| {
+                create_portal(world, physics_world.id, r);
+            },
             .Rectangle => |*r| {
                 create_rectangle(world, physics_world.id, r) catch {
                     state_stack.push_state(.Exit);
@@ -475,6 +484,7 @@ pub const SaveLevelCtx = struct {
     spawner_query: *flecs.query_t,
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
+    portal_query: *flecs.query_t,
     rectangle_query: *flecs.query_t,
 
     const Self = @This();
@@ -513,6 +523,19 @@ pub const SaveLevelCtx = struct {
         anchor_query.filter.terms[3].id = flecs.id(AnchoraJointParams);
         const aq = try flecs.query_init(world, &anchor_query);
 
+        var portal_query: flecs.query_desc_t = .{};
+        portal_query.filter.terms[0].inout = .In;
+        portal_query.filter.terms[0].id = flecs.id(Color);
+        portal_query.filter.terms[1].inout = .In;
+        portal_query.filter.terms[1].id = flecs.id(Position);
+        portal_query.filter.terms[2].inout = .In;
+        portal_query.filter.terms[2].id = flecs.id(PortalShape);
+        portal_query.filter.terms[3].inout = .In;
+        portal_query.filter.terms[3].id = flecs.id(PortalId);
+        portal_query.filter.terms[4].inout = .In;
+        portal_query.filter.terms[4].id = flecs.id(PortalTarget);
+        const pq = try flecs.query_init(world, &portal_query);
+
         var rectangle_query: flecs.query_desc_t = .{};
         rectangle_query.filter.terms[0].inout = .In;
         rectangle_query.filter.terms[0].id = flecs.id(Color);
@@ -527,6 +550,7 @@ pub const SaveLevelCtx = struct {
             .spawner_query = sq,
             .ball_query = bq,
             .anchor_query = aq,
+            .portal_query = pq,
             .rectangle_query = rq,
         };
     }
@@ -608,6 +632,23 @@ pub fn save_level(
         for (colors, positions, shapes, joint_params) |*color, *position, *shape, *joint_param| {
             const params = AnchorParams.new(color, position, shape, joint_param);
             objects_params.append(.{ .Anchor = params }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
+
+    const portal_query: *flecs.query_t = @ptrCast(ctx.portal_query);
+    var portal_iter = flecs.query_iter(world, portal_query);
+    while (flecs.query_next(&portal_iter)) {
+        const colors = flecs.field(&portal_iter, Color, 1).?;
+        const positions = flecs.field(&portal_iter, Position, 2).?;
+        const shapes = flecs.field(&portal_iter, PortalShape, 3).?;
+        const ids = flecs.field(&portal_iter, PortalId, 4).?;
+        const targets = flecs.field(&portal_iter, PortalTarget, 5).?;
+        for (colors, positions, shapes, ids, targets) |*color, *position, *shape, *id, *target| {
+            const params = PortalParams.new(color, position, shape, id, target);
+            objects_params.append(.{ .Portal = params }) catch {
                 state_stack.push_state(.Exit);
                 return;
             };
