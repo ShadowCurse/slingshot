@@ -13,7 +13,7 @@ const STATIC = flecs.SYSTEM_PARAMETER_STATIC;
 const ENTITIES = flecs.SYSTEM_PARAMETER_ENTITIES;
 const COMPONENT = flecs.SYSTEM_PARAMETER_COMPONENT;
 const COMPONENT_MUT = flecs.SYSTEM_PARAMETER_COMPONENT_MUT;
-const SENGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
+const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 
 const __game = @import("game.zig");
 const WinTarget = __game.WinTarget;
@@ -191,7 +191,7 @@ pub const AABB = struct {
 fn update_positions(
     _bodies: COMPONENT(BodyId, .In),
     _positions: COMPONENT_MUT(Position, .Out),
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
 ) void {
     const bodies = _bodies.get();
     const positions = _positions.get_mut();
@@ -261,7 +261,7 @@ pub fn create_text(ecs_world: *flecs.world_t, params: *const TextParams) void {
 }
 
 fn draw_texts(
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _texts: COMPONENT(TextText, .In),
@@ -320,7 +320,7 @@ pub fn create_spawner(ecs_world: *flecs.world_t, params: *const SpawnerParams) v
 }
 
 fn draw_spawners(
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _: TAG(SpawnerTag),
 ) void {
@@ -406,8 +406,8 @@ pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, param
 }
 
 fn pre_draw_balls(
-    _state_stack: SENGLETON(GameStateStack),
-    _shaders: SENGLETON(BallShader),
+    _state_stack: SINGLETON(GameStateStack),
+    _shaders: SINGLETON(BallShader),
     _bodies: COMPONENT(BodyId, .In),
     _colors: COMPONENT(Color, .In),
     _: TAG(BallTag),
@@ -471,8 +471,8 @@ fn pre_draw_balls(
 }
 
 fn draw_balls(
-    _state_stack: SENGLETON(GameStateStack),
-    _shaders: SENGLETON(BallShader),
+    _state_stack: SINGLETON(GameStateStack),
+    _shaders: SINGLETON(BallShader),
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
@@ -508,7 +508,7 @@ fn draw_balls(
 }
 
 fn update_balls(
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
     _attachments: COMPONENT_MUT(BallAttachment, .InOut),
 ) void {
     const state_stack = _state_stack.get();
@@ -609,7 +609,7 @@ pub fn create_anchor(
 }
 
 fn draw_anchors(
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _shapes: COMPONENT(AnchorShape, .In),
@@ -661,8 +661,8 @@ const UpdateAnchorsCtx = struct {
 fn update_anchors_try_attach(
     _world: WORLD(),
     _ctx: STATIC(UpdateAnchorsCtx),
-    _state_stack: SENGLETON(GameStateStack),
-    _physics_world: SENGLETON(PhysicsWorld),
+    _state_stack: SINGLETON(GameStateStack),
+    _physics_world: SINGLETON(PhysicsWorld),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _bodies: COMPONENT(BodyId, .In),
@@ -771,7 +771,7 @@ pub fn create_joint(
 }
 
 fn draw_joints(
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
     _ids: COMPONENT(JointId, .In),
     _colors: COMPONENT(Color, .In),
 ) void {
@@ -817,8 +817,8 @@ fn update_joints(
     _world: WORLD(),
     _entities: ENTITIES(),
     _ctx: STATIC(UpdateJointsCtx),
-    _state_stack: SENGLETON(GameStateStack),
-    _mouse_pos: SENGLETON(MousePosition),
+    _state_stack: SINGLETON(GameStateStack),
+    _mouse_pos: SINGLETON(MousePosition),
     _joint_ids: COMPONENT(JointId, .In),
     _joint_stengths: COMPONENT(JointStrength, .In),
 ) void {
@@ -1035,7 +1035,7 @@ pub fn create_rectangle(
 }
 
 fn draw_rectangles(
-    _state_stack: SENGLETON(GameStateStack),
+    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _shapes: COMPONENT(RectangleShape, .In),
     _colors: COMPONENT(Color, .In),
