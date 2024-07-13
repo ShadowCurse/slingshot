@@ -53,6 +53,11 @@ const PortalShape = __objects.PortalShape;
 const PortalId = __objects.PortalId;
 const PortalTarget = __objects.PortalTarget;
 
+const create_black_hole = __objects.create_black_hole;
+const BlackHoleTag = __objects.BlackHoleTag;
+const BlackHoleShape = __objects.BlackHoleShape;
+const BlackHoleStrength = __objects.BlackHoleStrength;
+
 const create_rectangle = __objects.create_rectangle;
 const RectangleTag = __objects.RectangleTag;
 const RectangleShape = __objects.RectangleShape;
@@ -411,6 +416,7 @@ const SelectEntityCtx = struct {
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
     portal_query: *flecs.query_t,
+    black_hole_query: *flecs.query_t,
     rectangle_query: *flecs.query_t,
 
     const Self = @This();
@@ -460,6 +466,15 @@ const SelectEntityCtx = struct {
         portal_query.filter.terms[2].id = flecs.id(PortalTag);
         const pq = try flecs.query_init(world, &portal_query);
 
+        var black_hole_query: flecs.query_desc_t = .{};
+        black_hole_query.filter.terms[0].inout = .In;
+        black_hole_query.filter.terms[0].id = flecs.id(AABB);
+        black_hole_query.filter.terms[1].inout = .In;
+        black_hole_query.filter.terms[1].id = flecs.id(Position);
+        black_hole_query.filter.terms[2].inout = .In;
+        black_hole_query.filter.terms[2].id = flecs.id(BlackHoleTag);
+        const bhq = try flecs.query_init(world, &black_hole_query);
+
         var rectangle_query: flecs.query_desc_t = .{};
         rectangle_query.filter.terms[0].inout = .In;
         rectangle_query.filter.terms[0].id = flecs.id(AABB);
@@ -475,6 +490,7 @@ const SelectEntityCtx = struct {
             .ball_query = bq,
             .anchor_query = aq,
             .portal_query = pq,
+            .black_hole_query = bhq,
             .rectangle_query = rq,
         };
     }
@@ -561,6 +577,18 @@ fn select_entity(
         const aabbs = flecs.field(&portal_iter, AABB, 1).?;
         const positions = flecs.field(&portal_iter, Position, 2).?;
         for (portal_iter.entities(), aabbs, positions) |e, aabb, position| {
+            if (aabb.contains(position.value, mouse_pos.world_position)) {
+                selected = e;
+            }
+        }
+    }
+
+    const black_hole_query: *flecs.query_t = @ptrCast(ctx.black_hole_query);
+    var black_hole_iter = flecs.query_iter(world, black_hole_query);
+    while (flecs.query_next(&black_hole_iter)) {
+        const aabbs = flecs.field(&black_hole_iter, AABB, 1).?;
+        const positions = flecs.field(&black_hole_iter, Position, 2).?;
+        for (black_hole_iter.entities(), aabbs, positions) |e, aabb, position| {
             if (aabb.contains(position.value, mouse_pos.world_position)) {
                 selected = e;
             }
@@ -745,13 +773,50 @@ fn draw_anchors_aabb(
     }
 }
 
-fn draw_portalss_aabb(
+fn draw_portals_aabb(
     _entities: ENTITIES(),
     _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(PortalTag),
+) void {
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const aabbs = _aabbs.get();
+    const positions = _positions.get();
+
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    for (entities, aabbs, positions) |e, *aabb, *position| {
+        const rl_aabb_rect = aabb.to_rl_rect(position.value);
+
+        const color = c: {
+            if (selected_entity.entity) |selected| {
+                break :c if (e == selected) AABB_COLOR_SELECTED else AABB_COLOR;
+            } else {
+                break :c AABB_COLOR;
+            }
+        };
+
+        rl.DrawRectangleLinesEx(
+            rl_aabb_rect,
+            AABB_LINE_THICKNESS,
+            color,
+        );
+    }
+}
+
+fn draw_black_holess_aabb(
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _aabbs: COMPONENT(AABB, .In),
+    _positions: COMPONENT(Position, .In),
+    _: TAG(BlackHoleTag),
 ) void {
     const entities = _entities.get();
     const state_stack = _state_stack.get();
@@ -1174,6 +1239,98 @@ pub fn draw_editor_portal(
     }
 }
 
+fn draw_editor_black_hole(
+    _entities: ENTITIES(),
+    _state_stack: SINGLETON(GameStateStack),
+    _selected_entity: SINGLETON(SelectedEntity),
+    _body_ids: COMPONENT(BodyId, .In),
+    _colors: COMPONENT_MUT(Color, .InOut),
+    _positions: COMPONENT_MUT(Position, .InOut),
+    _aabbs: COMPONENT_MUT(AABB, .InOut),
+    _shapes: COMPONENT_MUT(BlackHoleShape, .InOut),
+    _strengths: COMPONENT_MUT(BlackHoleStrength, .InOut),
+) void {
+    const entities = _entities.get();
+    const state_stack = _state_stack.get();
+    const selected_entity = _selected_entity.get();
+    const body_ids = _body_ids.get();
+    const colors = _colors.get_mut();
+    const positions = _positions.get_mut();
+    const aabbs = _aabbs.get_mut();
+    const shapes = _shapes.get_mut();
+    const strengths = _strengths.get_mut();
+
+    if (state_stack.current_state() != .Editor) {
+        return;
+    }
+
+    if (selected_entity.entity == null) {
+        return;
+    }
+
+    const LocalCtx = struct {
+        // used to detect when entity is first
+        // selected for editors initialization.
+        var current_entity: flecs.entity_t = 0;
+        var editor_color: EditorColor = undefined;
+        var editor_position: EditorVector2 = undefined;
+        var editor_radius: EditorF32 = undefined;
+        var editor_strength: EditorF32 = undefined;
+    };
+
+    const selected = selected_entity.entity.?;
+
+    for (entities, 0..) |e, i| {
+        if (e == selected) {
+            const body_id = &body_ids[i];
+            const color = &colors[i];
+            const position = &positions[i];
+            const aabb = &aabbs[i];
+            const shape = &shapes[i];
+            const strength = &strengths[i];
+
+            if (LocalCtx.current_entity != selected) {
+                LocalCtx.editor_color = EditorColor.new(&color.value);
+                LocalCtx.editor_position = EditorVector2.new(&position.value);
+                LocalCtx.editor_radius = EditorF32.new(&shape.radius);
+                LocalCtx.editor_strength = EditorF32.new(&strength.value);
+            }
+
+            var open = true;
+            if (imgui.igBegin("EditorBlackHole", &open, 0)) {
+                defer imgui.igEnd();
+
+                if (LocalCtx.editor_color.draw("color")) {
+                    if (LocalCtx.editor_color.get_value()) |v| {
+                        color.value = v;
+                    }
+                }
+
+                if (LocalCtx.editor_position.draw("position")) {
+                    if (LocalCtx.editor_position.get_value()) |v| {
+                        position.value = v;
+                        b2.b2Body_SetTransform(body_id.id, v.to_b2(), 0.0);
+                    }
+                }
+
+                if (LocalCtx.editor_radius.draw("radius")) {
+                    if (LocalCtx.editor_radius.get_value()) |v| {
+                        shape.radius = v;
+                        const new_aabb = AABB.new_square(v);
+                        aabb.* = new_aabb;
+                    }
+                }
+
+                if (LocalCtx.editor_strength.draw("strength")) {
+                    if (LocalCtx.editor_strength.get_value()) |v| {
+                        strength.value = v;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn draw_editor_rectangle(
     _entities: ENTITIES(),
     _state_stack: SINGLETON(GameStateStack),
@@ -1347,6 +1504,10 @@ fn draw_editor_level(
             create_portal(world, physics_world.id, &.{});
         }
 
+        if (imgui.igButton("Add blackhole", .{ .x = 0.0, .y = 0.0 })) {
+            create_black_hole(world, physics_world.id, &.{});
+        }
+
         if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
             create_rectangle(world, physics_world.id, &.{}) catch {
                 state_stack.push_state(.Exit);
@@ -1395,7 +1556,8 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb);
     flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb);
     flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb);
-    flecs.ADD_SYSTEM(world, "draw_portalss_aabb", flecs.OnValidate, draw_portalss_aabb);
+    flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb);
+    flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb);
     flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb);
 
     flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
@@ -1403,5 +1565,6 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
     flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
     flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal);
+    flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole);
     flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
 }

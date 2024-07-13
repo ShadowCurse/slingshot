@@ -1,0 +1,128 @@
+{
+    "objects": [
+        {
+            "Text": {
+                "position": {
+                    "x": -9.1e1,
+                    "y": 1.08e2
+                },
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                },
+                "text": "There are black holes too\u0000the anchor\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+                "font_size": 1e1,
+                "spacing": 1e0
+            }
+        },
+        {
+            "Spawner": {
+                "position": {
+                    "x": 0e0,
+                    "y": 4.8e1
+                }
+            }
+        },
+        {
+            "Ball": {
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                },
+                "radius": 1e1
+            }
+        },
+        {
+            "Anchor": {
+                "color": {
+                    "r": 0,
+                    "g": 228,
+                    "b": 48,
+                    "a": 255
+                },
+                "position": {
+                    "x": 0e0,
+                    "y": -2.5e1
+                },
+                "radius": 1e1,
+                "min_length": 0e0,
+                "max_length": 1e2,
+                "damping_ratio": 5e-1,
+                "hertz": 1e0,
+                "pull_force": 2e2
+            }
+        },
+        {
+            "BlackHole": {
+                "color": {
+                    "r": 255,
+                    "g": 0,
+                    "b": 0,
+                    "a": 80
+                },
+                "position": {
+                    "x": 1.14e2,
+                    "y": 1.03e2
+                },
+                "radius": 5e1,
+                "strength": 1.5e1
+            }
+        },
+        {
+            "Rectangle": {
+                "color": {
+                    "r": 231,
+                    "g": 255,
+                    "b": 0,
+                    "a": 255
+                },
+                "position": {
+                    "x": 0e0,
+                    "y": 1.99e2
+                },
+                "point_1": {
+                    "x": 1e0,
+                    "y": 0e0
+                },
+                "point_2": {
+                    "x": -1e0,
+                    "y": 0e0
+                },
+                "width": 2e1,
+                "height_offset": 1e1,
+                "restitution": 0e0,
+                "is_sensor": true
+            }
+        },
+        {
+            "Rectangle": {
+                "color": {
+                    "r": 255,
+                    "g": 255,
+                    "b": 255,
+                    "a": 255
+                },
+                "position": {
+                    "x": 0e0,
+                    "y": 1e2
+                },
+                "point_1": {
+                    "x": 5e1,
+                    "y": 0e0
+                },
+                "point_2": {
+                    "x": -5e1,
+                    "y": 0e0
+                },
+                "width": 2.8e1,
+                "height_offset": 1e1,
+                "restitution": 0e0,
+                "is_sensor": false
+            }
+        }
+    ]
+}

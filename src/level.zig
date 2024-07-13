@@ -53,6 +53,11 @@ const PortalId = __objects.PortalId;
 const PortalTarget = __objects.PortalTarget;
 const PortalParams = __objects.PortalParams;
 
+const create_black_hole = __objects.create_black_hole;
+const BlackHoleShape = __objects.BlackHoleShape;
+const BlackHoleStrength = __objects.BlackHoleStrength;
+const BlackHoleParams = __objects.BlackHoleParams;
+
 const create_rectangle = __objects.create_rectangle;
 const RectangleShape = __objects.RectangleShape;
 const RectangleParams = __objects.RectangleParams;
@@ -288,6 +293,9 @@ pub fn load_level(
             .Portal => |*r| {
                 create_portal(world, physics_world.id, r);
             },
+            .BlackHole => |*r| {
+                create_black_hole(world, physics_world.id, r);
+            },
             .Rectangle => |*r| {
                 create_rectangle(world, physics_world.id, r) catch {
                     state_stack.push_state(.Exit);
@@ -485,6 +493,7 @@ pub const SaveLevelCtx = struct {
     ball_query: *flecs.query_t,
     anchor_query: *flecs.query_t,
     portal_query: *flecs.query_t,
+    black_hole_query: *flecs.query_t,
     rectangle_query: *flecs.query_t,
 
     const Self = @This();
@@ -536,6 +545,17 @@ pub const SaveLevelCtx = struct {
         portal_query.filter.terms[4].id = flecs.id(PortalTarget);
         const pq = try flecs.query_init(world, &portal_query);
 
+        var black_hole_query: flecs.query_desc_t = .{};
+        black_hole_query.filter.terms[0].inout = .In;
+        black_hole_query.filter.terms[0].id = flecs.id(Color);
+        black_hole_query.filter.terms[1].inout = .In;
+        black_hole_query.filter.terms[1].id = flecs.id(Position);
+        black_hole_query.filter.terms[2].inout = .In;
+        black_hole_query.filter.terms[2].id = flecs.id(BlackHoleShape);
+        black_hole_query.filter.terms[3].inout = .In;
+        black_hole_query.filter.terms[3].id = flecs.id(BlackHoleStrength);
+        const bhq = try flecs.query_init(world, &black_hole_query);
+
         var rectangle_query: flecs.query_desc_t = .{};
         rectangle_query.filter.terms[0].inout = .In;
         rectangle_query.filter.terms[0].id = flecs.id(Color);
@@ -551,6 +571,7 @@ pub const SaveLevelCtx = struct {
             .ball_query = bq,
             .anchor_query = aq,
             .portal_query = pq,
+            .black_hole_query = bhq,
             .rectangle_query = rq,
         };
     }
@@ -649,6 +670,22 @@ pub fn save_level(
         for (colors, positions, shapes, ids, targets) |*color, *position, *shape, *id, *target| {
             const params = PortalParams.new(color, position, shape, id, target);
             objects_params.append(.{ .Portal = params }) catch {
+                state_stack.push_state(.Exit);
+                return;
+            };
+        }
+    }
+
+    const black_hole_query: *flecs.query_t = @ptrCast(ctx.black_hole_query);
+    var black_hole_iter = flecs.query_iter(world, black_hole_query);
+    while (flecs.query_next(&black_hole_iter)) {
+        const colors = flecs.field(&black_hole_iter, Color, 1).?;
+        const positions = flecs.field(&black_hole_iter, Position, 2).?;
+        const shapes = flecs.field(&black_hole_iter, BlackHoleShape, 3).?;
+        const stengths = flecs.field(&black_hole_iter, BlackHoleStrength, 4).?;
+        for (colors, positions, shapes, stengths) |*color, *position, *shape, *strength| {
+            const params = BlackHoleParams.new(color, position, shape, strength);
+            objects_params.append(.{ .BlackHole = params }) catch {
                 state_stack.push_state(.Exit);
                 return;
             };

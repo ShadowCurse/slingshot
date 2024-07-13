@@ -1044,6 +1044,146 @@ fn update_portals(
     }
 }
 
+pub const BlackHoleTag = struct {};
+
+pub const BlackHoleShape = struct {
+    radius: f32,
+};
+
+pub const BlackHoleStrength = struct {
+    value: f32,
+};
+
+pub const BlackHoleParams = struct {
+    color: rl.Color = .{ .r = 255, .g = 64, .b = 64, .a = 30 },
+    position: Vector2 = Vector2.ZERO,
+    radius: f32 = 50.0,
+    strength: f32 = 10.0,
+
+    const Self = @This();
+
+    pub fn new(
+        color: *const Color,
+        position: *const Position,
+        shape: *const BlackHoleShape,
+        strength: *const BlackHoleStrength,
+    ) Self {
+        return Self{
+            .position = position.value,
+            .radius = shape.radius,
+            .color = color.value,
+            .strength = strength.value,
+        };
+    }
+};
+
+pub fn create_black_hole(
+    ecs_world: *flecs.world_t,
+    physics_world: b2.b2WorldId,
+    params: *const BlackHoleParams,
+) void {
+    var body_def = b2.b2DefaultBodyDef();
+    body_def.type = b2.b2_staticBody;
+    body_def.position = params.position.to_b2();
+    const body_id = b2.b2CreateBody(physics_world, &body_def);
+
+    const n = flecs.new_id(ecs_world);
+    _ = flecs.add(ecs_world, n, BlackHoleTag);
+
+    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
+    _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
+    _ = flecs.set(ecs_world, n, BodyId, .{ .id = body_id });
+    _ = flecs.set(ecs_world, n, BlackHoleShape, .{ .radius = params.radius });
+    _ = flecs.set(ecs_world, n, BlackHoleStrength, .{ .value = params.strength });
+
+    const aabb = AABB.new_square(params.radius);
+    _ = flecs.set(ecs_world, n, AABB, aabb);
+
+    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
+}
+
+fn draw_blackholes(
+    _state_stack: SINGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _colors: COMPONENT(Color, .In),
+    _shapes: COMPONENT(BlackHoleShape, .In),
+) void {
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
+    const colors = _colors.get();
+    const shapes = _shapes.get();
+
+    const current_state = state_stack.current_state();
+    if (!(current_state == .Running or
+        current_state == .Editor or
+        current_state == .Paused))
+    {
+        return;
+    }
+
+    for (positions, colors, shapes) |*position, *color, *shape| {
+        rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
+    }
+}
+
+const UpdateBlackHolesCtx = struct {
+    ball_query: *flecs.query_t,
+
+    const Self = @This();
+    pub fn init(world: *flecs.world_t) !Self {
+        var ball_query: flecs.query_desc_t = .{};
+        ball_query.filter.terms[0].id = flecs.id(BodyId);
+        ball_query.filter.terms[0].inout = .In;
+        ball_query.filter.terms[1].id = flecs.id(BallShape);
+        ball_query.filter.terms[1].inout = .In;
+        ball_query.filter.terms[2].id = flecs.id(Position);
+        ball_query.filter.terms[2].inout = .In;
+        ball_query.filter.terms[3].id = flecs.id(BallAttachment);
+        ball_query.filter.terms[3].inout = .InOut;
+        const q = try flecs.query_init(world, &ball_query);
+
+        return .{
+            .ball_query = q,
+        };
+    }
+};
+fn update_blackholes(
+    _world: WORLD(),
+    _ctx: STATIC(UpdateBlackHolesCtx),
+    _state_stack: SINGLETON(GameStateStack),
+    _positions: COMPONENT(Position, .In),
+    _shapes: COMPONENT(BlackHoleShape, .In),
+    _strengths: COMPONENT(BlackHoleStrength, .In),
+) void {
+    const world = _world.get_mut();
+    const ctx = _ctx.get();
+    const state_stack = _state_stack.get();
+    const positions = _positions.get();
+    const shapes = _shapes.get();
+    const strengths = _strengths.get();
+
+    if (state_stack.current_state() != .Running) {
+        return;
+    }
+
+    var ball_iter = flecs.query_iter(world, ctx.ball_query);
+    std.debug.assert(flecs.query_next(&ball_iter));
+    const ball_body = flecs.field(&ball_iter, BodyId, 1).?[0];
+    const ball_shape = flecs.field(&ball_iter, BallShape, 2).?[0];
+    const ball_position = flecs.field(&ball_iter, Position, 3).?[0];
+    std.debug.assert(!flecs.query_next(&ball_iter));
+
+    for (positions, shapes, strengths) |*position, *shape, *strength| {
+        const to_bh = position.value.sub(&ball_position.value);
+        if (to_bh.length() < shape.radius + ball_shape.radius) {
+            const to_bh_normalized = to_bh.normalized();
+            var velocity = Vector2.from_b2(b2.b2Body_GetLinearVelocity(ball_body.id));
+            velocity = velocity.add(&to_bh_normalized.mul(strength.value));
+            b2.b2Body_SetLinearVelocity(ball_body.id, velocity.to_b2());
+        }
+    }
+}
+
 pub const RectangleTag = struct {};
 
 pub const RectangleShape = struct {
@@ -1267,6 +1407,7 @@ pub const ObjectTags = enum {
     Ball,
     Anchor,
     Portal,
+    BlackHole,
     Rectangle,
 };
 
@@ -1276,6 +1417,7 @@ pub const ObjectParams = union(ObjectTags) {
     Ball: BallParams,
     Anchor: AnchorParams,
     Portal: PortalParams,
+    BlackHole: BlackHoleParams,
     Rectangle: RectangleParams,
 };
 
@@ -1311,6 +1453,10 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     flecs.COMPONENT(world, PortalId);
     flecs.COMPONENT(world, PortalTarget);
 
+    flecs.TAG(world, BlackHoleTag);
+    flecs.COMPONENT(world, BlackHoleShape);
+    flecs.COMPONENT(world, BlackHoleStrength);
+
     flecs.TAG(world, RectangleTag);
     flecs.COMPONENT(world, RectangleShape);
 
@@ -1326,11 +1472,13 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
     flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
     flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals);
+    flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes);
     flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
 
     flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
     flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
     flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals);
+    flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes);
     flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
     flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
     flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
