@@ -513,7 +513,6 @@ fn draw_level_selection(
 
         const colunm_size = 3;
         const columns = levels.level_groups.items[ag].levels.len / colunm_size + 1;
-        std.log.info("columns: {}", .{columns});
         const initial_offset = -UI_ELEMENT_OFFSET_SIZE.x * @as(f32, @floatFromInt(columns / 2));
         for (levels.level_groups.items[ag].levels, 0..) |metadata, i| {
             if (metadata.locked) {
