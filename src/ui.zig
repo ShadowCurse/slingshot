@@ -511,6 +511,10 @@ fn draw_level_selection(
         };
         level_title_text.draw(ui_style, .Big);
 
+        const colunm_size = 3;
+        const columns = levels.level_groups.items[ag].levels.len / colunm_size + 1;
+        std.log.info("columns: {}", .{columns});
+        const initial_offset = -UI_ELEMENT_OFFSET_SIZE.x * @as(f32, @floatFromInt(columns / 2));
         for (levels.level_groups.items[ag].levels, 0..) |metadata, i| {
             if (metadata.locked) {
                 continue;
@@ -521,8 +525,8 @@ fn draw_level_selection(
                 .box = .{
                     .position = settings.screen_center().add(
                         &ui_style.apply_scale(.{
-                            .x = 0.0,
-                            .y = -UI_ELEMENT_OFFSET_SIZE.y * @as(f32, @floatFromInt(i)),
+                            .x = initial_offset + (UI_ELEMENT_OFFSET_SIZE.x * 2.0) * @as(f32, @floatFromInt(i / colunm_size)),
+                            .y = -UI_ELEMENT_OFFSET_SIZE.y * @as(f32, @floatFromInt(i - colunm_size * (i / colunm_size))),
                         }),
                     ),
                     .size = ui_style.apply_scale(UI_ELEMENT_SIZE),
