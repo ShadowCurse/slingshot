@@ -50,7 +50,7 @@ const Vector2 = @import("vector.zig");
 const Allocator = std.mem.Allocator;
 
 pub const DEFAULT_SCREEN_WIDTH: f32 = 1280.0;
-const TARGET_FPS = 80;
+const TARGET_FPS = 60;
 const BACKGROUND_COLOR = rl.BLACK;
 const AABB_LINE_THICKNESS = 1.5;
 const AABB_COLOR = rl.SKYBLUE;
