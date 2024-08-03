@@ -24,9 +24,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    imgui.addIncludePath(.{ .path = "cimgui/imgui" });
-    imgui.addIncludePath(.{ .path = "raylib/src/external/glfw/include" });
-    imgui.addIncludePath(.{ .path = env.get("INCLUDE_GL").? });
+    imgui.addIncludePath(b.path("cimgui/imgui"));
+    imgui.addIncludePath(b.path("raylib/src/external/glfw/include"));
+    imgui.addIncludePath(b.path(env.get("INCLUDE_GL").?));
     imgui.addCSourceFiles(.{
         .files = &.{
             "cimgui/imgui/imgui.cpp",
@@ -45,8 +45,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    cimgui.addIncludePath(.{ .path = "cimgui" });
-    cimgui.addIncludePath(.{ .path = "cimgui/imgui" });
+    cimgui.addIncludePath(b.path("cimgui"));
+    cimgui.addIncludePath(b.path("cimgui/imgui"));
     cimgui.addCSourceFiles(.{
         .files = &.{
             "cimgui/cimgui.cpp",
@@ -81,9 +81,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    rl_imgui.addIncludePath(.{ .path = "rlImGui" });
-    rl_imgui.addIncludePath(.{ .path = "raylib/src" });
-    rl_imgui.addIncludePath(.{ .path = "cimgui/imgui" });
+    rl_imgui.addIncludePath(b.path("rlImGui"));
+    rl_imgui.addIncludePath(b.path("raylib/src"));
+    rl_imgui.addIncludePath(b.path("cimgui/imgui"));
     rl_imgui.addCSourceFiles(.{
         .files = &.{
             "rlImGui/rlImGui.cpp",
@@ -101,11 +101,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    box2c.addIncludePath(.{ .path = "box2c/extern/glad/include" });
-    box2c.addIncludePath(.{ .path = "box2c/extern/jsmn" });
-    box2c.addIncludePath(.{ .path = "box2c/extern/simde" });
-    box2c.addIncludePath(.{ .path = "box2c/include" });
-    box2c.addIncludePath(.{ .path = "box2c/src" });
+    box2c.addIncludePath(b.path("box2c/extern/glad/include"));
+    box2c.addIncludePath(b.path("box2c/extern/jsmn"));
+    box2c.addIncludePath(b.path("box2c/extern/simde"));
+    box2c.addIncludePath(b.path("box2c/include"));
+    box2c.addIncludePath(b.path("box2c/src"));
 
     var box2d_flags = std.ArrayList([]const u8).init(std.heap.page_allocator);
     defer box2d_flags.deinit();
@@ -165,13 +165,13 @@ pub fn build(b: *std.Build) void {
 
     const flecs = b.addStaticLibrary(.{
         .name = "flecs",
-        .root_source_file = .{ .path = "src/deps/flecs.zig" },
+        .root_source_file = b.path("src/deps/flecs.zig"),
         .target = target,
         .optimize = optimize,
     });
-    flecs.addIncludePath(.{ .path = "flecs/include" });
+    flecs.addIncludePath(b.path("flecs/include"));
     flecs.addCSourceFile(.{
-        .file = .{ .path = "flecs/flecs.c" },
+        .file = b.path("flecs/flecs.c"),
         .flags = &.{
             "-fno-sanitize=undefined",
             "-DFLECS_NO_CPP",
@@ -207,31 +207,31 @@ pub fn build(b: *std.Build) void {
         ) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
 
-        imgui.addIncludePath(.{ .path = cache_include });
-        cimgui.addIncludePath(.{ .path = cache_include });
+        imgui.addIncludePath(b.path(cache_include));
+        cimgui.addIncludePath(b.path(cache_include));
 
         // It is important to include cpp_include
         // before everything else
-        rl_imgui.addIncludePath(.{ .path = cpp_include });
-        rl_imgui.addIncludePath(.{ .path = cache_include });
+        rl_imgui.addIncludePath(b.path(cpp_include));
+        rl_imgui.addIncludePath(b.path(cache_include));
 
-        box2c.addIncludePath(.{ .path = cache_include });
-        flecs.addIncludePath(.{ .path = cache_include });
+        box2c.addIncludePath(b.path(cache_include));
+        flecs.addIncludePath(b.path(cache_include));
 
         const lib = b.addStaticLibrary(.{
             .name = "slingshot",
-            .root_source_file = .{ .path = "src/main.zig" },
+            .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
         });
-        lib.addIncludePath(.{ .path = cache_include });
+        lib.addIncludePath(b.path(cache_include));
 
         lib.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
-        lib.addIncludePath(.{ .path = "cimgui" });
-        lib.addIncludePath(.{ .path = "raylib/src" });
-        lib.addIncludePath(.{ .path = "rlImGui" });
-        lib.addIncludePath(.{ .path = "box2c/include" });
-        lib.addIncludePath(.{ .path = "flecs/include" });
+        lib.addIncludePath(b.path("cimgui"));
+        lib.addIncludePath(b.path("raylib/src"));
+        lib.addIncludePath(b.path("rlImGui"));
+        lib.addIncludePath(b.path("box2c/include"));
+        lib.addIncludePath(b.path("flecs/include"));
 
         lib.linkLibC();
 
@@ -241,23 +241,23 @@ pub fn build(b: *std.Build) void {
     };
 
     const ARTIFACT_INCLUDES = struct {
-        fn add_includes(c: *std.Build.Step.Compile) void {
+        fn add_includes(_b: *std.Build, c: *std.Build.Step.Compile) void {
             c.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
-            c.addIncludePath(.{ .path = "cimgui" });
-            c.addIncludePath(.{ .path = "raylib/src" });
-            c.addIncludePath(.{ .path = "rlImGui" });
-            c.addIncludePath(.{ .path = "box2c/include" });
-            c.addIncludePath(.{ .path = "flecs/include" });
+            c.addIncludePath(_b.path("cimgui"));
+            c.addIncludePath(_b.path("raylib/src"));
+            c.addIncludePath(_b.path("rlImGui"));
+            c.addIncludePath(_b.path("box2c/include"));
+            c.addIncludePath(_b.path("flecs/include"));
         }
     };
 
     const artifact_wayland = b.addExecutable(.{
         .name = "slingshot",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    ARTIFACT_INCLUDES.add_includes(artifact_wayland);
+    ARTIFACT_INCLUDES.add_includes(b, artifact_wayland);
     artifact_wayland.linkLibrary(imgui);
     artifact_wayland.linkLibrary(cimgui);
     artifact_wayland.linkLibrary(rl_imgui);
@@ -268,11 +268,11 @@ pub fn build(b: *std.Build) void {
 
     const artifact_x11 = b.addExecutable(.{
         .name = "slingshot_x11",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    ARTIFACT_INCLUDES.add_includes(artifact_x11);
+    ARTIFACT_INCLUDES.add_includes(b, artifact_x11);
     artifact_x11.linkLibrary(imgui);
     artifact_x11.linkLibrary(cimgui);
     artifact_x11.linkLibrary(rl_imgui);
@@ -324,7 +324,7 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
