@@ -55,14 +55,13 @@ pub fn build(b: *std.Build) void {
     });
     cimgui.linkLibCpp();
 
-    const raylib_build = @import("raylib/src/build.zig");
+    const raylib_build = @import("raylib");
     const raylib_wayland = raylib_build.addRaylib(
         b,
         target,
         optimize,
         .{
-            .raygui = false,
-            .linux_display_backend = raylib_build.LinuxDisplayBackend.Wayland,
+            .linux_display_backend = .Wayland,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
 
@@ -71,8 +70,7 @@ pub fn build(b: *std.Build) void {
         target,
         optimize,
         .{
-            .raygui = false,
-            .linux_display_backend = raylib_build.LinuxDisplayBackend.X11,
+            .linux_display_backend = .X11,
         },
     ) catch |err| std.debug.panic("addRaylib error: {any}", .{err});
 
