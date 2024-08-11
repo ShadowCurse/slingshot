@@ -216,18 +216,6 @@ pub const Levels = struct {
             return null;
         }
     }
-
-    pub fn finish_active_level(self: *Self) void {
-        _ = self;
-        // const al = self.active_level().?;
-        // for (al.unlocks) |level_to_unlock| {
-        //     for (self.levels_metadata.items) |*meta| {
-        //         if (std.mem.eql(u8, meta.name, level_to_unlock)) {
-        //             meta.locked = false;
-        //         }
-        //     }
-        // }
-    }
 };
 
 pub fn load_level(

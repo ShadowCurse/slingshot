@@ -338,7 +338,6 @@ pub fn check_win_contidion(
                 } else {
                     current_level.best_time = timer.time;
                 }
-                levels.finish_active_level();
                 levels.save() catch {
                     state_stack.push_state(.Exit);
                     return;
