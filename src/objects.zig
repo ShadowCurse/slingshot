@@ -218,6 +218,12 @@ pub const TextText = struct {
     spacing: f32 = 1.0,
 };
 
+pub const TextParamsBundle = struct {
+    color: Color,
+    position: Position,
+    text: TextText,
+};
+
 pub const TextParams = struct {
     position: Vector2 = Vector2.ZERO,
     color: rl.Color = rl.WHITE,
@@ -245,21 +251,33 @@ pub const TextParams = struct {
     }
 };
 
-pub fn create_text(ecs_world: *flecs.world_t, params: *const TextParams) void {
-    const n = flecs.new_id(ecs_world);
-    _ = flecs.add(ecs_world, n, TextTag);
-    const text = TextText{
-        .text = params.text,
-        .font_size = params.font_size,
-        .spacing = params.spacing,
-    };
-    _ = flecs.set(ecs_world, n, TextText, text);
-    _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
-    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
-    const aabb = AABB.new_rectangle(TextParams.MAX_WIDTH / 2.0, params.font_size);
-    _ = flecs.set(ecs_world, n, AABB, aabb);
-    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
-}
+pub const TextBundle = struct {
+    tag: BallTag,
+    color: Color,
+    position: Position,
+    text: TextText,
+    aabb: AABB,
+    level_object: LevelObject,
+
+    const Self = @This();
+
+    pub fn from_params(params: *const TextParams) Self {
+        const text = TextText{
+            .text = params.text,
+            .font_size = params.font_size,
+            .spacing = params.spacing,
+        };
+        const aabb = AABB.new_rectangle(TextParams.MAX_WIDTH / 2.0, params.font_size);
+        return Self{
+            .tag = .{},
+            .color = .{ .value = params.color },
+            .position = .{ .value = params.position },
+            .text = text,
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
+        };
+    }
+};
 
 fn draw_texts(
     _state_stack: SINGLETON(GameStateStack),
@@ -296,6 +314,11 @@ fn draw_texts(
 
 pub const SpawnerTag = struct {};
 
+pub const SpawnerParamsBundle = struct {
+    position: Position,
+    tag: SpawnerTag,
+};
+
 pub const SpawnerParams = struct {
     position: Vector2 = Vector2.ZERO,
 
@@ -307,6 +330,25 @@ pub const SpawnerParams = struct {
     pub fn new(position: *const Position) Self {
         return Self{
             .position = position.value,
+        };
+    }
+};
+
+pub const SpawnerBundle = struct {
+    tag: SpawnerTag,
+    position: Position,
+    aabb: AABB,
+    level_object: LevelObject,
+
+    const Self = @This();
+
+    pub fn from_params(params: *const SpawnerParams) Self {
+        const aabb = AABB.new_square(SpawnerParams.RADIUS);
+        return Self{
+            .tag = .{},
+            .position = .{ .value = params.position },
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
         };
     }
 };
@@ -356,6 +398,11 @@ pub const BallAttachment = struct {
     attached: bool,
 };
 
+pub const BallParamsBundle = struct {
+    color: Color,
+    ball_shape: BallShape,
+};
+
 // Used only for serialization/deserialization
 pub const BallParams = struct {
     color: rl.Color = rl.WHITE,
@@ -369,42 +416,66 @@ pub const BallParams = struct {
             .radius = shape.radius,
         };
     }
+
+    pub fn save(world: *const flecs.world_t, query: *flecs.query_t, data: *std.ArrayList(ObjectParams)) !void {
+        var iter = flecs.query_iter(world, query);
+        while (flecs.query_next(&iter)) {
+            const colors = flecs.field(&iter, Color, 1).?;
+            const shapes = flecs.field(&iter, BallShape, 2).?;
+            for (colors, shapes) |*color, *shape| {
+                const params = BallParams.new(color, shape);
+                try data.append(.{ .Ball = params });
+            }
+        }
+    }
 };
 
-pub fn create_ball(ecs_world: *flecs.world_t, physics_world: b2.b2WorldId, params: *const BallParams) void {
-    var body_def = b2.b2DefaultBodyDef();
-    body_def.type = b2.b2_dynamicBody;
-    const body_id = b2.b2CreateBody(physics_world, &body_def);
+pub const BallBundle = struct {
+    tag: BallTag,
+    color: Color,
+    position: Position,
+    body_id: BodyId,
+    shape_id: ShapeId,
+    ball_shape: BallShape,
+    ball_attachment: BallAttachment,
+    aabb: AABB,
+    level_object: LevelObject,
 
-    var shape_def = b2.b2DefaultShapeDef();
-    shape_def.density = 100.0;
-    shape_def.friction = 0.5;
-    shape_def.restitution = 0.3;
+    const Self = @This();
 
-    const circle = b2.b2Circle{
-        .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
-        .radius = params.radius,
-    };
-    const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
+    pub fn from_params(physics_world: b2.b2WorldId, params: *const BallParams) Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_dynamicBody;
+        const body_id = b2.b2CreateBody(physics_world, &body_def);
 
-    const n = flecs.new_id(ecs_world);
-    _ = flecs.add(ecs_world, n, BallTag);
+        var shape_def = b2.b2DefaultShapeDef();
+        shape_def.density = 100.0;
+        shape_def.friction = 0.5;
+        shape_def.restitution = 0.3;
 
-    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
-    _ = flecs.set(ecs_world, n, Position, .{ .value = Vector2.ZERO });
-    _ = flecs.set(ecs_world, n, BodyId, .{ .id = body_id });
-    _ = flecs.set(ecs_world, n, ShapeId, .{ .id = shape_id });
-    _ = flecs.set(ecs_world, n, BallShape, .{ .radius = params.radius });
-    _ = flecs.set(ecs_world, n, BallAttachment, .{
-        .should_attach = true,
-        .attached = false,
-    });
+        const circle = b2.b2Circle{
+            .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
+            .radius = params.radius,
+        };
+        const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
+        const aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
 
-    const aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
-    _ = flecs.set(ecs_world, n, AABB, aabb);
-
-    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
-}
+        return Self{
+            .tag = .{},
+            .color = .{ .value = params.color },
+            .position = .{ .value = Vector2.ZERO },
+            .body_id = .{ .id = body_id },
+            .shape_id = .{ .id = shape_id },
+            .ball_shape = .{ .radius = params.radius },
+            .ball_attachment = .{
+                .should_attach = true,
+                .attached = false,
+            },
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
+        };
+    }
+};
 
 fn pre_draw_balls(
     _state_stack: SINGLETON(GameStateStack),
@@ -542,6 +613,13 @@ pub const AnchoraJointParams = struct {
     pull_force: f32 = 200.0,
 };
 
+pub const AnchorParamsBundle = struct {
+    color: Color,
+    position: Position,
+    shape: AnchorShape,
+    joint_params: AnchoraJointParams,
+};
+
 pub const AnchorParams = struct {
     color: rl.Color = rl.GREEN,
     position: Vector2 = Vector2.ZERO,
@@ -575,39 +653,45 @@ pub const AnchorParams = struct {
     }
 };
 
-pub fn create_anchor(
-    ecs_world: *flecs.world_t,
-    physics_world: b2.b2WorldId,
-    params: *const AnchorParams,
-) void {
-    var body_def = b2.b2DefaultBodyDef();
-    body_def.type = b2.b2_staticBody;
-    body_def.position = params.position.to_b2();
-    const body_id = b2.b2CreateBody(physics_world, &body_def);
+pub const AnchorBundle = struct {
+    tag: AnchorTag,
+    color: Color,
+    position: Position,
+    body_id: BodyId,
+    shape: AnchorShape,
+    joint_params: AnchoraJointParams,
+    aabb: AABB,
+    level_object: LevelObject,
 
-    const n = flecs.new_id(ecs_world);
-    _ = flecs.add(ecs_world, n, AnchorTag);
+    const Self = @This();
 
-    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
-    _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
-    _ = flecs.set(ecs_world, n, BodyId, .{ .id = body_id });
-    _ = flecs.set(ecs_world, n, AnchorShape, .{ .radius = params.radius });
+    pub fn from_params(physics_world: b2.b2WorldId, params: *const AnchorParams) Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_staticBody;
+        body_def.position = params.position.to_b2();
+        const body_id = b2.b2CreateBody(physics_world, &body_def);
 
-    const anchor_joint_params = AnchoraJointParams{
-        .min_length = params.min_length,
-        .max_length = params.max_length,
-        .damping_ratio = params.damping_ratio,
-        .hertz = params.hertz,
-        .pull_force = params.pull_force,
-    };
+        const anchor_joint_params = AnchoraJointParams{
+            .min_length = params.min_length,
+            .max_length = params.max_length,
+            .damping_ratio = params.damping_ratio,
+            .hertz = params.hertz,
+            .pull_force = params.pull_force,
+        };
+        const aabb = AABB.new_square(params.radius);
 
-    _ = flecs.set(ecs_world, n, AnchoraJointParams, anchor_joint_params);
-
-    const aabb = AABB.new_square(params.radius);
-    _ = flecs.set(ecs_world, n, AABB, aabb);
-
-    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 1 });
-}
+        return Self{
+            .tag = .{},
+            .color = .{ .value = params.color },
+            .position = .{ .value = params.position },
+            .body_id = .{ .id = body_id },
+            .shape = .{ .radius = params.radius },
+            .joint_params = anchor_joint_params,
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
+        };
+    }
+};
 
 fn draw_anchors(
     _state_stack: SINGLETON(GameStateStack),
@@ -867,6 +951,14 @@ pub const PortalId = struct { id: i32 };
 
 pub const PortalTarget = struct { id: i32 };
 
+pub const PortalParamsBundle = struct {
+    color: Color,
+    position: Position,
+    shape: PortalShape,
+    id: PortalId,
+    target: PortalTarget,
+};
+
 pub const PortalParams = struct {
     color: rl.Color = rl.BLUE,
     position: Vector2 = Vector2.ZERO,
@@ -889,6 +981,52 @@ pub const PortalParams = struct {
             .color = color.value,
             .id = id.id,
             .target = target.id,
+        };
+    }
+};
+
+pub const PortalBundle = struct {
+    tag: PortalTag,
+    color: Color,
+    position: Position,
+    body_id: BodyId,
+    shape_id: ShapeId,
+    shape: PortalShape,
+    id: PortalId,
+    target: PortalTarget,
+    aabb: AABB,
+    level_object: LevelObject,
+
+    const Self = @This();
+
+    pub fn from_params(physics_world: b2.b2WorldId, params: *const PortalParams) Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_staticBody;
+        body_def.position = params.position.to_b2();
+        const body_id = b2.b2CreateBody(physics_world, &body_def);
+
+        var shape_def = b2.b2DefaultShapeDef();
+        shape_def.isSensor = true;
+
+        const circle = b2.b2Circle{
+            .point = b2.b2Vec2{ .x = 0.0, .y = 0.0 },
+            .radius = params.radius,
+        };
+        const shape_id = b2.b2CreateCircleShape(body_id, &shape_def, &circle);
+
+        const aabb = AABB.new_square(params.radius);
+
+        return Self{
+            .tag = .{},
+            .color = .{ .value = params.color },
+            .position = .{ .value = params.position },
+            .body_id = .{ .id = body_id },
+            .shape_id = .{ .id = shape_id },
+            .shape = .{ .radius = params.radius },
+            .id = .{ .id = params.id },
+            .target = .{ .id = params.target },
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
         };
     }
 };
@@ -1054,6 +1192,13 @@ pub const BlackHoleStrength = struct {
     value: f32,
 };
 
+pub const BlackHoleParamsBundle = struct {
+    color: Color,
+    position: Position,
+    shape: BlackHoleShape,
+    strength: BlackHoleStrength,
+};
+
 pub const BlackHoleParams = struct {
     color: rl.Color = .{ .r = 255, .g = 64, .b = 64, .a = 30 },
     position: Vector2 = Vector2.ZERO,
@@ -1073,6 +1218,39 @@ pub const BlackHoleParams = struct {
             .radius = shape.radius,
             .color = color.value,
             .strength = strength.value,
+        };
+    }
+};
+
+pub const BlackHoleBundle = struct {
+    tag: BlackHoleTag,
+    color: Color,
+    position: Position,
+    body_id: BodyId,
+    shape: BlackHoleShape,
+    strength: BlackHoleStrength,
+    aabb: AABB,
+    level_object: LevelObject,
+
+    const Self = @This();
+
+    pub fn from_params(physics_world: b2.b2WorldId, params: *const BlackHoleParams) Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_staticBody;
+        body_def.position = params.position.to_b2();
+        const body_id = b2.b2CreateBody(physics_world, &body_def);
+
+        const aabb = AABB.new_square(params.radius);
+
+        return Self{
+            .tag = .{},
+            .color = .{ .value = params.color },
+            .position = .{ .value = params.position },
+            .body_id = .{ .id = body_id },
+            .shape = .{ .radius = params.radius },
+            .strength = .{ .value = params.strength },
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
         };
     }
 };
@@ -1289,6 +1467,12 @@ pub const RectangleShape = struct {
     }
 };
 
+pub const RectangleParamsBundle = struct {
+    color: Color,
+    position: Position,
+    shape: RectangleShape,
+};
+
 pub const RectangleParams = struct {
     color: rl.Color = rl.WHITE,
     position: Vector2 = Vector2.ZERO,
@@ -1317,50 +1501,56 @@ pub const RectangleParams = struct {
     }
 };
 
-pub fn create_rectangle(
-    ecs_world: *flecs.world_t,
-    physics_world: b2.b2WorldId,
-    params: *const RectangleParams,
-) !void {
-    var body_def = b2.b2DefaultBodyDef();
-    body_def.type = b2.b2_staticBody;
-    body_def.position = params.position.to_b2();
-    const body_id = b2.b2CreateBody(physics_world, &body_def);
-    errdefer b2.b2DestroyBody(body_id);
+pub const RectangleBundle = struct {
+    tag: RectangleTag,
+    color: Color,
+    position: Position,
+    body_id: BodyId,
+    shape_id: ShapeId,
+    shape: RectangleShape,
+    aabb: AABB,
+    level_object: LevelObject,
+    win_target: ?WinTarget,
 
-    var shape_def = b2.b2DefaultShapeDef();
-    shape_def.restitution = params.restitution;
-    shape_def.isSensor = params.is_sensor;
-    const rectangle = try RectangleShape.new(
-        params.point_1,
-        params.point_2,
-        params.width,
-        params.height_offset,
-        params.restitution,
-        params.is_sensor,
-    );
-    const shape_id = b2.b2CreatePolygonShape(body_id, &shape_def, &rectangle.shape);
+    const Self = @This();
 
-    const n = flecs.new_id(ecs_world);
-    _ = flecs.add(ecs_world, n, RectangleTag);
+    pub fn from_params(physics_world: b2.b2WorldId, params: *const RectangleParams) !Self {
+        var body_def = b2.b2DefaultBodyDef();
+        body_def.type = b2.b2_staticBody;
+        body_def.position = params.position.to_b2();
+        const body_id = b2.b2CreateBody(physics_world, &body_def);
+        errdefer b2.b2DestroyBody(body_id);
 
-    _ = flecs.set(ecs_world, n, Color, .{ .value = params.color });
-    _ = flecs.set(ecs_world, n, Position, .{ .value = params.position });
-    _ = flecs.set(ecs_world, n, BodyId, .{ .id = body_id });
-    _ = flecs.set(ecs_world, n, ShapeId, .{ .id = shape_id });
-    _ = flecs.set(ecs_world, n, RectangleShape, rectangle);
+        var shape_def = b2.b2DefaultShapeDef();
+        shape_def.restitution = params.restitution;
+        shape_def.isSensor = params.is_sensor;
+        const rectangle = try RectangleShape.new(
+            params.point_1,
+            params.point_2,
+            params.width,
+            params.height_offset,
+            params.restitution,
+            params.is_sensor,
+        );
+        const shape_id = b2.b2CreatePolygonShape(body_id, &shape_def, &rectangle.shape);
 
-    var aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
-    // move aabb back to 0,0
-    aabb.move(params.position.mul(-1));
-    _ = flecs.set(ecs_world, n, AABB, aabb);
+        var aabb = AABB.from_b2(b2.b2Shape_GetAABB(shape_id));
+        // move aabb back to 0,0
+        aabb.move(params.position.mul(-1));
 
-    _ = flecs.set(ecs_world, n, LevelObject, .{ .destruction_order = 0 });
-
-    if (params.is_sensor) {
-        _ = flecs.add(ecs_world, n, WinTarget);
+        return Self{
+            .tag = .{},
+            .color = .{ .value = params.color },
+            .position = .{ .value = params.position },
+            .body_id = .{ .id = body_id },
+            .shape_id = .{ .id = shape_id },
+            .shape = rectangle,
+            .aabb = aabb,
+            .level_object = .{ .destruction_order = 1 },
+            .win_target = if (params.is_sensor) .{} else null,
+        };
     }
-}
+};
 
 fn draw_rectangles(
     _state_stack: SINGLETON(GameStateStack),

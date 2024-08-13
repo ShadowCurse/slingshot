@@ -3158,3 +3158,46 @@ pub const EcsRest = extern struct {
     ipaddr: ?[*:0]u8 = null,
     impl: ?*anyopaque = null,
 };
+
+//--------------------------------------------------------------------------------------------------
+//
+// ADDITIONS
+//
+//--------------------------------------------------------------------------------------------------
+
+pub fn spawn_bundle(bundle: anytype, world: *world_t) entity_t {
+    const type_info = @typeInfo(@TypeOf(bundle));
+    const fields = type_info.Struct.fields;
+    const n = new_id(world);
+    inline for (fields) |f| {
+        if (@sizeOf(f.type) == 0) {
+            _ = add(world, n, f.type);
+        } else if (@typeInfo(f.type) == .Optional) {
+            if (@field(bundle, f.name)) |v| {
+                if (@sizeOf(@TypeOf(v)) == 0) {
+                    _ = add(world, n, @TypeOf(v));
+                } else {
+                    _ = set(world, n, @TypeOf(v), v);
+                }
+            }
+        } else {
+            _ = set(world, n, f.type, @field(bundle, f.name));
+        }
+    }
+    return n;
+}
+
+pub fn query_bundle(comptime T: type, world: *world_t) !*query_t {
+    const type_info = @typeInfo(T);
+    const fields = type_info.Struct.fields;
+
+    var query_desc: query_desc_t = .{};
+    var i: u32 = 0;
+    inline for (fields) |f| {
+        query_desc.filter.terms[i].inout = .In;
+        query_desc.filter.terms[i].id = id(f.type);
+        i += 1;
+    }
+
+    return query_init(world, &query_desc);
+}

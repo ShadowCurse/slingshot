@@ -26,41 +26,48 @@ const Color = __objects.Color;
 const BodyId = __objects.BodyId;
 const Position = __objects.Position;
 
-const create_text = __objects.create_text;
 const TextText = __objects.TextText;
+const TextBundle = __objects.TextBundle;
 const TextParams = __objects.TextParams;
+const TextParamsBundle = __objects.TextParamsBundle;
 
-const create_spawner = __objects.create_spawner;
 const SpawnerTag = __objects.SpawnerTag;
+const SpawnerBundle = __objects.SpawnerBundle;
 const SpawnerParams = __objects.SpawnerParams;
+const SpawnerParamsBundle = __objects.SpawnerParamsBundle;
 
-const create_ball = __objects.create_ball;
 const BallTag = __objects.BallTag;
 const BallShape = __objects.BallShape;
+const BallBundle = __objects.BallBundle;
 const BallParams = __objects.BallParams;
+const BallParamsBundle = __objects.BallParamsBundle;
 const BallAttachment = __objects.BallAttachment;
 
-const create_anchor = __objects.create_anchor;
 const AnchorShape = __objects.AnchorShape;
+const AnchorBundle = __objects.AnchorBundle;
 const AnchorParams = __objects.AnchorParams;
 const AnchoraJointParams = __objects.AnchoraJointParams;
+const AnchorParamsBundle = __objects.AnchorParamsBundle;
 
 const JointTag = __objects.JointTag;
 
-const create_portal = __objects.create_portal;
 const PortalShape = __objects.PortalShape;
 const PortalId = __objects.PortalId;
 const PortalTarget = __objects.PortalTarget;
+const PortalBundle = __objects.PortalBundle;
 const PortalParams = __objects.PortalParams;
+const PortalParamsBundle = __objects.PortalParamsBundle;
 
-const create_black_hole = __objects.create_black_hole;
 const BlackHoleShape = __objects.BlackHoleShape;
 const BlackHoleStrength = __objects.BlackHoleStrength;
+const BlackHoleBundle = __objects.BlackHoleBundle;
 const BlackHoleParams = __objects.BlackHoleParams;
+const BlackHoleParamsBundle = __objects.BlackHoleParamsBundle;
 
-const create_rectangle = __objects.create_rectangle;
 const RectangleShape = __objects.RectangleShape;
+const RectangleBundle = __objects.RectangleBundle;
 const RectangleParams = __objects.RectangleParams;
+const RectangleParamsBundle = __objects.RectangleParamsBundle;
 
 const Settings = @import("settings.zig").Settings;
 
@@ -267,28 +274,29 @@ pub fn load_level(
     for (level_save.objects) |*obj| {
         switch (obj.*) {
             .Text => |*r| {
-                create_text(world, r);
+                _ = flecs.spawn_bundle(TextBundle.from_params(r), world);
             },
             .Spawner => |*r| {
-                create_spawner(world, r);
+                _ = flecs.spawn_bundle(SpawnerBundle.from_params(r), world);
             },
             .Ball => |*r| {
-                create_ball(world, physics_world.id, r);
+                _ = flecs.spawn_bundle(BallBundle.from_params(physics_world.id, r), world);
             },
             .Anchor => |*r| {
-                create_anchor(world, physics_world.id, r);
+                _ = flecs.spawn_bundle(AnchorBundle.from_params(physics_world.id, r), world);
             },
             .Portal => |*r| {
-                create_portal(world, physics_world.id, r);
+                _ = flecs.spawn_bundle(PortalBundle.from_params(physics_world.id, r), world);
             },
             .BlackHole => |*r| {
-                create_black_hole(world, physics_world.id, r);
+                _ = flecs.spawn_bundle(BlackHoleBundle.from_params(physics_world.id, r), world);
             },
             .Rectangle => |*r| {
-                create_rectangle(world, physics_world.id, r) catch {
+                const bundle = RectangleBundle.from_params(physics_world.id, r) catch {
                     state_stack.push_state(.Exit);
                     return;
                 };
+                _ = flecs.spawn_bundle(bundle, world);
             },
         }
     }
@@ -486,81 +494,14 @@ pub const SaveLevelCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var text_query: flecs.query_desc_t = .{};
-        text_query.filter.terms[0].inout = .In;
-        text_query.filter.terms[0].id = flecs.id(Color);
-        text_query.filter.terms[1].inout = .In;
-        text_query.filter.terms[1].id = flecs.id(Position);
-        text_query.filter.terms[2].inout = .In;
-        text_query.filter.terms[2].id = flecs.id(TextText);
-        const tq = try flecs.query_init(world, &text_query);
-
-        var spawner_query: flecs.query_desc_t = .{};
-        spawner_query.filter.terms[0].inout = .In;
-        spawner_query.filter.terms[0].id = flecs.id(Position);
-        spawner_query.filter.terms[1].inout = .In;
-        spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
-        const sq = try flecs.query_init(world, &spawner_query);
-
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[0].id = flecs.id(Color);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(BallShape);
-        const bq = try flecs.query_init(world, &ball_query);
-
-        var anchor_query: flecs.query_desc_t = .{};
-        anchor_query.filter.terms[0].inout = .In;
-        anchor_query.filter.terms[0].id = flecs.id(Color);
-        anchor_query.filter.terms[1].inout = .In;
-        anchor_query.filter.terms[1].id = flecs.id(Position);
-        anchor_query.filter.terms[2].inout = .In;
-        anchor_query.filter.terms[2].id = flecs.id(AnchorShape);
-        anchor_query.filter.terms[3].inout = .In;
-        anchor_query.filter.terms[3].id = flecs.id(AnchoraJointParams);
-        const aq = try flecs.query_init(world, &anchor_query);
-
-        var portal_query: flecs.query_desc_t = .{};
-        portal_query.filter.terms[0].inout = .In;
-        portal_query.filter.terms[0].id = flecs.id(Color);
-        portal_query.filter.terms[1].inout = .In;
-        portal_query.filter.terms[1].id = flecs.id(Position);
-        portal_query.filter.terms[2].inout = .In;
-        portal_query.filter.terms[2].id = flecs.id(PortalShape);
-        portal_query.filter.terms[3].inout = .In;
-        portal_query.filter.terms[3].id = flecs.id(PortalId);
-        portal_query.filter.terms[4].inout = .In;
-        portal_query.filter.terms[4].id = flecs.id(PortalTarget);
-        const pq = try flecs.query_init(world, &portal_query);
-
-        var black_hole_query: flecs.query_desc_t = .{};
-        black_hole_query.filter.terms[0].inout = .In;
-        black_hole_query.filter.terms[0].id = flecs.id(Color);
-        black_hole_query.filter.terms[1].inout = .In;
-        black_hole_query.filter.terms[1].id = flecs.id(Position);
-        black_hole_query.filter.terms[2].inout = .In;
-        black_hole_query.filter.terms[2].id = flecs.id(BlackHoleShape);
-        black_hole_query.filter.terms[3].inout = .In;
-        black_hole_query.filter.terms[3].id = flecs.id(BlackHoleStrength);
-        const bhq = try flecs.query_init(world, &black_hole_query);
-
-        var rectangle_query: flecs.query_desc_t = .{};
-        rectangle_query.filter.terms[0].inout = .In;
-        rectangle_query.filter.terms[0].id = flecs.id(Color);
-        rectangle_query.filter.terms[1].inout = .In;
-        rectangle_query.filter.terms[1].id = flecs.id(Position);
-        rectangle_query.filter.terms[2].inout = .In;
-        rectangle_query.filter.terms[2].id = flecs.id(RectangleShape);
-        const rq = try flecs.query_init(world, &rectangle_query);
-
         return .{
-            .text_query = tq,
-            .spawner_query = sq,
-            .ball_query = bq,
-            .anchor_query = aq,
-            .portal_query = pq,
-            .black_hole_query = bhq,
-            .rectangle_query = rq,
+            .text_query = try flecs.query_bundle(TextParamsBundle, world),
+            .spawner_query = try flecs.query_bundle(SpawnerParamsBundle, world),
+            .ball_query = try flecs.query_bundle(BallParamsBundle, world),
+            .anchor_query = try flecs.query_bundle(AnchorParamsBundle, world),
+            .portal_query = try flecs.query_bundle(PortalParamsBundle, world),
+            .black_hole_query = try flecs.query_bundle(BlackHoleParamsBundle, world),
+            .rectangle_query = try flecs.query_bundle(RectangleParamsBundle, world),
         };
     }
 };
@@ -618,18 +559,10 @@ pub fn save_level(
     }
 
     const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
-    var ball_iter = flecs.query_iter(world, ball_query);
-    while (flecs.query_next(&ball_iter)) {
-        const colors = flecs.field(&ball_iter, Color, 1).?;
-        const shapes = flecs.field(&ball_iter, BallShape, 2).?;
-        for (colors, shapes) |*color, *shape| {
-            const params = BallParams.new(color, shape);
-            objects_params.append(.{ .Ball = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
+    BallParams.save(world, ball_query, &objects_params) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
 
     const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
     var anchor_iter = flecs.query_iter(world, anchor_query);

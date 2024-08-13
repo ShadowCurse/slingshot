@@ -31,36 +31,36 @@ const ShapeId = __objects.ShapeId;
 const Color = __objects.Color;
 const Position = __objects.Position;
 
-const create_text = __objects.create_text;
 const TextTag = __objects.TextTag;
 const TextText = __objects.TextText;
+const TextBundle = __objects.TextBundle;
 const TextParams = __objects.TextParams;
 
 const SpawnerTag = __objects.SpawnerTag;
 
-const create_ball = __objects.create_ball;
 const BallTag = __objects.BallTag;
 const BallShape = __objects.BallShape;
+const BallBundle = __objects.BallBundle;
 
-const create_anchor = __objects.create_anchor;
 const AnchorTag = __objects.AnchorTag;
 const AnchorShape = __objects.AnchorShape;
 const AnchoraJointParams = __objects.AnchoraJointParams;
+const AnchorBundle = __objects.AnchorBundle;
 
-const create_portal = __objects.create_portal;
 const PortalTag = __objects.PortalTag;
 const PortalShape = __objects.PortalShape;
 const PortalId = __objects.PortalId;
 const PortalTarget = __objects.PortalTarget;
+const PortalBundle = __objects.PortalBundle;
 
-const create_black_hole = __objects.create_black_hole;
 const BlackHoleTag = __objects.BlackHoleTag;
 const BlackHoleShape = __objects.BlackHoleShape;
 const BlackHoleStrength = __objects.BlackHoleStrength;
+const BlackHoleBundle = __objects.BlackHoleBundle;
 
-const create_rectangle = __objects.create_rectangle;
 const RectangleTag = __objects.RectangleTag;
 const RectangleShape = __objects.RectangleShape;
+const RectangleBundle = __objects.RectangleBundle;
 
 const EDITOR_HEIGHT: f32 = 50.0;
 const LABEL_WIDTH: f32 = 50.0;
@@ -1490,29 +1490,30 @@ fn draw_editor_level(
 
         imgui.igSeparatorText("Objects");
         if (imgui.igButton("Add text", .{ .x = 0.0, .y = 0.0 })) {
-            create_text(world, &.{});
+            _ = flecs.spawn_bundle(TextBundle.from_params(&.{}), world);
         }
         if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
-            create_ball(world, physics_world.id, &.{});
+            _ = flecs.spawn_bundle(BallBundle.from_params(physics_world.id, &.{}), world);
         }
 
         if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
-            create_anchor(world, physics_world.id, &.{});
+            _ = flecs.spawn_bundle(AnchorBundle.from_params(physics_world.id, &.{}), world);
         }
 
         if (imgui.igButton("Add portal", .{ .x = 0.0, .y = 0.0 })) {
-            create_portal(world, physics_world.id, &.{});
+            _ = flecs.spawn_bundle(PortalBundle.from_params(physics_world.id, &.{}), world);
         }
 
         if (imgui.igButton("Add blackhole", .{ .x = 0.0, .y = 0.0 })) {
-            create_black_hole(world, physics_world.id, &.{});
+            _ = flecs.spawn_bundle(BlackHoleBundle.from_params(physics_world.id, &.{}), world);
         }
 
         if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
-            create_rectangle(world, physics_world.id, &.{}) catch {
+            const bundle = RectangleBundle.from_params(physics_world.id, &.{}) catch {
                 state_stack.push_state(.Exit);
                 return;
             };
+            _ = flecs.spawn_bundle(bundle, world);
         }
 
         if (imgui.igButton("Remove selected", .{ .x = 0.0, .y = 0.0 })) {
