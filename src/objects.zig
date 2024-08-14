@@ -219,9 +219,9 @@ pub const TextText = struct {
 };
 
 pub const TextParamsBundle = struct {
-    color: Color,
-    position: Position,
-    text: TextText,
+    *const Color,
+    *const Position,
+    *const TextText,
 };
 
 pub const TextParams = struct {
@@ -315,8 +315,8 @@ fn draw_texts(
 pub const SpawnerTag = struct {};
 
 pub const SpawnerParamsBundle = struct {
-    position: Position,
-    tag: SpawnerTag,
+    *const Position,
+    *const SpawnerTag,
 };
 
 pub const SpawnerParams = struct {
@@ -399,8 +399,8 @@ pub const BallAttachment = struct {
 };
 
 pub const BallParamsBundle = struct {
-    color: Color,
-    ball_shape: BallShape,
+    *const Color,
+    *const BallShape,
 };
 
 // Used only for serialization/deserialization
@@ -614,10 +614,10 @@ pub const AnchoraJointParams = struct {
 };
 
 pub const AnchorParamsBundle = struct {
-    color: Color,
-    position: Position,
-    shape: AnchorShape,
-    joint_params: AnchoraJointParams,
+    *const Color,
+    *const Position,
+    *const AnchorShape,
+    *const AnchoraJointParams,
 };
 
 pub const AnchorParams = struct {
@@ -727,19 +727,11 @@ const UpdateAnchorsCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].id = flecs.id(BodyId);
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(BallShape);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[2].id = flecs.id(Position);
-        ball_query.filter.terms[2].inout = .In;
-        ball_query.filter.terms[3].id = flecs.id(BallAttachment);
-        ball_query.filter.terms[3].inout = .InOut;
-        const q = try flecs.query_init(world, &ball_query);
-
         return .{
-            .ball_query = q,
+            .ball_query = try flecs.query_bundle(
+                struct { *const BodyId, *const BallShape, *const Position, *BallAttachment },
+                world,
+            ),
         };
     }
 };
@@ -888,13 +880,11 @@ const UpdateJointsCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].id = flecs.id(BallAttachment);
-        ball_query.filter.terms[0].inout = .InOut;
-        const q = try flecs.query_init(world, &ball_query);
-
         return .{
-            .ball_query = q,
+            .ball_query = try flecs.query_bundle(
+                struct { *BallAttachment },
+                world,
+            ),
         };
     }
 };
@@ -952,11 +942,11 @@ pub const PortalId = struct { id: i32 };
 pub const PortalTarget = struct { id: i32 };
 
 pub const PortalParamsBundle = struct {
-    color: Color,
-    position: Position,
-    shape: PortalShape,
-    id: PortalId,
-    target: PortalTarget,
+    *const Color,
+    *const Position,
+    *const PortalShape,
+    *const PortalId,
+    *const PortalTarget,
 };
 
 pub const PortalParams = struct {
@@ -1097,25 +1087,15 @@ const UpdatePortalsCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].id = flecs.id(BodyId);
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(ShapeId);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[2].id = flecs.id(BallAttachment);
-        ball_query.filter.terms[2].inout = .In;
-        const bq = try flecs.query_init(world, &ball_query);
-
-        var portal_query: flecs.query_desc_t = .{};
-        portal_query.filter.terms[0].inout = .In;
-        portal_query.filter.terms[0].id = flecs.id(Position);
-        portal_query.filter.terms[1].inout = .In;
-        portal_query.filter.terms[1].id = flecs.id(PortalId);
-        const pq = try flecs.query_init(world, &portal_query);
-
         return .{
-            .ball_query = bq,
-            .portal_query = pq,
+            .ball_query = try flecs.query_bundle(
+                struct { *const BodyId, *const ShapeId, *const BallAttachment },
+                world,
+            ),
+            .portal_query = try flecs.query_bundle(
+                struct { *const Position, *const PortalId },
+                world,
+            ),
         };
     }
 };
@@ -1193,10 +1173,10 @@ pub const BlackHoleStrength = struct {
 };
 
 pub const BlackHoleParamsBundle = struct {
-    color: Color,
-    position: Position,
-    shape: BlackHoleShape,
-    strength: BlackHoleStrength,
+    *const Color,
+    *const Position,
+    *const BlackHoleShape,
+    *const BlackHoleStrength,
 };
 
 pub const BlackHoleParams = struct {
@@ -1309,19 +1289,11 @@ const UpdateBlackHolesCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].id = flecs.id(BodyId);
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(BallShape);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[2].id = flecs.id(Position);
-        ball_query.filter.terms[2].inout = .In;
-        ball_query.filter.terms[3].id = flecs.id(BallAttachment);
-        ball_query.filter.terms[3].inout = .InOut;
-        const q = try flecs.query_init(world, &ball_query);
-
         return .{
-            .ball_query = q,
+            .ball_query = try flecs.query_bundle(
+                struct { *const BodyId, *const BallShape, *const Position, *BallAttachment },
+                world,
+            ),
         };
     }
 };
@@ -1468,9 +1440,9 @@ pub const RectangleShape = struct {
 };
 
 pub const RectangleParamsBundle = struct {
-    color: Color,
-    position: Position,
-    shape: RectangleShape,
+    *const Color,
+    *const Position,
+    *const RectangleShape,
 };
 
 pub const RectangleParams = struct {

@@ -310,23 +310,15 @@ const StartLevelCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[0].id = flecs.id(BodyId);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(BallTag);
-        const bq = try flecs.query_init(world, &ball_query);
-
-        var spawner_query: flecs.query_desc_t = .{};
-        spawner_query.filter.terms[0].inout = .In;
-        spawner_query.filter.terms[0].id = flecs.id(Position);
-        spawner_query.filter.terms[1].inout = .In;
-        spawner_query.filter.terms[1].id = flecs.id(SpawnerTag);
-        const sq = try flecs.query_init(world, &spawner_query);
-
         return .{
-            .ball_query = bq,
-            .spawner_query = sq,
+            .ball_query = try flecs.query_bundle(
+                struct { *const BodyId, *const BallTag },
+                world,
+            ),
+            .spawner_query = try flecs.query_bundle(
+                struct { *const Position, *const SpawnerTag },
+                world,
+            ),
         };
     }
 };
@@ -426,21 +418,15 @@ const RecreateLevelCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[0].id = flecs.id(BodyId);
-        ball_query.filter.terms[1].inout = .InOut;
-        ball_query.filter.terms[1].id = flecs.id(BallAttachment);
-        const bq = try flecs.query_init(world, &ball_query);
-
-        var joint_query: flecs.query_desc_t = .{};
-        joint_query.filter.terms[0].inout = .In;
-        joint_query.filter.terms[0].id = flecs.id(JointTag);
-        const jq = try flecs.query_init(world, &joint_query);
-
         return .{
-            .ball_query = bq,
-            .joint_query = jq,
+            .ball_query = try flecs.query_bundle(
+                struct { *const BodyId, *BallAttachment },
+                world,
+            ),
+            .joint_query = try flecs.query_bundle(
+                struct { *const JointTag },
+                world,
+            ),
         };
     }
 };

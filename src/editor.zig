@@ -421,77 +421,35 @@ const SelectEntityCtx = struct {
 
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
-        var text_query: flecs.query_desc_t = .{};
-        text_query.filter.terms[0].inout = .In;
-        text_query.filter.terms[0].id = flecs.id(AABB);
-        text_query.filter.terms[1].inout = .In;
-        text_query.filter.terms[1].id = flecs.id(Position);
-        text_query.filter.terms[2].inout = .In;
-        text_query.filter.terms[2].id = flecs.id(TextTag);
-        const tq = try flecs.query_init(world, &text_query);
-
-        var spawner_query: flecs.query_desc_t = .{};
-        spawner_query.filter.terms[0].inout = .In;
-        spawner_query.filter.terms[0].id = flecs.id(AABB);
-        spawner_query.filter.terms[1].inout = .In;
-        spawner_query.filter.terms[1].id = flecs.id(Position);
-        spawner_query.filter.terms[2].inout = .In;
-        spawner_query.filter.terms[2].id = flecs.id(SpawnerTag);
-        const sq = try flecs.query_init(world, &spawner_query);
-
-        var ball_query: flecs.query_desc_t = .{};
-        ball_query.filter.terms[0].inout = .In;
-        ball_query.filter.terms[0].id = flecs.id(AABB);
-        ball_query.filter.terms[1].inout = .In;
-        ball_query.filter.terms[1].id = flecs.id(Position);
-        ball_query.filter.terms[2].inout = .In;
-        ball_query.filter.terms[2].id = flecs.id(BallTag);
-        const bq = try flecs.query_init(world, &ball_query);
-
-        var anchor_query: flecs.query_desc_t = .{};
-        anchor_query.filter.terms[0].inout = .In;
-        anchor_query.filter.terms[0].id = flecs.id(AABB);
-        anchor_query.filter.terms[1].inout = .In;
-        anchor_query.filter.terms[1].id = flecs.id(Position);
-        anchor_query.filter.terms[2].inout = .In;
-        anchor_query.filter.terms[2].id = flecs.id(AnchorTag);
-        const aq = try flecs.query_init(world, &anchor_query);
-
-        var portal_query: flecs.query_desc_t = .{};
-        portal_query.filter.terms[0].inout = .In;
-        portal_query.filter.terms[0].id = flecs.id(AABB);
-        portal_query.filter.terms[1].inout = .In;
-        portal_query.filter.terms[1].id = flecs.id(Position);
-        portal_query.filter.terms[2].inout = .In;
-        portal_query.filter.terms[2].id = flecs.id(PortalTag);
-        const pq = try flecs.query_init(world, &portal_query);
-
-        var black_hole_query: flecs.query_desc_t = .{};
-        black_hole_query.filter.terms[0].inout = .In;
-        black_hole_query.filter.terms[0].id = flecs.id(AABB);
-        black_hole_query.filter.terms[1].inout = .In;
-        black_hole_query.filter.terms[1].id = flecs.id(Position);
-        black_hole_query.filter.terms[2].inout = .In;
-        black_hole_query.filter.terms[2].id = flecs.id(BlackHoleTag);
-        const bhq = try flecs.query_init(world, &black_hole_query);
-
-        var rectangle_query: flecs.query_desc_t = .{};
-        rectangle_query.filter.terms[0].inout = .In;
-        rectangle_query.filter.terms[0].id = flecs.id(AABB);
-        rectangle_query.filter.terms[1].inout = .In;
-        rectangle_query.filter.terms[1].id = flecs.id(Position);
-        rectangle_query.filter.terms[2].inout = .In;
-        rectangle_query.filter.terms[2].id = flecs.id(RectangleTag);
-        const rq = try flecs.query_init(world, &rectangle_query);
-
         return .{
-            .text_query = tq,
-            .spawner_query = sq,
-            .ball_query = bq,
-            .anchor_query = aq,
-            .portal_query = pq,
-            .black_hole_query = bhq,
-            .rectangle_query = rq,
+            .text_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const TextTag },
+                world,
+            ),
+            .spawner_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const SpawnerTag },
+                world,
+            ),
+            .ball_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const BallTag },
+                world,
+            ),
+            .anchor_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const AnchorTag },
+                world,
+            ),
+            .portal_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const PortalTag },
+                world,
+            ),
+            .black_hole_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const BlackHoleTag },
+                world,
+            ),
+            .rectangle_query = try flecs.query_bundle(
+                struct { *const AABB, *const Position, *const RectangleTag },
+                world,
+            ),
         };
     }
 };

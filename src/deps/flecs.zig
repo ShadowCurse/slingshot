@@ -3194,8 +3194,13 @@ pub fn query_bundle(comptime T: type, world: *world_t) !*query_t {
     var query_desc: query_desc_t = .{};
     var i: u32 = 0;
     inline for (fields) |f| {
-        query_desc.filter.terms[i].inout = .In;
-        query_desc.filter.terms[i].id = id(f.type);
+        const param_type_info = @typeInfo(f.type).Pointer;
+        if (param_type_info.is_const) {
+            query_desc.filter.terms[i].inout = .In;
+        } else {
+            query_desc.filter.terms[i].inout = .InOut;
+        }
+        query_desc.filter.terms[i].id = id(param_type_info.child);
         i += 1;
     }
 
