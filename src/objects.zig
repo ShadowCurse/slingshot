@@ -29,48 +29,6 @@ const Vector2 = @import("vector.zig");
 
 const AABB_LINE_THICKNESS = 1.5;
 
-pub const BallShader = struct {
-    render_texture: rl.RenderTexture,
-    shader: rl.Shader,
-    resolution_loc: i32,
-    velocity_loc: i32,
-
-    const Self = @This();
-
-    pub fn new() Self {
-        const render_texture = rl.LoadRenderTexture(400, 400);
-
-        const shader = if (builtin.os.tag == .emscripten) blk: {
-            break :blk rl.LoadShader(null, "./resources/shaders/base_web.fs");
-        } else blk: {
-            break :blk rl.LoadShader(null, "./resources/shaders/base.fs");
-        };
-
-        const resolution_loc = rl.GetShaderLocation(shader, "resolution");
-        const velocity_loc = rl.GetShaderLocation(shader, "velocity");
-        return Self{
-            .render_texture = render_texture,
-            .shader = shader,
-            .resolution_loc = resolution_loc,
-            .velocity_loc = velocity_loc,
-        };
-    }
-
-    pub fn deinit(self: *const Self) void {
-        // flecs calls dtor on zero init value
-        // during first `ecs_set` call
-        var self_slice: []const u8 = undefined;
-        self_slice.ptr = @ptrCast(self);
-        self_slice.len = @sizeOf(Self);
-        if (std.mem.allEqual(u8, self_slice, 0)) {
-            return;
-        }
-
-        rl.UnloadRenderTexture(self.render_texture);
-        rl.UnloadShader(self.shader);
-    }
-};
-
 pub const BodyId = struct {
     id: b2.b2BodyId,
 
@@ -477,6 +435,51 @@ pub const BallBundle = struct {
     }
 };
 
+pub const BallShader = struct {
+    render_texture: rl.RenderTexture,
+    shader: rl.Shader,
+    resolution_loc: i32,
+    velocity_loc: i32,
+
+    const Self = @This();
+
+    pub const WIDTH = 400;
+    pub const HEIGTH = 400;
+
+    pub fn new() Self {
+        const render_texture = rl.LoadRenderTexture(WIDTH, HEIGTH);
+
+        const shader = if (builtin.os.tag == .emscripten) blk: {
+            break :blk rl.LoadShader(null, "./resources/shaders/base_web.fs");
+        } else blk: {
+            break :blk rl.LoadShader(null, "./resources/shaders/base.fs");
+        };
+
+        const resolution_loc = rl.GetShaderLocation(shader, "resolution");
+        const velocity_loc = rl.GetShaderLocation(shader, "velocity");
+        return Self{
+            .render_texture = render_texture,
+            .shader = shader,
+            .resolution_loc = resolution_loc,
+            .velocity_loc = velocity_loc,
+        };
+    }
+
+    pub fn deinit(self: *const Self) void {
+        // flecs calls dtor on zero init value
+        // during first `ecs_set` call
+        var self_slice: []const u8 = undefined;
+        self_slice.ptr = @ptrCast(self);
+        self_slice.len = @sizeOf(Self);
+        if (std.mem.allEqual(u8, self_slice, 0)) {
+            return;
+        }
+
+        rl.UnloadRenderTexture(self.render_texture);
+        rl.UnloadShader(self.shader);
+    }
+};
+
 fn pre_draw_balls(
     _state_stack: SINGLETON(GameStateStack),
     _shaders: SINGLETON(BallShader),
@@ -499,8 +502,8 @@ fn pre_draw_balls(
 
     const camera = rl.Camera2D{
         .offset = rl.Vector2{
-            .x = 400.0 / 2.0,
-            .y = 400.0 / 2.0,
+            .x = BallShader.WIDTH / 2.0,
+            .y = BallShader.HEIGTH / 2.0,
         },
         .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
         .rotation = 0.0,
@@ -529,12 +532,12 @@ fn pre_draw_balls(
 
             rl.DrawRectangleV(
                 rl.Vector2{
-                    .x = -200.0,
-                    .y = -200.0,
+                    .x = -BallShader.WIDTH / 2.0,
+                    .y = -BallShader.HEIGTH / 2.0,
                 },
                 rl.Vector2{
-                    .x = 400.0,
-                    .y = 400.0,
+                    .x = BallShader.WIDTH,
+                    .y = BallShader.HEIGTH,
                 },
                 color.value,
             );

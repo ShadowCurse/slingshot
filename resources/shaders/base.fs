@@ -16,7 +16,6 @@ out vec4 finalColor;
 
 void main()
 {
-    // vec2 resolution = vec2(400.0, 400.0);
     vec2 st = (gl_FragCoord.xy / resolution) - 0.5;
 
     float l = length(velocity);
