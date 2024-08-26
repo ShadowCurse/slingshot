@@ -3187,7 +3187,7 @@ pub fn spawn_bundle(bundle: anytype, world: *world_t) entity_t {
     return n;
 }
 
-pub fn query_bundle(comptime T: type, world: *world_t) !*query_t {
+pub fn query_components(comptime T: type, world: *world_t) !*query_t {
     const type_info = @typeInfo(T);
     const fields = type_info.Struct.fields;
 

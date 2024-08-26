@@ -333,11 +333,11 @@ const StartLevelCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *const BodyId, *const BallTag },
                 world,
             ),
-            .spawner_query = try flecs.query_bundle(
+            .spawner_query = try flecs.query_components(
                 struct { *const Position, *const SpawnerTag },
                 world,
             ),
@@ -441,11 +441,11 @@ const RecreateLevelCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *const BodyId, *BallAttachment },
                 world,
             ),
-            .joint_query = try flecs.query_bundle(
+            .joint_query = try flecs.query_components(
                 struct { *const JointTag },
                 world,
             ),
@@ -503,13 +503,13 @@ pub const SaveLevelCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .text_query = try flecs.query_bundle(TextParamsBundle, world),
-            .spawner_query = try flecs.query_bundle(SpawnerParamsBundle, world),
-            .ball_query = try flecs.query_bundle(BallParamsBundle, world),
-            .anchor_query = try flecs.query_bundle(AnchorParamsBundle, world),
-            .portal_query = try flecs.query_bundle(PortalParamsBundle, world),
-            .black_hole_query = try flecs.query_bundle(BlackHoleParamsBundle, world),
-            .rectangle_query = try flecs.query_bundle(RectangleParamsBundle, world),
+            .text_query = try flecs.query_components(TextParamsBundle, world),
+            .spawner_query = try flecs.query_components(SpawnerParamsBundle, world),
+            .ball_query = try flecs.query_components(BallParamsBundle, world),
+            .anchor_query = try flecs.query_components(AnchorParamsBundle, world),
+            .portal_query = try flecs.query_components(PortalParamsBundle, world),
+            .black_hole_query = try flecs.query_components(BlackHoleParamsBundle, world),
+            .rectangle_query = try flecs.query_components(RectangleParamsBundle, world),
         };
     }
 };

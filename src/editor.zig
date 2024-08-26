@@ -422,31 +422,31 @@ const SelectEntityCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .text_query = try flecs.query_bundle(
+            .text_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const TextTag },
                 world,
             ),
-            .spawner_query = try flecs.query_bundle(
+            .spawner_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const SpawnerTag },
                 world,
             ),
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const BallTag },
                 world,
             ),
-            .anchor_query = try flecs.query_bundle(
+            .anchor_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const AnchorTag },
                 world,
             ),
-            .portal_query = try flecs.query_bundle(
+            .portal_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const PortalTag },
                 world,
             ),
-            .black_hole_query = try flecs.query_bundle(
+            .black_hole_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const BlackHoleTag },
                 world,
             ),
-            .rectangle_query = try flecs.query_bundle(
+            .rectangle_query = try flecs.query_components(
                 struct { *const AABB, *const Position, *const RectangleTag },
                 world,
             ),

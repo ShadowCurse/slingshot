@@ -742,7 +742,7 @@ const UpdateAnchorsCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *const BodyId, *const BallShape, *const Position, *BallAttachment },
                 world,
             ),
@@ -895,7 +895,7 @@ const UpdateJointsCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *BallAttachment },
                 world,
             ),
@@ -1083,11 +1083,11 @@ const UpdatePortalsCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *const BodyId, *const ShapeId, *const BallAttachment },
                 world,
             ),
-            .portal_query = try flecs.query_bundle(
+            .portal_query = try flecs.query_components(
                 struct { *const Position, *const PortalId },
                 world,
             ),
@@ -1268,7 +1268,7 @@ const UpdateBlackHolesCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .ball_query = try flecs.query_bundle(
+            .ball_query = try flecs.query_components(
                 struct { *const BodyId, *const BallShape, *const Position, *BallAttachment },
                 world,
             ),
