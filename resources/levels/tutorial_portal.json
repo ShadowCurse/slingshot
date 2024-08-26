@@ -1,107 +1,229 @@
 {
-    "objects": [
-        {
-            "Text": {
-                "position": {
-                    "x": -9.1e1,
-                    "y": 1.08e2
-                },
-                "color": {
+    "objects.TextBundle": [
+        [
+            {
+                "value": {
                     "r": 255,
                     "g": 255,
                     "b": 255,
                     "a": 255
-                },
+                }
+            },
+            {
+                "value": {
+                    "x": -9.1e1,
+                    "y": 1.08e2
+                }
+            },
+            {
                 "text": "There are portals too\u0000rom the anchor\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
                 "font_size": 1e1,
                 "spacing": 1e0
             }
-        },
-        {
-            "Spawner": {
-                "position": {
+        ]
+    ],
+    "objects.SpawnerBundle": [
+        [
+            {
+                "value": {
                     "x": 0e0,
                     "y": 4.8e1
                 }
-            }
-        },
-        {
-            "Ball": {
-                "color": {
+            },
+            {}
+        ]
+    ],
+    "objects.BallBundle": [
+        [
+            {
+                "value": {
                     "r": 255,
                     "g": 255,
                     "b": 255,
                     "a": 255
-                },
+                }
+            },
+            {
                 "radius": 1e1
             }
-        },
-        {
-            "Anchor": {
-                "color": {
+        ]
+    ],
+    "objects.AnchorBundle": [
+        [
+            {
+                "value": {
                     "r": 0,
                     "g": 228,
                     "b": 48,
                     "a": 255
-                },
-                "position": {
+                }
+            },
+            {
+                "value": {
                     "x": 0e0,
                     "y": -2.5e1
-                },
-                "radius": 1e1,
+                }
+            },
+            {
+                "radius": 1e1
+            },
+            {
                 "min_length": 0e0,
                 "max_length": 1e2,
                 "damping_ratio": 5e-1,
                 "hertz": 1e0,
                 "pull_force": 2e2
             }
-        },
-        {
-            "Portal": {
-                "color": {
+        ]
+    ],
+    "objects.PortalBundle": [
+        [
+            {
+                "value": {
                     "r": 0,
                     "g": 121,
                     "b": 241,
                     "a": 255
-                },
-                "position": {
+                }
+            },
+            {
+                "value": {
                     "x": 0e0,
                     "y": -1.32e2
-                },
-                "radius": 1e1,
-                "id": 0,
-                "target": 1
+                }
+            },
+            {
+                "radius": 1e1
+            },
+            {
+                "id": 0
+            },
+            {
+                "id": 1
             }
-        },
-        {
-            "Portal": {
-                "color": {
+        ],
+        [
+            {
+                "value": {
                     "r": 0,
                     "g": 121,
                     "b": 241,
                     "a": 255
-                },
-                "position": {
+                }
+            },
+            {
+                "value": {
                     "x": 0e0,
                     "y": 2.79e2
-                },
-                "radius": 1e1,
-                "id": 1,
-                "target": 1
+                }
+            },
+            {
+                "radius": 1e1
+            },
+            {
+                "id": 1
+            },
+            {
+                "id": 1
             }
-        },
-        {
-            "Rectangle": {
-                "color": {
+        ]
+    ],
+    "objects.BlackHoleBundle": [],
+    "objects.RectangleBundle": [
+        [
+            {
+                "value": {
                     "r": 231,
                     "g": 255,
                     "b": 0,
                     "a": 255
-                },
-                "position": {
+                }
+            },
+            {
+                "value": {
                     "x": 0e0,
                     "y": 1.99e2
+                }
+            },
+            {
+                "shape": {
+                    "vertices": [
+                        {
+                            "x": -1.1e1,
+                            "y": 1e1
+                        },
+                        {
+                            "x": -1.1e1,
+                            "y": -1e1
+                        },
+                        {
+                            "x": 1.1e1,
+                            "y": -1e1
+                        },
+                        {
+                            "x": 1.1e1,
+                            "y": 1e1
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        }
+                    ],
+                    "normals": [
+                        {
+                            "x": -1e0,
+                            "y": -0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": -1e0
+                        },
+                        {
+                            "x": 1e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": -0e0,
+                            "y": 1e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        }
+                    ],
+                    "centroid": {
+                        "x": 0e0,
+                        "y": 0e0
+                    },
+                    "radius": 0e0,
+                    "count": 4
                 },
+                "height": 2.2e1,
+                "angle": -1.5707963705062866e0,
                 "point_1": {
                     "x": 1e0,
                     "y": 0e0
@@ -115,19 +237,101 @@
                 "restitution": 0e0,
                 "is_sensor": true
             }
-        },
-        {
-            "Rectangle": {
-                "color": {
+        ],
+        [
+            {
+                "value": {
                     "r": 255,
                     "g": 255,
                     "b": 255,
                     "a": 255
-                },
-                "position": {
+                }
+            },
+            {
+                "value": {
                     "x": 0e0,
                     "y": 1e2
+                }
+            },
+            {
+                "shape": {
+                    "vertices": [
+                        {
+                            "x": -6e1,
+                            "y": 1.4e1
+                        },
+                        {
+                            "x": -6e1,
+                            "y": -1.4e1
+                        },
+                        {
+                            "x": 6e1,
+                            "y": -1.4e1
+                        },
+                        {
+                            "x": 6e1,
+                            "y": 1.4e1
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        }
+                    ],
+                    "normals": [
+                        {
+                            "x": -1e0,
+                            "y": -0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": -1e0
+                        },
+                        {
+                            "x": 1e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": -0e0,
+                            "y": 1e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        },
+                        {
+                            "x": 0e0,
+                            "y": 0e0
+                        }
+                    ],
+                    "centroid": {
+                        "x": 0e0,
+                        "y": 0e0
+                    },
+                    "radius": 0e0,
+                    "count": 4
                 },
+                "height": 1.2e2,
+                "angle": -1.5707963705062866e0,
                 "point_1": {
                     "x": 5e1,
                     "y": 0e0
@@ -141,6 +345,6 @@
                 "restitution": 0e0,
                 "is_sensor": false
             }
-        }
+        ]
     ]
 }

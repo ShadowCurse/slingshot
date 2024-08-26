@@ -38,7 +38,6 @@ const EDITOR_FLECS_INIT_SYSTEMS = __editor.FLECS_INIT_SYSTEMS;
 const EDITOR_FLECS_INIT_COMPONENTS = __editor.FLECS_INIT_COMPONENTS;
 
 const __objects = @import("objects.zig");
-const ObjectParams = __objects.ObjectParams;
 const ShapeId = __objects.ShapeId;
 const Position = __objects.Position;
 const BallTag = __objects.BallTag;

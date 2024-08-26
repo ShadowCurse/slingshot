@@ -3206,3 +3206,27 @@ pub fn query_bundle(comptime T: type, world: *world_t) !*query_t {
 
     return query_init(world, &query_desc);
 }
+
+pub fn save_bundles(allocator: std.mem.Allocator, comptime T: type, world: *world_t, query: *query_t) !std.ArrayList(T.Save) {
+    var result = std.ArrayList(T.Save).init(allocator);
+    const fields = @typeInfo(T.Save).Struct.fields;
+    var iter = query_iter(world, query);
+    while (query_next(&iter)) {
+        const c1 = field(&iter, fields[0].type, 1).?;
+        const begin_range = result.items.len;
+
+        try result.resize(result.items.len + c1.len);
+
+        const saves = result.items[begin_range .. begin_range + c1.len];
+        inline for (fields, 0..) |f, i| {
+            if (@sizeOf(f.type) == 0) {
+                continue;
+            }
+            const components = field(&iter, f.type, i + 1).?;
+            for (saves, components) |*s, *c| {
+                @field(s, f.name) = c.*;
+            }
+        }
+    }
+    return result;
+}

@@ -1407,14 +1407,12 @@ fn draw_editor_rectangle(
 
 fn draw_editor_level(
     _world: WORLD(),
-    _physics_world: SINGLETON(PhysicsWorld),
     _selected_entity: SINGLETON_MUT(SelectedEntity),
     _editor_state: SINGLETON_MUT(EditorState),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
-    const physics_world = _physics_world.get();
     const selected_entity = _selected_entity.get_mut();
     const editor_state = _editor_state.get_mut();
     const state_stack = _state_stack.get_mut();
@@ -1448,30 +1446,26 @@ fn draw_editor_level(
 
         imgui.igSeparatorText("Objects");
         if (imgui.igButton("Add text", .{ .x = 0.0, .y = 0.0 })) {
-            _ = flecs.spawn_bundle(TextBundle.from_params(&.{}), world);
+            _ = flecs.spawn_bundle(TextBundle.default(world), world);
         }
         if (imgui.igButton("Add ball", .{ .x = 0.0, .y = 0.0 })) {
-            _ = flecs.spawn_bundle(BallBundle.from_params(physics_world.id, &.{}), world);
+            _ = flecs.spawn_bundle(BallBundle.default(world), world);
         }
 
         if (imgui.igButton("Add anchor", .{ .x = 0.0, .y = 0.0 })) {
-            _ = flecs.spawn_bundle(AnchorBundle.from_params(physics_world.id, &.{}), world);
+            _ = flecs.spawn_bundle(AnchorBundle.default(world), world);
         }
 
         if (imgui.igButton("Add portal", .{ .x = 0.0, .y = 0.0 })) {
-            _ = flecs.spawn_bundle(PortalBundle.from_params(physics_world.id, &.{}), world);
+            _ = flecs.spawn_bundle(PortalBundle.default(world), world);
         }
 
         if (imgui.igButton("Add blackhole", .{ .x = 0.0, .y = 0.0 })) {
-            _ = flecs.spawn_bundle(BlackHoleBundle.from_params(physics_world.id, &.{}), world);
+            _ = flecs.spawn_bundle(BlackHoleBundle.default(world), world);
         }
 
         if (imgui.igButton("Add rectangle", .{ .x = 0.0, .y = 0.0 })) {
-            const bundle = RectangleBundle.from_params(physics_world.id, &.{}) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-            _ = flecs.spawn_bundle(bundle, world);
+            _ = flecs.spawn_bundle(RectangleBundle.default(world), world);
         }
 
         if (imgui.igButton("Remove selected", .{ .x = 0.0, .y = 0.0 })) {

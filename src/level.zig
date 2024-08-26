@@ -20,7 +20,6 @@ const UI_ELEMENT_WIDTH = __ui.UI_ELEMENT_WIDTH;
 const UI_ELEMENT_HEIGHT = __ui.UI_ELEMENT_HEIGHT;
 
 const __objects = @import("objects.zig");
-const ObjectParams = __objects.ObjectParams;
 
 const Color = __objects.Color;
 const BodyId = __objects.BodyId;
@@ -28,24 +27,20 @@ const Position = __objects.Position;
 
 const TextText = __objects.TextText;
 const TextBundle = __objects.TextBundle;
-const TextParams = __objects.TextParams;
 const TextParamsBundle = __objects.TextParamsBundle;
 
 const SpawnerTag = __objects.SpawnerTag;
 const SpawnerBundle = __objects.SpawnerBundle;
-const SpawnerParams = __objects.SpawnerParams;
 const SpawnerParamsBundle = __objects.SpawnerParamsBundle;
 
 const BallTag = __objects.BallTag;
 const BallShape = __objects.BallShape;
 const BallBundle = __objects.BallBundle;
-const BallParams = __objects.BallParams;
 const BallParamsBundle = __objects.BallParamsBundle;
 const BallAttachment = __objects.BallAttachment;
 
 const AnchorShape = __objects.AnchorShape;
 const AnchorBundle = __objects.AnchorBundle;
-const AnchorParams = __objects.AnchorParams;
 const AnchoraJointParams = __objects.AnchoraJointParams;
 const AnchorParamsBundle = __objects.AnchorParamsBundle;
 
@@ -55,18 +50,15 @@ const PortalShape = __objects.PortalShape;
 const PortalId = __objects.PortalId;
 const PortalTarget = __objects.PortalTarget;
 const PortalBundle = __objects.PortalBundle;
-const PortalParams = __objects.PortalParams;
 const PortalParamsBundle = __objects.PortalParamsBundle;
 
 const BlackHoleShape = __objects.BlackHoleShape;
 const BlackHoleStrength = __objects.BlackHoleStrength;
 const BlackHoleBundle = __objects.BlackHoleBundle;
-const BlackHoleParams = __objects.BlackHoleParams;
 const BlackHoleParamsBundle = __objects.BlackHoleParamsBundle;
 
 const RectangleShape = __objects.RectangleShape;
 const RectangleBundle = __objects.RectangleBundle;
-const RectangleParams = __objects.RectangleParams;
 const RectangleParamsBundle = __objects.RectangleParamsBundle;
 
 const Settings = @import("settings.zig").Settings;
@@ -140,9 +132,40 @@ pub const LevelGroupsSave = struct {
     groups: []LevelGroup,
 };
 
-pub const LevelSave = struct {
-    objects: []ObjectParams,
-};
+pub fn NewLevelSave(comptime T: type) type {
+    const type_info = @typeInfo(T);
+    const fields = type_info.Struct.fields;
+    var new_fields: [fields.len]std.builtin.Type.StructField = undefined;
+
+    inline for (fields, 0..) |field, i| {
+        new_fields[i] = .{
+            .name = @typeName(field.type),
+            .type = []field.type.Save,
+            .default_value = null,
+            .is_comptime = false,
+            .alignment = @alignOf([]field.type.Save),
+        };
+    }
+
+    return @Type(.{
+        .Struct = .{
+            .layout = .auto,
+            .fields = new_fields[0..],
+            .decls = &[_]std.builtin.Type.Declaration{},
+            .is_tuple = false,
+        },
+    });
+}
+
+const LevelSave = NewLevelSave(struct {
+    TextBundle,
+    SpawnerBundle,
+    BallBundle,
+    AnchorBundle,
+    PortalBundle,
+    BlackHoleBundle,
+    RectangleBundle,
+});
 
 pub const LevelState = struct {
     load_path: ?[]const u8 = null,
@@ -228,7 +251,7 @@ pub const Levels = struct {
 pub fn load_level(
     _world: WORLD(),
     _allocator: SINGLETON(Allocator),
-    _physical_world: SINGLETON(PhysicsWorld),
+    // _physical_world: SINGLETON(PhysicsWorld),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
     _: COMPONENT_ID(&flecs.Wildcard, .{
@@ -238,7 +261,7 @@ pub fn load_level(
 ) void {
     const world = _world.get_mut();
     const allocator = _allocator.get();
-    const physics_world = _physical_world.get();
+    // const physics_world = _physical_world.get();
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
 
@@ -271,34 +294,33 @@ pub fn load_level(
 
     const level_save = &save_state.value;
 
-    for (level_save.objects) |*obj| {
-        switch (obj.*) {
-            .Text => |*r| {
-                _ = flecs.spawn_bundle(TextBundle.from_params(r), world);
-            },
-            .Spawner => |*r| {
-                _ = flecs.spawn_bundle(SpawnerBundle.from_params(r), world);
-            },
-            .Ball => |*r| {
-                _ = flecs.spawn_bundle(BallBundle.from_params(physics_world.id, r), world);
-            },
-            .Anchor => |*r| {
-                _ = flecs.spawn_bundle(AnchorBundle.from_params(physics_world.id, r), world);
-            },
-            .Portal => |*r| {
-                _ = flecs.spawn_bundle(PortalBundle.from_params(physics_world.id, r), world);
-            },
-            .BlackHole => |*r| {
-                _ = flecs.spawn_bundle(BlackHoleBundle.from_params(physics_world.id, r), world);
-            },
-            .Rectangle => |*r| {
-                const bundle = RectangleBundle.from_params(physics_world.id, r) catch {
-                    state_stack.push_state(.Exit);
-                    return;
-                };
-                _ = flecs.spawn_bundle(bundle, world);
-            },
-        }
+    for (@field(level_save, @typeName(TextBundle))) |*save| {
+        const bundle = TextBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
+    }
+    for (@field(level_save, @typeName(SpawnerBundle))) |*save| {
+        const bundle = SpawnerBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
+    }
+    for (@field(level_save, @typeName(BallBundle))) |*save| {
+        const bundle = BallBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
+    }
+    for (@field(level_save, @typeName(AnchorBundle))) |*save| {
+        const bundle = AnchorBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
+    }
+    for (@field(level_save, @typeName(PortalBundle))) |*save| {
+        const bundle = PortalBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
+    }
+    for (@field(level_save, @typeName(BlackHoleBundle))) |*save| {
+        const bundle = BlackHoleBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
+    }
+    for (@field(level_save, @typeName(RectangleBundle))) |*save| {
+        const bundle = RectangleBundle.restore(save, world);
+        _ = flecs.spawn_bundle(bundle, world);
     }
 
     state_stack.push_state(.LevelLoaded);
@@ -513,110 +535,56 @@ pub fn save_level(
 
     std.log.debug("Saving level to path: {s}", .{path});
 
-    var objects_params = std.ArrayList(ObjectParams).init(allocator.*);
-    defer objects_params.deinit();
-
-    const text_query: *flecs.query_t = @ptrCast(ctx.text_query);
-    var text_iter = flecs.query_iter(world, text_query);
-    while (flecs.query_next(&text_iter)) {
-        const colors = flecs.field(&text_iter, Color, 1).?;
-        const positions = flecs.field(&text_iter, Position, 2).?;
-        const texts = flecs.field(&text_iter, TextText, 3).?;
-        for (colors, positions, texts) |*color, *position, *text| {
-            const params = TextParams.new(position, color, text);
-            objects_params.append(.{ .Text = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const spawner_query: *flecs.query_t = @ptrCast(ctx.spawner_query);
-    var spawner_iter = flecs.query_iter(world, spawner_query);
-    while (flecs.query_next(&spawner_iter)) {
-        const positions = flecs.field(&spawner_iter, Position, 1).?;
-        for (positions) |*position| {
-            const params = SpawnerParams.new(position);
-            objects_params.append(.{ .Spawner = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const ball_query: *flecs.query_t = @ptrCast(ctx.ball_query);
-    BallParams.save(world, ball_query, &objects_params) catch {
+    const saved_texts = flecs.save_bundles(allocator.*, TextBundle, world, ctx.text_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
+    defer saved_texts.deinit();
 
-    const anchor_query: *flecs.query_t = @ptrCast(ctx.anchor_query);
-    var anchor_iter = flecs.query_iter(world, anchor_query);
-    while (flecs.query_next(&anchor_iter)) {
-        const colors = flecs.field(&anchor_iter, Color, 1).?;
-        const positions = flecs.field(&anchor_iter, Position, 2).?;
-        const shapes = flecs.field(&anchor_iter, AnchorShape, 3).?;
-        const joint_params = flecs.field(&anchor_iter, AnchoraJointParams, 4).?;
-        for (colors, positions, shapes, joint_params) |*color, *position, *shape, *joint_param| {
-            const params = AnchorParams.new(color, position, shape, joint_param);
-            objects_params.append(.{ .Anchor = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const portal_query: *flecs.query_t = @ptrCast(ctx.portal_query);
-    var portal_iter = flecs.query_iter(world, portal_query);
-    while (flecs.query_next(&portal_iter)) {
-        const colors = flecs.field(&portal_iter, Color, 1).?;
-        const positions = flecs.field(&portal_iter, Position, 2).?;
-        const shapes = flecs.field(&portal_iter, PortalShape, 3).?;
-        const ids = flecs.field(&portal_iter, PortalId, 4).?;
-        const targets = flecs.field(&portal_iter, PortalTarget, 5).?;
-        for (colors, positions, shapes, ids, targets) |*color, *position, *shape, *id, *target| {
-            const params = PortalParams.new(color, position, shape, id, target);
-            objects_params.append(.{ .Portal = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const black_hole_query: *flecs.query_t = @ptrCast(ctx.black_hole_query);
-    var black_hole_iter = flecs.query_iter(world, black_hole_query);
-    while (flecs.query_next(&black_hole_iter)) {
-        const colors = flecs.field(&black_hole_iter, Color, 1).?;
-        const positions = flecs.field(&black_hole_iter, Position, 2).?;
-        const shapes = flecs.field(&black_hole_iter, BlackHoleShape, 3).?;
-        const stengths = flecs.field(&black_hole_iter, BlackHoleStrength, 4).?;
-        for (colors, positions, shapes, stengths) |*color, *position, *shape, *strength| {
-            const params = BlackHoleParams.new(color, position, shape, strength);
-            objects_params.append(.{ .BlackHole = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const rectangle_query: *flecs.query_t = @ptrCast(ctx.rectangle_query);
-    var rectangle_iter = flecs.query_iter(world, rectangle_query);
-    while (flecs.query_next(&rectangle_iter)) {
-        const colors = flecs.field(&rectangle_iter, Color, 1).?;
-        const positions = flecs.field(&rectangle_iter, Position, 2).?;
-        const shapes = flecs.field(&rectangle_iter, RectangleShape, 3).?;
-        for (colors, positions, shapes) |*color, *position, *shape| {
-            const params = RectangleParams.new(color, position, shape);
-            objects_params.append(.{ .Rectangle = params }) catch {
-                state_stack.push_state(.Exit);
-                return;
-            };
-        }
-    }
-
-    const save_state = LevelSave{
-        .objects = objects_params.items,
+    const saved_spawners = flecs.save_bundles(allocator.*, SpawnerBundle, world, ctx.spawner_query) catch {
+        state_stack.push_state(.Exit);
+        return;
     };
+    defer saved_spawners.deinit();
+
+    const saved_balls = flecs.save_bundles(allocator.*, BallBundle, world, ctx.ball_query) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+    defer saved_balls.deinit();
+
+    const saved_anchors = flecs.save_bundles(allocator.*, AnchorBundle, world, ctx.anchor_query) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+    defer saved_anchors.deinit();
+
+    const saved_portals = flecs.save_bundles(allocator.*, PortalBundle, world, ctx.portal_query) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+    defer saved_portals.deinit();
+
+    const saved_black_holes = flecs.save_bundles(allocator.*, BlackHoleBundle, world, ctx.black_hole_query) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+    defer saved_black_holes.deinit();
+
+    const saved_rectangles = flecs.save_bundles(allocator.*, RectangleBundle, world, ctx.rectangle_query) catch {
+        state_stack.push_state(.Exit);
+        return;
+    };
+    defer saved_rectangles.deinit();
+
+    var save_state: LevelSave = undefined;
+    @field(save_state, @typeName(TextBundle)) = saved_texts.items;
+    @field(save_state, @typeName(SpawnerBundle)) = saved_spawners.items;
+    @field(save_state, @typeName(BallBundle)) = saved_balls.items;
+    @field(save_state, @typeName(AnchorBundle)) = saved_anchors.items;
+    @field(save_state, @typeName(PortalBundle)) = saved_portals.items;
+    @field(save_state, @typeName(BlackHoleBundle)) = saved_black_holes.items;
+    @field(save_state, @typeName(RectangleBundle)) = saved_rectangles.items;
 
     var file = std.fs.cwd().createFile(path, .{}) catch {
         state_stack.push_state(.Exit);
