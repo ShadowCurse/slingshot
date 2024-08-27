@@ -27,22 +27,18 @@ const Position = __objects.Position;
 
 const TextText = __objects.TextText;
 const TextBundle = __objects.TextBundle;
-const TextParamsBundle = __objects.TextParamsBundle;
 
 const SpawnerTag = __objects.SpawnerTag;
 const SpawnerBundle = __objects.SpawnerBundle;
-const SpawnerParamsBundle = __objects.SpawnerParamsBundle;
 
 const BallTag = __objects.BallTag;
 const BallShape = __objects.BallShape;
 const BallBundle = __objects.BallBundle;
-const BallParamsBundle = __objects.BallParamsBundle;
 const BallAttachment = __objects.BallAttachment;
 
 const AnchorShape = __objects.AnchorShape;
 const AnchorBundle = __objects.AnchorBundle;
 const AnchoraJointParams = __objects.AnchoraJointParams;
-const AnchorParamsBundle = __objects.AnchorParamsBundle;
 
 const JointTag = __objects.JointTag;
 
@@ -50,16 +46,13 @@ const PortalShape = __objects.PortalShape;
 const PortalId = __objects.PortalId;
 const PortalTarget = __objects.PortalTarget;
 const PortalBundle = __objects.PortalBundle;
-const PortalParamsBundle = __objects.PortalParamsBundle;
 
 const BlackHoleShape = __objects.BlackHoleShape;
 const BlackHoleStrength = __objects.BlackHoleStrength;
 const BlackHoleBundle = __objects.BlackHoleBundle;
-const BlackHoleParamsBundle = __objects.BlackHoleParamsBundle;
 
 const RectangleShape = __objects.RectangleShape;
 const RectangleBundle = __objects.RectangleBundle;
-const RectangleParamsBundle = __objects.RectangleParamsBundle;
 
 const Settings = @import("settings.zig").Settings;
 
@@ -503,13 +496,13 @@ pub const SaveLevelCtx = struct {
     const Self = @This();
     pub fn init(world: *flecs.world_t) !Self {
         return .{
-            .text_query = try flecs.query_components(TextParamsBundle, world),
-            .spawner_query = try flecs.query_components(SpawnerParamsBundle, world),
-            .ball_query = try flecs.query_components(BallParamsBundle, world),
-            .anchor_query = try flecs.query_components(AnchorParamsBundle, world),
-            .portal_query = try flecs.query_components(PortalParamsBundle, world),
-            .black_hole_query = try flecs.query_components(BlackHoleParamsBundle, world),
-            .rectangle_query = try flecs.query_components(RectangleParamsBundle, world),
+            .text_query = try flecs.query_bundle(TextBundle.Save, world),
+            .spawner_query = try flecs.query_bundle(SpawnerBundle.Save, world),
+            .ball_query = try flecs.query_bundle(BallBundle.Save, world),
+            .anchor_query = try flecs.query_bundle(AnchorBundle.Save, world),
+            .portal_query = try flecs.query_bundle(PortalBundle.Save, world),
+            .black_hole_query = try flecs.query_bundle(BlackHoleBundle.Save, world),
+            .rectangle_query = try flecs.query_bundle(RectangleBundle.Save, world),
         };
     }
 };

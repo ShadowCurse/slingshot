@@ -3207,6 +3207,21 @@ pub fn query_components(comptime T: type, world: *world_t) !*query_t {
     return query_init(world, &query_desc);
 }
 
+pub fn query_bundle(comptime T: type, world: *world_t) !*query_t {
+    const type_info = @typeInfo(T);
+    const fields = type_info.Struct.fields;
+
+    var query_desc: query_desc_t = .{};
+    var i: u32 = 0;
+    inline for (fields) |f| {
+        query_desc.filter.terms[i].inout = .In;
+        query_desc.filter.terms[i].id = id(f.type);
+        i += 1;
+    }
+
+    return query_init(world, &query_desc);
+}
+
 pub fn save_bundles(allocator: std.mem.Allocator, comptime T: type, world: *world_t, query: *query_t) !std.ArrayList(T.Save) {
     var result = std.ArrayList(T.Save).init(allocator);
     const fields = @typeInfo(T.Save).Struct.fields;

@@ -176,12 +176,6 @@ pub const TextText = struct {
     spacing: f32 = 1.0,
 };
 
-pub const TextParamsBundle = struct {
-    *const Color,
-    *const Position,
-    *const TextText,
-};
-
 pub const TextParams = struct {
     position: Vector2 = Vector2.ZERO,
     color: rl.Color = rl.WHITE,
@@ -285,11 +279,6 @@ fn draw_texts(
 
 pub const SpawnerTag = struct {};
 
-pub const SpawnerParamsBundle = struct {
-    *const Position,
-    *const SpawnerTag,
-};
-
 pub const SpawnerBundle = struct {
     tag: SpawnerTag,
     position: Position,
@@ -361,11 +350,6 @@ pub const BallShape = struct {
 pub const BallAttachment = struct {
     should_attach: bool,
     attached: bool,
-};
-
-pub const BallParamsBundle = struct {
-    *const Color,
-    *const BallShape,
 };
 
 pub const BallBundle = struct {
@@ -636,13 +620,6 @@ pub const AnchoraJointParams = struct {
     damping_ratio: f32 = 0.5,
     hertz: f32 = 1.0,
     pull_force: f32 = 200.0,
-};
-
-pub const AnchorParamsBundle = struct {
-    *const Color,
-    *const Position,
-    *const AnchorShape,
-    *const AnchoraJointParams,
 };
 
 pub const AnchorBundle = struct {
@@ -955,14 +932,6 @@ pub const PortalId = struct { id: i32 };
 
 pub const PortalTarget = struct { id: i32 };
 
-pub const PortalParamsBundle = struct {
-    *const Color,
-    *const Position,
-    *const PortalShape,
-    *const PortalId,
-    *const PortalTarget,
-};
-
 pub const PortalBundle = struct {
     tag: PortalTag,
     color: Color,
@@ -1165,13 +1134,6 @@ pub const BlackHoleShape = struct {
 
 pub const BlackHoleStrength = struct {
     value: f32,
-};
-
-pub const BlackHoleParamsBundle = struct {
-    *const Color,
-    *const Position,
-    *const BlackHoleShape,
-    *const BlackHoleStrength,
 };
 
 pub const BlackHoleBundle = struct {
@@ -1415,12 +1377,6 @@ pub const RectangleShape = struct {
             .height = self.height,
         };
     }
-};
-
-pub const RectangleParamsBundle = struct {
-    *const Color,
-    *const Position,
-    *const RectangleShape,
 };
 
 pub const RectangleBundle = struct {
