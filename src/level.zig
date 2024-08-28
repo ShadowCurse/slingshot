@@ -528,43 +528,43 @@ pub fn save_level(
 
     std.log.debug("Saving level to path: {s}", .{path});
 
-    const saved_texts = flecs.save_bundles(allocator.*, TextBundle, world, ctx.text_query) catch {
+    const saved_texts = flecs.save_bundles(allocator.*, TextBundle.Save, world, ctx.text_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
     defer saved_texts.deinit();
 
-    const saved_spawners = flecs.save_bundles(allocator.*, SpawnerBundle, world, ctx.spawner_query) catch {
+    const saved_spawners = flecs.save_bundles(allocator.*, SpawnerBundle.Save, world, ctx.spawner_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
     defer saved_spawners.deinit();
 
-    const saved_balls = flecs.save_bundles(allocator.*, BallBundle, world, ctx.ball_query) catch {
+    const saved_balls = flecs.save_bundles(allocator.*, BallBundle.Save, world, ctx.ball_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
     defer saved_balls.deinit();
 
-    const saved_anchors = flecs.save_bundles(allocator.*, AnchorBundle, world, ctx.anchor_query) catch {
+    const saved_anchors = flecs.save_bundles(allocator.*, AnchorBundle.Save, world, ctx.anchor_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
     defer saved_anchors.deinit();
 
-    const saved_portals = flecs.save_bundles(allocator.*, PortalBundle, world, ctx.portal_query) catch {
+    const saved_portals = flecs.save_bundles(allocator.*, PortalBundle.Save, world, ctx.portal_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
     defer saved_portals.deinit();
 
-    const saved_black_holes = flecs.save_bundles(allocator.*, BlackHoleBundle, world, ctx.black_hole_query) catch {
+    const saved_black_holes = flecs.save_bundles(allocator.*, BlackHoleBundle.Save, world, ctx.black_hole_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
     defer saved_black_holes.deinit();
 
-    const saved_rectangles = flecs.save_bundles(allocator.*, RectangleBundle, world, ctx.rectangle_query) catch {
+    const saved_rectangles = flecs.save_bundles(allocator.*, RectangleBundle.Save, world, ctx.rectangle_query) catch {
         state_stack.push_state(.Exit);
         return;
     };
