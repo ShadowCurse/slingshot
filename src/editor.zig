@@ -390,9 +390,11 @@ fn update_editor_camera(
 }
 
 fn enter_editor_mode(
+    _world: WORLD(),
     _editor_state: SINGLETON(EditorState),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
+    const world = _world.get_mut();
     const editor_state = _editor_state.get();
     const state_stack = _state_stack.get_mut();
 
@@ -403,9 +405,9 @@ fn enter_editor_mode(
     const current_state = state_stack.current_state();
     if (rl.IsKeyPressed(rl.KEY_E)) {
         if (current_state == .Running) {
-            state_stack.push_state(.Editor);
+            state_stack.push_state(world, .Editor);
         } else if (current_state == .Editor) {
-            state_stack.pop_state();
+            state_stack.pop_state(world);
         }
     }
 }
@@ -1441,7 +1443,7 @@ fn draw_editor_level(
         if (imgui.igButton("Load level", .{ .x = 0.0, .y = 0.0 })) {
             level_state.load_path = slice;
             level_state.need_to_clean = true;
-            state_stack.pop_state();
+            state_stack.pop_state(world);
         }
 
         imgui.igSeparatorText("Objects");
@@ -1500,24 +1502,24 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
-    flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
-    flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
-    flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity);
-    flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
+    _ = flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
+    _ = flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
+    _ = flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity);
+    _ = flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
-    flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb);
-    flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb);
-    flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb);
-    flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb);
-    flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb);
-    flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb);
-    flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb);
+    _ = flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb);
 
-    flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
-    flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text);
-    flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
-    flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
-    flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal);
-    flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole);
-    flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
+    _ = flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
+    _ = flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text);
+    _ = flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
+    _ = flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
+    _ = flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal);
+    _ = flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole);
+    _ = flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
 }

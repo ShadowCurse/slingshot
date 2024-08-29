@@ -268,19 +268,19 @@ pub fn load_level(
     std.log.debug("Loading level from path: {s}", .{path});
 
     var file = std.fs.cwd().openFile(path, .{}) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer file.close();
 
     const file_data = file.readToEndAlloc(allocator.*, 1024 * 1024 * 1024) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer allocator.free(file_data);
 
     const save_state = std.json.parseFromSlice(LevelSave, allocator.*, file_data, .{}) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer save_state.deinit();
@@ -316,7 +316,7 @@ pub fn load_level(
         _ = flecs.spawn_bundle(bundle, world);
     }
 
-    state_stack.push_state(.LevelLoaded);
+    state_stack.push_state(world, .LevelLoaded);
 }
 
 const StartLevelCtx = struct {
@@ -367,8 +367,8 @@ pub fn start_level(
     b2.b2Body_SetTransform(ball_body.id, spawner_position.value.to_b2(), 0.0);
     timer.time = 0.0;
 
-    state_stack.pop_state();
-    state_stack.push_state(.Running);
+    state_stack.pop_state(world);
+    state_stack.push_state(world, .Running);
 }
 
 const CleanLevelCtx = struct {
@@ -480,8 +480,8 @@ pub fn recreate_level(
     b2.b2Body_SetLinearVelocity(ball_body_id.id, Vector2.ZERO.to_b2());
     ball_attachment.attached = false;
 
-    state_stack.pop_state();
-    state_stack.push_state(.LevelLoaded);
+    state_stack.pop_state(world);
+    state_stack.push_state(world, .LevelLoaded);
 }
 
 pub const SaveLevelCtx = struct {
@@ -529,43 +529,43 @@ pub fn save_level(
     std.log.debug("Saving level to path: {s}", .{path});
 
     const saved_texts = flecs.save_bundles(allocator.*, TextBundle.Save, world, ctx.text_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_texts.deinit();
 
     const saved_spawners = flecs.save_bundles(allocator.*, SpawnerBundle.Save, world, ctx.spawner_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_spawners.deinit();
 
     const saved_balls = flecs.save_bundles(allocator.*, BallBundle.Save, world, ctx.ball_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_balls.deinit();
 
     const saved_anchors = flecs.save_bundles(allocator.*, AnchorBundle.Save, world, ctx.anchor_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_anchors.deinit();
 
     const saved_portals = flecs.save_bundles(allocator.*, PortalBundle.Save, world, ctx.portal_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_portals.deinit();
 
     const saved_black_holes = flecs.save_bundles(allocator.*, BlackHoleBundle.Save, world, ctx.black_hole_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_black_holes.deinit();
 
     const saved_rectangles = flecs.save_bundles(allocator.*, RectangleBundle.Save, world, ctx.rectangle_query) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer saved_rectangles.deinit();
@@ -580,7 +580,7 @@ pub fn save_level(
     @field(save_state, @typeName(RectangleBundle)) = saved_rectangles.items;
 
     var file = std.fs.cwd().createFile(path, .{}) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
     defer file.close();
@@ -589,7 +589,7 @@ pub fn save_level(
         .whitespace = .indent_4,
     };
     std.json.stringify(save_state, options, file.writer()) catch {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
         return;
     };
 }
@@ -606,9 +606,9 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
-    flecs.ADD_SYSTEM(world, "clean_level", flecs.PreFrame, clean_level);
-    flecs.ADD_SYSTEM(world, "start_level", flecs.PreFrame, start_level);
-    flecs.ADD_SYSTEM(world, "load_level", flecs.PreFrame, load_level);
-    flecs.ADD_SYSTEM(world, "recreate_level", flecs.PreFrame, recreate_level);
-    flecs.ADD_SYSTEM(world, "save_level", flecs.PreFrame, save_level);
+    _ = flecs.ADD_SYSTEM(world, "clean_level", flecs.PreFrame, clean_level);
+    _ = flecs.ADD_SYSTEM(world, "start_level", flecs.PreFrame, start_level);
+    _ = flecs.ADD_SYSTEM(world, "load_level", flecs.PreFrame, load_level);
+    _ = flecs.ADD_SYSTEM(world, "recreate_level", flecs.PreFrame, recreate_level);
+    _ = flecs.ADD_SYSTEM(world, "save_level", flecs.PreFrame, save_level);
 }

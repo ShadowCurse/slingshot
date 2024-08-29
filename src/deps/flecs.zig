@@ -2602,7 +2602,7 @@ pub fn SYSTEM(
     name: [*:0]const u8,
     phase: entity_t,
     system_desc: *system_desc_t,
-) void {
+) entity_t {
     var entity_desc = entity_desc_t{};
     entity_desc.id = new_id(world);
     entity_desc.name = name;
@@ -2610,7 +2610,7 @@ pub fn SYSTEM(
     entity_desc.add[1] = phase;
 
     system_desc.entity = entity_init(world, &entity_desc);
-    _ = system_init(world, system_desc);
+    return system_init(world, system_desc);
 }
 
 pub fn OBSERVER(
@@ -2763,9 +2763,9 @@ pub fn ADD_SYSTEM(
     name: [*:0]const u8,
     phase: entity_t,
     comptime fn_system: anytype,
-) void {
+) entity_t {
     var desc = SYSTEM_DESC(world, fn_system);
-    SYSTEM(world, name, phase, &desc);
+    return SYSTEM(world, name, phase, &desc);
 }
 
 /// Creates a system description and adds it to the world, from function parameters

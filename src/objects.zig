@@ -1554,20 +1554,20 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
 
-    flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions);
-    flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls);
-    flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
-    flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
-    flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals);
-    flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes);
-    flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
+    _ = flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions);
+    _ = flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls);
+    _ = flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
+    _ = flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
+    _ = flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals);
+    _ = flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes);
+    _ = flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
 
-    flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
-    flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
-    flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals);
-    flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes);
-    flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
-    flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
-    flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
-    flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
+    _ = flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
+    _ = flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
+    _ = flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals);
+    _ = flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes);
+    _ = flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
+    _ = flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
+    _ = flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
+    _ = flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
 }

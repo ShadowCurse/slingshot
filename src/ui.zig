@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const rl = @import("deps/raylib.zig");
 const flecs = @import("deps/flecs.zig");
 
+const WORLD = flecs.SYSTEM_PARAMETER_WORLD;
 const DELTA_TIME = flecs.SYSTEM_PARAMETER_DELTA_TIME;
 const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
@@ -394,12 +395,14 @@ fn reset_button() void {
 }
 
 fn draw_main_menu(
+    _world: WORLD(),
     _settings: SINGLETON(Settings),
     _ui_style: SINGLETON(UiStyle),
     _mouse_pos: SINGLETON(MousePosition),
     _levels: SINGLETON_MUT(Levels),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
+    const world = _world.get_mut();
     const settings = _settings.get();
     const ui_style = _ui_style.get();
     const mouse_pos = _mouse_pos.get();
@@ -434,10 +437,10 @@ fn draw_main_menu(
     play_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (play_button.is_clicked(mouse_pos.screen_position)) {
         levels.reload() catch {
-            state_stack.push_state(.Exit);
+            state_stack.push_state(world, .Exit);
             return;
         };
-        state_stack.push_state(.LevelSelection);
+        state_stack.push_state(world, .LevelSelection);
     }
 
     const settings_button = UiButton{
@@ -454,7 +457,7 @@ fn draw_main_menu(
     };
     settings_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (settings_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.push_state(.Settings);
+        state_stack.push_state(world, .Settings);
     }
 
     const exit_button = UiButton{
@@ -471,11 +474,12 @@ fn draw_main_menu(
     };
     exit_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (exit_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.push_state(.Exit);
+        state_stack.push_state(world, .Exit);
     }
 }
 
 fn draw_level_selection(
+    _world: WORLD(),
     _settings: SINGLETON(Settings),
     _ui_style: SINGLETON(UiStyle),
     _mouse_pos: SINGLETON(MousePosition),
@@ -484,6 +488,7 @@ fn draw_level_selection(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _editor_state: SINGLETON_MUT(EditorState),
 ) void {
+    const world = _world.get_mut();
     const settings = _settings.get();
     const ui_style = _ui_style.get();
     const mouse_pos = _mouse_pos.get();
@@ -621,7 +626,7 @@ fn draw_level_selection(
             levels.active_group = null;
             levels.active_level = null;
         } else {
-            state_stack.pop_state();
+            state_stack.pop_state(world);
         }
     }
 }
@@ -696,12 +701,14 @@ fn draw_current_level_info(
 }
 
 fn draw_settings(
+    _world: WORLD(),
     _mouse_pos: SINGLETON(MousePosition),
     _ui_style: SINGLETON_MUT(UiStyle),
     _camera: SINGLETON_MUT(GameCamera),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
+    const world = _world.get_mut();
     const mouse_pos = _mouse_pos.get();
     const ui_style = _ui_style.get_mut();
     const camera = _camera.get_mut();
@@ -861,7 +868,7 @@ fn draw_settings(
         ui_style.update_scale(settings.resolution_width);
 
         settings.save() catch {
-            state_stack.push_state(.Exit);
+            state_stack.push_state(world, .Exit);
         };
     }
 
@@ -879,17 +886,19 @@ fn draw_settings(
     };
     back_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (back_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.pop_state();
+        state_stack.pop_state(world);
     }
 }
 
 pub fn draw_paused(
+    _world: WORLD(),
     _ui_style: SINGLETON(UiStyle),
     _mouse_pos: SINGLETON(MousePosition),
     _settings: SINGLETON_MUT(Settings),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
+    const world = _world.get_mut();
     const ui_style = _ui_style.get();
     const mouse_pos = _mouse_pos.get();
     const settings = _settings.get_mut();
@@ -909,7 +918,7 @@ pub fn draw_paused(
     };
     resume_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (resume_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.pop_state();
+        state_stack.pop_state(world);
     }
 
     const settings_button = UiButton{
@@ -926,7 +935,7 @@ pub fn draw_paused(
     };
     settings_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (settings_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.push_state(.Settings);
+        state_stack.push_state(world, .Settings);
     }
 
     const main_menu_button = UiButton{
@@ -943,14 +952,15 @@ pub fn draw_paused(
     };
     main_menu_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (main_menu_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.pop_state();
-        state_stack.pop_state();
-        state_stack.pop_state();
+        state_stack.pop_state(world);
+        state_stack.pop_state(world);
+        state_stack.pop_state(world);
         level_state.need_to_clean = true;
     }
 }
 
 fn draw_win(
+    _world: WORLD(),
     _timer: SINGLETON(LevelTimer),
     _ui_style: SINGLETON(UiStyle),
     _mouse_pos: SINGLETON(MousePosition),
@@ -959,6 +969,7 @@ fn draw_win(
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
+    const world = _world.get_mut();
     const timer = _timer.get();
     const ui_style = _ui_style.get();
     const mouse_pos = _mouse_pos.get();
@@ -1022,7 +1033,7 @@ fn draw_win(
     };
     restart_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (restart_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.pop_state();
+        state_stack.pop_state(world);
         level_state.need_to_restart = true;
     }
 
@@ -1040,9 +1051,9 @@ fn draw_win(
     };
     main_menu_button.draw(mouse_pos.screen_position, ui_style, .Default);
     if (main_menu_button.is_clicked(mouse_pos.screen_position)) {
-        state_stack.pop_state();
-        state_stack.pop_state();
-        state_stack.pop_state();
+        state_stack.pop_state(world);
+        state_stack.pop_state(world);
+        state_stack.pop_state(world);
         level_state.need_to_clean = true;
     }
 }
@@ -1061,11 +1072,11 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, settings: *const Settings) !
 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
     _ = allocator;
-    flecs.ADD_SYSTEM(world, "reset_button", flecs.PreStore, reset_button);
-    flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
-    flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
-    flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
-    flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
-    flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
-    flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
+    _ = flecs.ADD_SYSTEM(world, "reset_button", flecs.PreStore, reset_button);
+    _ = flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
+    _ = flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
+    _ = flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
+    _ = flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
+    _ = flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
+    _ = flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
 }
