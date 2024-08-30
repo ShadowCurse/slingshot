@@ -313,18 +313,12 @@ fn update_mouse_pos(
 
 pub fn update_physics(
     _delta_time: DELTA_TIME(),
-    _state_stack: SINGLETON(GameStateStack),
     _physics_world: SINGLETON(PhysicsWorld),
     _sensor_events: SINGLETON_MUT(SensorEvents),
 ) void {
     const delta_time = _delta_time.get();
-    const state_stack = _state_stack.get();
     const physics_world = _physics_world.get();
     const sensor_events = _sensor_events.get_mut();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     b2.b2World_Step(physics_world.id, delta_time, 4);
     sensor_events.* = SensorEvents.new(physics_world.id);
@@ -346,10 +340,6 @@ pub fn check_win_contidion(
     const state_stack = _state_stack.get_mut();
     const levels = _levels.get_mut();
     const shapes = _shapes.get();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     const current_level = levels.active_level_metadata().?;
 
@@ -373,19 +363,13 @@ pub fn check_win_contidion(
 
 pub fn update_game_camera(
     _delta_time: DELTA_TIME(),
-    _state_stack: SINGLETON(GameStateStack),
     _game_camera: SINGLETON_MUT(GameCamera),
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
     const delta_time = _delta_time.get();
-    const state_stack = _state_stack.get();
     const game_camera = _game_camera.get_mut();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     const ball_pos = positions[0].value;
     const camera_pos = Vector2.from_rl_pos(game_camera.camera.target);
@@ -447,12 +431,33 @@ pub const GameV2 = struct {
             }.rc,
         });
 
-        _ = flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics);
+        state_stack.add_system_run_condition(.{
+            .entity = flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics),
+            .run_condition = struct {
+                fn rc(gs: GameState) bool {
+                    return gs == .Running;
+                }
+            }.rc,
+        });
         _ = flecs.ADD_SYSTEM(ecs_world, "process_keys", flecs.PreUpdate, process_keys);
         _ = flecs.ADD_SYSTEM(ecs_world, "update_mouse_pos", flecs.PreUpdate, update_mouse_pos);
-        _ = flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera);
+        state_stack.add_system_run_condition(.{
+            .entity = flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera),
+            .run_condition = struct {
+                fn rc(gs: GameState) bool {
+                    return gs == .Running;
+                }
+            }.rc,
+        });
 
-        _ = flecs.ADD_SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, check_win_contidion);
+        state_stack.add_system_run_condition(.{
+            .entity = flecs.ADD_SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, check_win_contidion),
+            .run_condition = struct {
+                fn rc(gs: GameState) bool {
+                    return gs == .Running;
+                }
+            }.rc,
+        });
 
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_game_start", flecs.PreUpdate, draw_game_start);
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_mouse_pos", flecs.OnUpdate, draw_mouse_pos);
