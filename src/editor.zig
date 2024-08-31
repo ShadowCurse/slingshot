@@ -19,6 +19,7 @@ const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 const __game = @import("game.zig");
 const PhysicsWorld = __game.PhysicsWorld;
 const MousePosition = __game.MousePosition;
+const GameState = __game.GameState;
 const GameStateStack = __game.GameStateStack;
 
 const __level = @import("level.zig");
@@ -369,15 +370,9 @@ fn ParamEditorInner(comptime T: type) type {
 }
 
 fn update_editor_camera(
-    _state_stack: SINGLETON(GameStateStack),
     _editor_camera: SINGLETON_MUT(EditorCamera),
 ) void {
-    const state_stack = _state_stack.get();
     const editor_camera = _editor_camera.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
         const delta = rl.GetMouseDelta();
@@ -458,21 +453,15 @@ const SelectEntityCtx = struct {
 fn select_entity(
     _world: WORLD(),
     _ctx: STATIC(SelectEntityCtx),
-    _state_stack: SINGLETON(GameStateStack),
     _editor_state: SINGLETON(EditorState),
     _mouse_pos: SINGLETON(MousePosition),
     _selected_entity: SINGLETON_MUT(SelectedEntity),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.get();
     const editor_state = _editor_state.get();
     const mouse_pos = _mouse_pos.get();
     const selected_entity = _selected_entity.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (editor_state.focused) {
         return;
@@ -572,18 +561,12 @@ fn select_entity(
 
 fn drag_selected_entity(
     _world: WORLD(),
-    _state_stack: SINGLETON(GameStateStack),
     _mouse_pos: SINGLETON(MousePosition),
     _selected_entity: SINGLETON(SelectedEntity),
 ) void {
     const world = _world.get_mut();
-    const state_stack = _state_stack.get();
     const mouse_pos = _mouse_pos.get();
     const selected_entity = _selected_entity.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (!rl.IsMouseButtonDown(rl.MOUSE_BUTTON_RIGHT)) {
         return;
@@ -605,21 +588,15 @@ fn drag_selected_entity(
 
 fn draw_texts_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(TextTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -636,21 +613,15 @@ fn draw_texts_aabb(
 
 fn draw_spawners_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(SpawnerTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -667,21 +638,15 @@ fn draw_spawners_aabb(
 
 fn draw_balls_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -698,21 +663,15 @@ fn draw_balls_aabb(
 
 fn draw_anchors_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(AnchorTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -735,21 +694,15 @@ fn draw_anchors_aabb(
 
 fn draw_portals_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(PortalTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -772,21 +725,15 @@ fn draw_portals_aabb(
 
 fn draw_black_holess_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(BlackHoleTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -809,21 +756,15 @@ fn draw_black_holess_aabb(
 
 fn draw_rectangles_aabb(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _aabbs: COMPONENT(AABB, .In),
     _positions: COMPONENT(Position, .In),
     _: TAG(RectangleTag),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const aabbs = _aabbs.get();
     const positions = _positions.get();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     for (entities, aabbs, positions) |e, *aabb, *position| {
         const rl_aabb_rect = aabb.to_rl_rect(position.value);
@@ -846,22 +787,16 @@ fn draw_rectangles_aabb(
 
 fn draw_editor_text(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _colors: COMPONENT_MUT(Color, .InOut),
     _positions: COMPONENT_MUT(Position, .InOut),
     _texts: COMPONENT_MUT(TextText, .InOut),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const colors = _colors.get_mut();
     const positions = _positions.get_mut();
     const texts = _texts.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (selected_entity.entity == null) {
         return;
@@ -918,7 +853,6 @@ fn draw_editor_text(
 
 fn draw_editor_ball(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _body_ids: COMPONENT(BodyId, .In),
     _shape_ids: COMPONENT(ShapeId, .In),
@@ -928,7 +862,6 @@ fn draw_editor_ball(
     _shapes: COMPONENT_MUT(BallShape, .InOut),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const body_ids = _body_ids.get();
     const shape_ids = _shape_ids.get();
@@ -936,10 +869,6 @@ fn draw_editor_ball(
     const positions = _positions.get_mut();
     const aabbs = _aabbs.get_mut();
     const shapes = _shapes.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (selected_entity.entity == null) {
         return;
@@ -1006,7 +935,6 @@ fn draw_editor_ball(
 
 pub fn draw_editor_anchor(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _body_ids: COMPONENT(BodyId, .In),
     _colors: COMPONENT_MUT(Color, .InOut),
@@ -1016,7 +944,6 @@ pub fn draw_editor_anchor(
     _joint_params: COMPONENT_MUT(AnchoraJointParams, .InOut),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const body_ids = _body_ids.get();
     const colors = _colors.get_mut();
@@ -1024,10 +951,6 @@ pub fn draw_editor_anchor(
     const aabbs = _aabbs.get_mut();
     const shapes = _shapes.get_mut();
     const joint_params = _joint_params.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (selected_entity.entity == null) {
         return;
@@ -1098,7 +1021,6 @@ pub fn draw_editor_anchor(
 
 pub fn draw_editor_portal(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _body_ids: COMPONENT(BodyId, .In),
     _colors: COMPONENT_MUT(Color, .InOut),
@@ -1109,7 +1031,6 @@ pub fn draw_editor_portal(
     _targets: COMPONENT_MUT(PortalTarget, .InOut),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const body_ids = _body_ids.get();
     const colors = _colors.get_mut();
@@ -1118,10 +1039,6 @@ pub fn draw_editor_portal(
     const shapes = _shapes.get_mut();
     const ids = _ids.get_mut();
     const targets = _targets.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (selected_entity.entity == null) {
         return;
@@ -1201,7 +1118,6 @@ pub fn draw_editor_portal(
 
 fn draw_editor_black_hole(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _body_ids: COMPONENT(BodyId, .In),
     _colors: COMPONENT_MUT(Color, .InOut),
@@ -1211,7 +1127,6 @@ fn draw_editor_black_hole(
     _strengths: COMPONENT_MUT(BlackHoleStrength, .InOut),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const body_ids = _body_ids.get();
     const colors = _colors.get_mut();
@@ -1219,10 +1134,6 @@ fn draw_editor_black_hole(
     const aabbs = _aabbs.get_mut();
     const shapes = _shapes.get_mut();
     const strengths = _strengths.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (selected_entity.entity == null) {
         return;
@@ -1293,7 +1204,6 @@ fn draw_editor_black_hole(
 
 fn draw_editor_rectangle(
     _entities: ENTITIES(),
-    _state_stack: SINGLETON(GameStateStack),
     _selected_entity: SINGLETON(SelectedEntity),
     _body_ids: COMPONENT(BodyId, .In),
     _shape_ids: COMPONENT(ShapeId, .In),
@@ -1303,7 +1213,6 @@ fn draw_editor_rectangle(
     _shapes: COMPONENT_MUT(RectangleShape, .InOut),
 ) void {
     const entities = _entities.get();
-    const state_stack = _state_stack.get();
     const selected_entity = _selected_entity.get();
     const body_ids = _body_ids.get();
     const shape_ids = _shape_ids.get();
@@ -1311,10 +1220,6 @@ fn draw_editor_rectangle(
     const positions = _positions.get_mut();
     const aabbs = _aabbs.get_mut();
     const shapes = _shapes.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     if (selected_entity.entity == null) {
         return;
@@ -1409,20 +1314,16 @@ fn draw_editor_rectangle(
 
 fn draw_editor_level(
     _world: WORLD(),
+    _state_stack: SINGLETON_MUT(GameStateStack),
     _selected_entity: SINGLETON_MUT(SelectedEntity),
     _editor_state: SINGLETON_MUT(EditorState),
-    _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
+    const state_stack = _state_stack.get_mut();
     const selected_entity = _selected_entity.get_mut();
     const editor_state = _editor_state.get_mut();
-    const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
-
-    if (state_stack.current_state() != .Editor) {
-        return;
-    }
 
     var open = true;
     if (imgui.igBegin("LevelEditor", &open, 0)) {
@@ -1500,26 +1401,147 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     _ = flecs.singleton_set(world, EditorCamera, .{ .camera = camera });
 }
 
-pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
+pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, state_stack: *GameStateStack) !void {
     _ = allocator;
+
     _ = flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
-    _ = flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera);
-    _ = flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity);
-    _ = flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity);
 
-    _ = flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb);
-    _ = flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb);
-    _ = flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb);
-    _ = flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb);
-    _ = flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb);
-    _ = flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb);
-    _ = flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb);
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
 
-    _ = flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level);
-    _ = flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text);
-    _ = flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball);
-    _ = flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor);
-    _ = flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal);
-    _ = flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole);
-    _ = flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle);
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Editor;
+            }
+        }.rc,
+    });
 }

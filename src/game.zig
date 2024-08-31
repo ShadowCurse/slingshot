@@ -416,7 +416,7 @@ pub const GameV2 = struct {
 
         try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try LEVEL_FLECS_INIT_SYSTES(ecs_world, allocator);
-        try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator);
+        try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
         try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
 
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
@@ -474,6 +474,7 @@ pub const GameV2 = struct {
         _ = flecs.singleton_set(ecs_world, Allocator, allocator);
         _ = flecs.singleton_set(ecs_world, Settings, settings);
 
+        state_stack.update_run_conditions(ecs_world);
         _ = flecs.singleton_set(ecs_world, GameStateStack, state_stack);
 
         const sensor_events = SensorEvents.new(physics_world);
