@@ -417,7 +417,7 @@ pub const GameV2 = struct {
         try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator);
         try LEVEL_FLECS_INIT_SYSTES(ecs_world, allocator);
         try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
-        try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator);
+        try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
 
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 

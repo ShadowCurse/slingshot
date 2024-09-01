@@ -18,6 +18,7 @@ const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 const __game = @import("game.zig");
 const WinTarget = __game.WinTarget;
 const GameStateStack = __game.GameStateStack;
+const GameState = __game.GameState;
 const MousePosition = __game.MousePosition;
 const PhysicsWorld = __game.PhysicsWorld;
 const SensorEvents = __game.SensorEvents;
@@ -150,18 +151,9 @@ pub const AABB = struct {
 fn update_positions(
     _bodies: COMPONENT(BodyId, .In),
     _positions: COMPONENT_MUT(Position, .Out),
-    _state_stack: SINGLETON(GameStateStack),
 ) void {
     const bodies = _bodies.get();
     const positions = _positions.get_mut();
-    const state_stack = _state_stack.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor))
-    {
-        return;
-    }
 
     for (bodies, positions) |*body, *position| {
         position.value = Vector2.from_b2(b2.b2Body_GetPosition(body.id));
@@ -245,23 +237,13 @@ pub const TextBundle = struct {
 };
 
 fn draw_texts(
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _texts: COMPONENT(TextText, .In),
 ) void {
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
     const colors = _colors.get();
     const texts = _texts.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     const font = rl.GetFontDefault();
     for (positions, colors, texts) |*position, *color, *text| {
@@ -317,20 +299,10 @@ pub const SpawnerBundle = struct {
 };
 
 fn draw_spawners(
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _: TAG(SpawnerTag),
 ) void {
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (positions) |*position| {
         rl.DrawCircleV(
@@ -487,24 +459,14 @@ pub const BallShader = struct {
 };
 
 fn pre_draw_balls(
-    _state_stack: SINGLETON(GameStateStack),
     _shaders: SINGLETON(BallShader),
     _bodies: COMPONENT(BodyId, .In),
     _colors: COMPONENT(Color, .In),
     _: TAG(BallTag),
 ) void {
-    const state_stack = _state_stack.get();
     const shaders = _shaders.get();
     const bodies = _bodies.get();
     const colors = _colors.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     const camera = rl.Camera2D{
         .offset = rl.Vector2{
@@ -552,22 +514,12 @@ fn pre_draw_balls(
 }
 
 fn draw_balls(
-    _state_stack: SINGLETON(GameStateStack),
     _shaders: SINGLETON(BallShader),
     _positions: COMPONENT(Position, .In),
     _: TAG(BallTag),
 ) void {
-    const state_stack = _state_stack.get();
     const shaders = _shaders.get();
     const positions = _positions.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (positions) |*position| {
         const offset = Vector2{
@@ -589,15 +541,9 @@ fn draw_balls(
 }
 
 fn update_balls(
-    _state_stack: SINGLETON(GameStateStack),
     _attachments: COMPONENT_MUT(BallAttachment, .InOut),
 ) void {
-    const state_stack = _state_stack.get();
     const attachments = _attachments.get_mut();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     for (attachments) |*a| {
         if (rl.IsKeyDown(rl.KEY_SPACE)) {
@@ -685,25 +631,15 @@ pub const AnchorBundle = struct {
 };
 
 fn draw_anchors(
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _shapes: COMPONENT(AnchorShape, .In),
     _joint_params: COMPONENT(AnchoraJointParams, .In),
 ) void {
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
     const colors = _colors.get();
     const shapes = _shapes.get();
     const joint_params = _joint_params.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (positions, colors, shapes, joint_params) |*position, *color, *shape, *joint_param| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
@@ -729,7 +665,6 @@ const UpdateAnchorsCtx = struct {
 fn update_anchors_try_attach(
     _world: WORLD(),
     _ctx: STATIC(UpdateAnchorsCtx),
-    _state_stack: SINGLETON(GameStateStack),
     _physics_world: SINGLETON(PhysicsWorld),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
@@ -739,17 +674,12 @@ fn update_anchors_try_attach(
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.get();
     const physics_world = _physics_world.get();
     const positions = _positions.get();
     const colors = _colors.get();
     const bodies = _bodies.get();
     const shapes = _shapes.get();
     const joint_params = _joint_params.get();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     var ball_iter = flecs.query_iter(world, ctx.ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
@@ -839,21 +769,11 @@ pub fn create_joint(
 }
 
 fn draw_joints(
-    _state_stack: SINGLETON(GameStateStack),
     _ids: COMPONENT(JointId, .In),
     _colors: COMPONENT(Color, .In),
 ) void {
-    const state_stack = _state_stack.get();
     const ids = _ids.get();
     const colors = _colors.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (ids, colors) |*id, *color| {
         const ball_position = Vector2.from_b2(b2.b2Body_GetPosition(id.attached_body_id));
@@ -883,7 +803,6 @@ fn update_joints(
     _world: WORLD(),
     _entities: ENTITIES(),
     _ctx: STATIC(UpdateJointsCtx),
-    _state_stack: SINGLETON(GameStateStack),
     _mouse_pos: SINGLETON(MousePosition),
     _joint_ids: COMPONENT(JointId, .In),
     _joint_stengths: COMPONENT(JointStrength, .In),
@@ -891,14 +810,9 @@ fn update_joints(
     const world = _world.get_mut();
     const entities = _entities.get();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.get();
     const mouse_pos = _mouse_pos.get();
     const joint_ids = _joint_ids.get();
     const joint_stengths = _joint_stengths.get();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     var ball_iter = flecs.query_iter(world, ctx.ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
@@ -1022,23 +936,13 @@ pub const PortalBundle = struct {
 };
 
 fn draw_portals(
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _shapes: COMPONENT(PortalShape, .In),
 ) void {
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
     const colors = _colors.get();
     const shapes = _shapes.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (positions, colors, shapes) |*position, *color, *shape| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
@@ -1067,7 +971,6 @@ fn update_portals(
     _world: WORLD(),
     _ctx: STATIC(UpdatePortalsCtx),
     _sensor_events: SINGLETON(SensorEvents),
-    _state_stack: SINGLETON(GameStateStack),
     _shapes: COMPONENT(ShapeId, .In),
     _ids: COMPONENT(PortalId, .In),
     _targets: COMPONENT(PortalTarget, .In),
@@ -1075,14 +978,9 @@ fn update_portals(
     const world = _world.get_mut();
     const ctx = _ctx.get();
     const sensor_events = _sensor_events.get();
-    const state_stack = _state_stack.get();
     const shapes = _shapes.get();
     const targets = _targets.get();
     const ids = _ids.get();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     var ball_iter = flecs.query_iter(world, ctx.ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
@@ -1201,23 +1099,13 @@ pub const BlackHoleBundle = struct {
 };
 
 fn draw_blackholes(
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _colors: COMPONENT(Color, .In),
     _shapes: COMPONENT(BlackHoleShape, .In),
 ) void {
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
     const colors = _colors.get();
     const shapes = _shapes.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (positions, colors, shapes) |*position, *color, *shape| {
         rl.DrawCircleV(position.value.to_rl_as_pos(), shape.radius, color.value);
@@ -1240,21 +1128,15 @@ const UpdateBlackHolesCtx = struct {
 fn update_blackholes(
     _world: WORLD(),
     _ctx: STATIC(UpdateBlackHolesCtx),
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _shapes: COMPONENT(BlackHoleShape, .In),
     _strengths: COMPONENT(BlackHoleStrength, .In),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
     const shapes = _shapes.get();
     const strengths = _strengths.get();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     var ball_iter = flecs.query_iter(world, ctx.ball_query);
     std.debug.assert(flecs.query_next(&ball_iter));
@@ -1470,23 +1352,13 @@ pub const RectangleBundle = struct {
 };
 
 fn draw_rectangles(
-    _state_stack: SINGLETON(GameStateStack),
     _positions: COMPONENT(Position, .In),
     _shapes: COMPONENT(RectangleShape, .In),
     _colors: COMPONENT(Color, .In),
 ) void {
-    const state_stack = _state_stack.get();
     const positions = _positions.get();
     const shapes = _shapes.get();
     const colors = _colors.get();
-
-    const current_state = state_stack.current_state();
-    if (!(current_state == .Running or
-        current_state == .Editor or
-        current_state == .Paused))
-    {
-        return;
-    }
 
     for (positions, shapes, colors) |*position, *shape, *color| {
         // const body_angle = b2.b2Body_GetAngle(rect.body_id);
@@ -1551,23 +1423,146 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     _ = flecs.singleton_set(world, BallShader, shaders);
 }
 
-pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
+pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, state_stack: *GameStateStack) !void {
     _ = allocator;
 
-    _ = flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions);
-    _ = flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls);
-    _ = flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach);
-    _ = flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints);
-    _ = flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals);
-    _ = flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes);
-    _ = flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls);
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or gs == .Editor;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
 
-    _ = flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners);
-    _ = flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors);
-    _ = flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals);
-    _ = flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes);
-    _ = flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints);
-    _ = flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles);
-    _ = flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts);
-    _ = flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls);
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running or
+                    gs == .Editor or
+                    gs == .Paused;
+            }
+        }.rc,
+    });
 }
