@@ -244,7 +244,6 @@ pub const Levels = struct {
 pub fn load_level(
     _world: WORLD(),
     _allocator: SINGLETON(Allocator),
-    // _physical_world: SINGLETON(PhysicsWorld),
     _state_stack: SINGLETON_MUT(GameStateStack),
     _level_state: SINGLETON_MUT(LevelState),
     _: COMPONENT_ID(&flecs.Wildcard, .{
@@ -254,7 +253,6 @@ pub fn load_level(
 ) void {
     const world = _world.get_mut();
     const allocator = _allocator.get();
-    // const physics_world = _physical_world.get();
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
 
