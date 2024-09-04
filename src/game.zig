@@ -77,43 +77,39 @@ pub const SensorEvents = struct {
     }
 };
 
-pub const GameState = enum {
-    MainMenu,
-    LevelSelection,
-    Settings,
-    LevelLoaded,
-    Running,
-    Paused,
-    Editor,
-    Win,
-    Exit,
+pub const States = packed struct(u32) {
+    MainMenu: bool = false,
+    LevelSelection: bool = false,
+    Settings: bool = false,
+    LevelLoaded: bool = false,
+    Running: bool = false,
+    Paused: bool = false,
+    Editor: bool = false,
+    Win: bool = false,
+    Exit: bool = false,
+    _: u23 = 0,
 };
 
-pub const GameStateStack = struct {
-    stack: [Self.STACK_SIZE]GameState,
-    current_index: usize,
+pub const GameState = struct {
+    previous_state: States,
+    current_state: States,
     system_run_conditions: [Self.RUN_CONDITION_SIZE]Self.RunCondition,
     system_run_condition_len: usize,
 
     const Self = @This();
-    const STACK_SIZE = 5;
     const RUN_CONDITION_SIZE = 64;
     const RunCondition = struct {
         entity: flecs.entity_t,
-        run_condition: *const fn (GameState) bool,
+        run_states: States,
     };
 
-    pub fn new(initial_state: GameState) Self {
+    pub fn new(initial_state: States) Self {
         return Self{
-            .stack = .{initial_state} ** Self.STACK_SIZE,
-            .current_index = 0,
+            .current_state = initial_state,
+            .previous_state = initial_state,
             .system_run_conditions = undefined,
             .system_run_condition_len = 0,
         };
-    }
-
-    pub fn current_state(self: *const Self) GameState {
-        return self.stack[self.current_index];
     }
 
     pub fn add_system_run_condition(self: *Self, condition: RunCondition) void {
@@ -124,25 +120,19 @@ pub const GameStateStack = struct {
 
     pub fn update_run_conditions(self: *const Self, ecs_world: *flecs.world_t) void {
         for (self.system_run_conditions[0..self.system_run_condition_len]) |rc| {
-            flecs.enable(ecs_world, rc.entity, rc.run_condition(self.stack[self.current_index]));
+            const enabled = @as(u32, @bitCast(rc.run_states)) & @as(u32, @bitCast(self.current_state)) != 0;
+            flecs.enable(ecs_world, rc.entity, enabled);
         }
     }
 
-    pub fn push_state(self: *Self, ecs_world: *flecs.world_t, state: GameState) void {
-        self.current_index += 1;
-        std.debug.assert(self.current_index < Self.STACK_SIZE);
-
-        self.stack[self.current_index] = state;
-        std.log.debug("State stack push. Stack: {any}", .{self.stack[0 .. self.current_index + 1]});
-
+    pub fn set(self: *Self, ecs_world: *flecs.world_t, state: States) void {
+        self.previous_state = self.current_state;
+        self.current_state = state;
         self.update_run_conditions(ecs_world);
     }
 
-    pub fn pop_state(self: *Self, ecs_world: *flecs.world_t) void {
-        if (self.current_index == 0) return;
-        self.current_index -= 1;
-        std.log.debug("State stack pop. Stack: {any}", .{self.stack[0 .. self.current_index + 1]});
-
+    pub fn set_previous(self: *Self, ecs_world: *flecs.world_t) void {
+        self.current_state = self.previous_state;
         self.update_run_conditions(ecs_world);
     }
 };
@@ -209,15 +199,15 @@ fn draw_end() void {
 }
 
 fn draw_game_start(
-    _state_stack: SINGLETON(GameStateStack),
+    _game_state: SINGLETON(GameState),
     _game_camera: SINGLETON(GameCamera),
     _editor_camera: SINGLETON(EditorCamera),
 ) void {
-    const state_stack = _state_stack.get();
+    const game_state = _game_state.get();
     const game_camera = _game_camera.get();
     const editor_camera = _editor_camera.get();
 
-    if (state_stack.current_state() == .Editor) {
+    if (game_state.current_state.Editor) {
         rl.BeginMode2D(editor_camera.camera);
     } else {
         rl.BeginMode2D(game_camera.camera);
@@ -230,24 +220,24 @@ fn draw_game_end() void {
 
 fn window_should_close(
     _world: WORLD(),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
 ) void {
     const world = _world.get_mut();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
 
     if (rl.WindowShouldClose()) {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
     }
 }
 
 fn check_exit(
     _world: WORLD(),
-    _state_stack: SINGLETON(GameStateStack),
+    _game_state: SINGLETON(GameState),
 ) void {
     const world = _world.get_mut();
-    const state_stack = _state_stack.get();
+    const game_state = _game_state.get();
 
-    if (state_stack.current_state() == .Exit) {
+    if (game_state.current_state.Exit) {
         flecs.quit(world);
     }
 }
@@ -261,24 +251,22 @@ fn draw_mouse_pos(
 
 pub fn process_keys(
     _world: WORLD(),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
     const level_state = _level_state.get_mut();
 
-    const current_state = state_stack.current_state();
-
     if (rl.IsKeyPressed(rl.KEY_ESCAPE)) {
-        if (current_state == .Running) {
-            state_stack.push_state(world, .Paused);
-        } else if (current_state == .Paused) {
-            state_stack.pop_state(world);
+        if (game_state.current_state.Running) {
+            game_state.set(world, .{ .Paused = true });
+        } else if (game_state.current_state.Paused) {
+            game_state.set_previous(world);
         }
     }
 
-    if (current_state == .Running) {
+    if (game_state.current_state.Running) {
         if (rl.IsKeyPressed(rl.KEY_R)) {
             level_state.need_to_restart = true;
         }
@@ -288,15 +276,15 @@ pub fn process_keys(
 fn update_mouse_pos(
     _game_camera: SINGLETON(GameCamera),
     _editor_camera: SINGLETON(EditorCamera),
-    _state_stack: SINGLETON(GameStateStack),
+    _game_state: SINGLETON(GameState),
     _mouse_pos: SINGLETON_MUT(MousePosition),
 ) void {
     const game_camera = _game_camera.get();
     const editor_camera = _editor_camera.get();
-    const state_stack = _state_stack.get();
+    const game_state = _game_state.get();
     const mouse_pos = _mouse_pos.get_mut();
 
-    const camera = if (state_stack.current_state() == .Editor)
+    const camera = if (game_state.current_state.Editor)
         editor_camera.camera
     else
         game_camera.camera;
@@ -328,7 +316,7 @@ pub fn check_win_contidion(
     _world: WORLD(),
     _timer: SINGLETON(LevelTimer),
     _sensor_events: SINGLETON(SensorEvents),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
     _levels: SINGLETON_MUT(Levels),
     _shapes: COMPONENT(ShapeId, .In),
     _: TAG(RectangleTag),
@@ -337,7 +325,7 @@ pub fn check_win_contidion(
     const world = _world.get_mut();
     const timer = _timer.get();
     const sensor_events = _sensor_events.get();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
     const levels = _levels.get_mut();
     const shapes = _shapes.get();
 
@@ -346,14 +334,14 @@ pub fn check_win_contidion(
     for (shapes) |shape| {
         for (sensor_events.begin_events) |be| {
             if (@as(u64, @bitCast(be.sensorShapeId)) == @as(u64, @bitCast(shape.id))) {
-                state_stack.push_state(world, .Win);
+                game_state.set(world, .{ .Win = true });
                 if (current_level.best_time) |bt| {
                     current_level.best_time = @min(bt, timer.time);
                 } else {
                     current_level.best_time = timer.time;
                 }
                 levels.save() catch {
-                    state_stack.push_state(world, .Exit);
+                    game_state.set(world, .{ .Exit = true });
                     return;
                 };
             }
@@ -405,58 +393,42 @@ pub const GameV2 = struct {
 
         flecs.COMPONENT(ecs_world, Allocator);
         flecs.COMPONENT(ecs_world, Settings);
-        flecs.COMPONENT(ecs_world, GameStateStack);
+        flecs.COMPONENT(ecs_world, GameState);
         flecs.COMPONENT(ecs_world, SensorEvents);
         flecs.COMPONENT(ecs_world, GameCamera);
         flecs.COMPONENT(ecs_world, PhysicsWorld);
         flecs.COMPONENT(ecs_world, MousePosition);
         flecs.COMPONENT(ecs_world, LevelTimer);
 
-        var state_stack = GameStateStack.new(.MainMenu);
+        var game_state = GameState.new(.{ .MainMenu = true });
 
-        try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
+        try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator, &game_state);
         try LEVEL_FLECS_INIT_SYSTES(ecs_world, allocator);
-        try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
-        try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
+        try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator, &game_state);
+        try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator, &game_state);
 
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 
         // Game
-        state_stack.add_system_run_condition(.{
+        game_state.add_system_run_condition(.{
             .entity = flecs.ADD_SYSTEM(ecs_world, "update_timer", flecs.PreUpdate, update_timer),
-            .run_condition = struct {
-                fn rc(gs: GameState) bool {
-                    return gs == .Running;
-                }
-            }.rc,
+            .run_states = .{ .Running = true },
         });
 
-        state_stack.add_system_run_condition(.{
+        game_state.add_system_run_condition(.{
             .entity = flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics),
-            .run_condition = struct {
-                fn rc(gs: GameState) bool {
-                    return gs == .Running;
-                }
-            }.rc,
+            .run_states = .{ .Running = true },
         });
         _ = flecs.ADD_SYSTEM(ecs_world, "process_keys", flecs.PreUpdate, process_keys);
         _ = flecs.ADD_SYSTEM(ecs_world, "update_mouse_pos", flecs.PreUpdate, update_mouse_pos);
-        state_stack.add_system_run_condition(.{
+        game_state.add_system_run_condition(.{
             .entity = flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera),
-            .run_condition = struct {
-                fn rc(gs: GameState) bool {
-                    return gs == .Running;
-                }
-            }.rc,
+            .run_states = .{ .Running = true },
         });
 
-        state_stack.add_system_run_condition(.{
+        game_state.add_system_run_condition(.{
             .entity = flecs.ADD_SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, check_win_contidion),
-            .run_condition = struct {
-                fn rc(gs: GameState) bool {
-                    return gs == .Running;
-                }
-            }.rc,
+            .run_states = .{ .Running = true },
         });
 
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_game_start", flecs.PreUpdate, draw_game_start);
@@ -474,8 +446,8 @@ pub const GameV2 = struct {
         _ = flecs.singleton_set(ecs_world, Allocator, allocator);
         _ = flecs.singleton_set(ecs_world, Settings, settings);
 
-        state_stack.update_run_conditions(ecs_world);
-        _ = flecs.singleton_set(ecs_world, GameStateStack, state_stack);
+        game_state.update_run_conditions(ecs_world);
+        _ = flecs.singleton_set(ecs_world, GameState, game_state);
 
         const sensor_events = SensorEvents.new(physics_world);
         _ = flecs.singleton_set(ecs_world, SensorEvents, sensor_events);

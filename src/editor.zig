@@ -19,8 +19,8 @@ const SINGLETON_MUT = flecs.SYSTEM_PARAMETER_SINGLETON_MUT;
 const __game = @import("game.zig");
 const PhysicsWorld = __game.PhysicsWorld;
 const MousePosition = __game.MousePosition;
+const States = __game.States;
 const GameState = __game.GameState;
-const GameStateStack = __game.GameStateStack;
 
 const __level = @import("level.zig");
 const LevelState = __level.LevelState;
@@ -387,22 +387,21 @@ fn update_editor_camera(
 fn enter_editor_mode(
     _world: WORLD(),
     _editor_state: SINGLETON(EditorState),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
 ) void {
     const world = _world.get_mut();
     const editor_state = _editor_state.get();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
 
     if (editor_state.focused) {
         return;
     }
 
-    const current_state = state_stack.current_state();
     if (rl.IsKeyPressed(rl.KEY_E)) {
-        if (current_state == .Running) {
-            state_stack.push_state(world, .Editor);
-        } else if (current_state == .Editor) {
-            state_stack.pop_state(world);
+        if (game_state.current_state.Running) {
+            game_state.set(world, .{ .Editor = true });
+        } else if (game_state.current_state.Editor) {
+            game_state.set(world, .{ .Running = true });
         }
     }
 }
@@ -1314,13 +1313,13 @@ fn draw_editor_rectangle(
 
 fn draw_editor_level(
     _world: WORLD(),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
     _selected_entity: SINGLETON_MUT(SelectedEntity),
     _editor_state: SINGLETON_MUT(EditorState),
     _level_state: SINGLETON_MUT(LevelState),
 ) void {
     const world = _world.get_mut();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
     const selected_entity = _selected_entity.get_mut();
     const editor_state = _editor_state.get_mut();
     const level_state = _level_state.get_mut();
@@ -1344,7 +1343,7 @@ fn draw_editor_level(
         if (imgui.igButton("Load level", .{ .x = 0.0, .y = 0.0 })) {
             level_state.load_path = slice;
             level_state.need_to_clean = true;
-            state_stack.pop_state(world);
+            game_state.set_previous(world);
         }
 
         imgui.igSeparatorText("Objects");
@@ -1401,147 +1400,79 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     _ = flecs.singleton_set(world, EditorCamera, .{ .camera = camera });
 }
 
-pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, state_stack: *GameStateStack) !void {
+pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, game_state: *GameState) !void {
     _ = allocator;
 
     _ = flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
 
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
 
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
 
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Editor = true },
     });
 }

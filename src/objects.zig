@@ -17,8 +17,8 @@ const SINGLETON = flecs.SYSTEM_PARAMETER_SINGLETON;
 
 const __game = @import("game.zig");
 const WinTarget = __game.WinTarget;
-const GameStateStack = __game.GameStateStack;
-const GameState = __game.GameState;
+const GameStateStack = __game.GameState;
+const GameState = __game.States;
 const MousePosition = __game.MousePosition;
 const PhysicsWorld = __game.PhysicsWorld;
 const SensorEvents = __game.SensorEvents;
@@ -1423,146 +1423,68 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     _ = flecs.singleton_set(world, BallShader, shaders);
 }
 
-pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, state_stack: *GameStateStack) !void {
+pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, game_state: *GameStateStack) !void {
     _ = allocator;
 
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or gs == .Editor;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running;
-            }
-        }.rc,
+        .run_states = .{ .Running = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running;
-            }
-        }.rc,
+        .run_states = .{ .Running = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running;
-            }
-        }.rc,
+        .run_states = .{ .Running = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running;
-            }
-        }.rc,
+        .run_states = .{ .Running = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running;
-            }
-        }.rc,
+        .run_states = .{ .Running = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
 
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
-    state_stack.add_system_run_condition(.{
+    game_state.add_system_run_condition(.{
         .entity = flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls),
-        .run_condition = struct {
-            fn rc(gs: GameState) bool {
-                return gs == .Running or
-                    gs == .Editor or
-                    gs == .Paused;
-            }
-        }.rc,
+        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
     });
 }

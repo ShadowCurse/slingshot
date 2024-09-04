@@ -5,7 +5,6 @@ const rl = @import("deps/raylib.zig");
 
 const __game = @import("game.zig");
 const GameCamera = __game.GameCamera;
-const GameStateStack = __game.GameStateStack;
 
 const __ui = @import("ui.zig");
 const UI_ELEMENT_WIDTH = __ui.UI_ELEMENT_WIDTH;

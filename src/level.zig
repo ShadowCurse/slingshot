@@ -12,7 +12,7 @@ const COMPONENT_ID = flecs.SYSTEM_PARAMETER_COMPONENT_ID;
 
 const __game = @import("game.zig");
 const LevelTimer = __game.LevelTimer;
-const GameStateStack = __game.GameStateStack;
+const GameState = __game.GameState;
 const PhysicsWorld = __game.PhysicsWorld;
 
 const __ui = @import("ui.zig");
@@ -244,7 +244,7 @@ pub const Levels = struct {
 pub fn load_level(
     _world: WORLD(),
     _allocator: SINGLETON(Allocator),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
     _level_state: SINGLETON_MUT(LevelState),
     _: COMPONENT_ID(&flecs.Wildcard, .{
         .inout = .Out,
@@ -253,7 +253,7 @@ pub fn load_level(
 ) void {
     const world = _world.get_mut();
     const allocator = _allocator.get();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
     const level_state = _level_state.get_mut();
 
     if (level_state.load_path == null) {
@@ -266,19 +266,19 @@ pub fn load_level(
     std.log.debug("Loading level from path: {s}", .{path});
 
     var file = std.fs.cwd().openFile(path, .{}) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer file.close();
 
     const file_data = file.readToEndAlloc(allocator.*, 1024 * 1024 * 1024) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer allocator.free(file_data);
 
     const save_state = std.json.parseFromSlice(LevelSave, allocator.*, file_data, .{}) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer save_state.deinit();
@@ -314,7 +314,7 @@ pub fn load_level(
         _ = flecs.spawn_bundle(bundle, world);
     }
 
-    state_stack.push_state(world, .LevelLoaded);
+    game_state.set(world, .{ .LevelLoaded = true });
 }
 
 const StartLevelCtx = struct {
@@ -338,15 +338,15 @@ const StartLevelCtx = struct {
 pub fn start_level(
     _world: WORLD(),
     _ctx: STATIC(StartLevelCtx),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
     _timer: SINGLETON_MUT(LevelTimer),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
     const timer = _timer.get_mut();
 
-    if (state_stack.current_state() != .LevelLoaded) {
+    if (!game_state.current_state.LevelLoaded) {
         return;
     }
 
@@ -365,8 +365,7 @@ pub fn start_level(
     b2.b2Body_SetTransform(ball_body.id, spawner_position.value.to_b2(), 0.0);
     timer.time = 0.0;
 
-    state_stack.pop_state(world);
-    state_stack.push_state(world, .Running);
+    game_state.set(world, .{ .Running = true });
 }
 
 const CleanLevelCtx = struct {
@@ -447,12 +446,12 @@ pub fn recreate_level(
     _world: WORLD(),
     _ctx: STATIC(RecreateLevelCtx),
     _level_state: SINGLETON_MUT(LevelState),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
     const level_state = _level_state.get_mut();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
 
     if (!level_state.need_to_restart) {
         return;
@@ -478,8 +477,7 @@ pub fn recreate_level(
     b2.b2Body_SetLinearVelocity(ball_body_id.id, Vector2.ZERO.to_b2());
     ball_attachment.attached = false;
 
-    state_stack.pop_state(world);
-    state_stack.push_state(world, .LevelLoaded);
+    game_state.set(world, .{ .LevelLoaded = true });
 }
 
 pub const SaveLevelCtx = struct {
@@ -509,13 +507,13 @@ pub fn save_level(
     _ctx: STATIC(SaveLevelCtx),
     _allocator: SINGLETON(Allocator),
     _level_state: SINGLETON_MUT(LevelState),
-    _state_stack: SINGLETON_MUT(GameStateStack),
+    _game_state: SINGLETON_MUT(GameState),
 ) void {
     const world = _world.get_mut();
     const ctx = _ctx.get();
     const allocator = _allocator.get();
     const level_state = _level_state.get_mut();
-    const state_stack = _state_stack.get_mut();
+    const game_state = _game_state.get_mut();
 
     if (level_state.save_path == null) {
         return;
@@ -527,43 +525,43 @@ pub fn save_level(
     std.log.debug("Saving level to path: {s}", .{path});
 
     const saved_texts = flecs.save_bundles(allocator.*, TextBundle.Save, world, ctx.text_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_texts.deinit();
 
     const saved_spawners = flecs.save_bundles(allocator.*, SpawnerBundle.Save, world, ctx.spawner_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_spawners.deinit();
 
     const saved_balls = flecs.save_bundles(allocator.*, BallBundle.Save, world, ctx.ball_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_balls.deinit();
 
     const saved_anchors = flecs.save_bundles(allocator.*, AnchorBundle.Save, world, ctx.anchor_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_anchors.deinit();
 
     const saved_portals = flecs.save_bundles(allocator.*, PortalBundle.Save, world, ctx.portal_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_portals.deinit();
 
     const saved_black_holes = flecs.save_bundles(allocator.*, BlackHoleBundle.Save, world, ctx.black_hole_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_black_holes.deinit();
 
     const saved_rectangles = flecs.save_bundles(allocator.*, RectangleBundle.Save, world, ctx.rectangle_query) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer saved_rectangles.deinit();
@@ -578,7 +576,7 @@ pub fn save_level(
     @field(save_state, @typeName(RectangleBundle)) = saved_rectangles.items;
 
     var file = std.fs.cwd().createFile(path, .{}) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
     defer file.close();
@@ -587,7 +585,7 @@ pub fn save_level(
         .whitespace = .indent_4,
     };
     std.json.stringify(save_state, options, file.writer()) catch {
-        state_stack.push_state(world, .Exit);
+        game_state.set(world, .{ .Exit = true });
         return;
     };
 }
