@@ -13,6 +13,7 @@ const __game = @import("game.zig");
 const LevelTimer = __game.LevelTimer;
 const MousePosition = __game.MousePosition;
 const GameCamera = __game.GameCamera;
+const GameState = __game.GameState;
 const GameStateStack = __game.GameStateStack;
 const DEFAULT_SCREEN_WIDTH = __game.DEFAULT_SCREEN_WIDTH;
 
@@ -409,10 +410,6 @@ fn draw_main_menu(
     const levels = _levels.get_mut();
     const state_stack = _state_stack.get_mut();
 
-    if (state_stack.current_state() != .MainMenu) {
-        return;
-    }
-
     const title_text = UiText{
         .box = .{
             .position = settings.screen_center().add(
@@ -496,10 +493,6 @@ fn draw_level_selection(
     const level_state = _level_state.get_mut();
     const state_stack = _state_stack.get_mut();
     const editor_state = _editor_state.get_mut();
-
-    if (state_stack.current_state() != .LevelSelection) {
-        return;
-    }
 
     if (levels.active_group) |ag| {
         const level_title_text = UiText{
@@ -635,16 +628,10 @@ fn draw_current_level_info(
     _timer: SINGLETON(LevelTimer),
     _levels: SINGLETON(Levels),
     _ui_style: SINGLETON(UiStyle),
-    _state_stack: SINGLETON_MUT(GameStateStack),
 ) void {
     const timer = _timer.get();
     const levels = _levels.get();
     const ui_style = _ui_style.get();
-    const state_stack = _state_stack.get_mut();
-
-    if (state_stack.current_state() != .Running) {
-        return;
-    }
 
     const current_level = levels.active_level_metadata().?;
     {
@@ -714,10 +701,6 @@ fn draw_settings(
     const camera = _camera.get_mut();
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
-
-    if (state_stack.current_state() != .Settings) {
-        return;
-    }
 
     const resolution_text = UiText{
         .box = .{
@@ -905,10 +888,6 @@ pub fn draw_paused(
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
 
-    if (state_stack.current_state() != .Paused) {
-        return;
-    }
-
     const resume_button = UiButton{
         .box = .{
             .position = settings.screen_center(),
@@ -977,10 +956,6 @@ fn draw_win(
     const settings = _settings.get_mut();
     const state_stack = _state_stack.get_mut();
     const level_state = _level_state.get_mut();
-
-    if (state_stack.current_state() != .Win) {
-        return;
-    }
 
     const current_level = levels.active_level_metadata().?;
 
@@ -1070,13 +1045,56 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, settings: *const Settings) !
     _ = flecs.singleton_set(world, UiStyle, style);
 }
 
-pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator) !void {
+pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, state_stack: *GameStateStack) !void {
     _ = allocator;
+
     _ = flecs.ADD_SYSTEM(world, "reset_button", flecs.PreStore, reset_button);
-    _ = flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu);
-    _ = flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection);
-    _ = flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info);
-    _ = flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings);
-    _ = flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused);
-    _ = flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win);
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .MainMenu;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .LevelSelection;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Running;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Settings;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Paused;
+            }
+        }.rc,
+    });
+    state_stack.add_system_run_condition(.{
+        .entity = flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win),
+        .run_condition = struct {
+            fn rc(gs: GameState) bool {
+                return gs == .Win;
+            }
+        }.rc,
+    });
 }

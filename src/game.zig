@@ -90,14 +90,14 @@ pub const GameState = enum {
 };
 
 pub const GameStateStack = struct {
-    stack: [STACK_SIZE]GameState,
+    stack: [Self.STACK_SIZE]GameState,
     current_index: usize,
-    system_run_conditions: [40]RunCondition,
+    system_run_conditions: [Self.RUN_CONDITION_SIZE]Self.RunCondition,
     system_run_condition_len: usize,
 
     const Self = @This();
     const STACK_SIZE = 5;
-    const RUN_CONDITION_SIZE = 40;
+    const RUN_CONDITION_SIZE = 64;
     const RunCondition = struct {
         entity: flecs.entity_t,
         run_condition: *const fn (GameState) bool,
@@ -414,7 +414,7 @@ pub const GameV2 = struct {
 
         var state_stack = GameStateStack.new(.MainMenu);
 
-        try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator);
+        try UI_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
         try LEVEL_FLECS_INIT_SYSTES(ecs_world, allocator);
         try EDITOR_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
         try OBJECTS_FLECS_INIT_SYSTEMS(ecs_world, allocator, &state_stack);
