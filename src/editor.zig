@@ -1267,7 +1267,7 @@ fn draw_editor_rectangle(
             }
 
             var open = true;
-            if (imgui.igBegin("EditorAnchor", &open, 0)) {
+            if (imgui.igBegin("EditorRectangle", &open, 0)) {
                 defer imgui.igEnd();
 
                 if (LocalCtx.editor_color.draw("color")) {
