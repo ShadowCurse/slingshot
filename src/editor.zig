@@ -1405,74 +1405,76 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, game_stat
 
     _ = flecs.ADD_SYSTEM(world, "enter_editor_mode", flecs.PreUpdate, enter_editor_mode);
 
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity),
-        .run_states = .{ .Editor = true },
-    });
+    game_state.add_system_run_conditions(&.{
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_editor_camera", flecs.PreUpdate, update_editor_camera),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "select_entity", flecs.PreUpdate, select_entity),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "drag_selected_entity", flecs.PreUpdate, drag_selected_entity),
+            .run_states = .{ .Editor = true },
+        },
 
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb),
-        .run_states = .{ .Editor = true },
-    });
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_texts_aabb", flecs.OnValidate, draw_texts_aabb),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_spawners_aabb", flecs.OnValidate, draw_spawners_aabb),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_balls_aabb", flecs.OnValidate, draw_balls_aabb),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_anchors_aabb", flecs.OnValidate, draw_anchors_aabb),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_portals_aabb", flecs.OnValidate, draw_portals_aabb),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_black_holess_aabb", flecs.OnValidate, draw_black_holess_aabb),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_rectangles_aabb", flecs.OnValidate, draw_rectangles_aabb),
+            .run_states = .{ .Editor = true },
+        },
 
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole),
-        .run_states = .{ .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle),
-        .run_states = .{ .Editor = true },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_level_editor", flecs.PreStore, draw_editor_level),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_editor_text", flecs.PreStore, draw_editor_text),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_editor_ball", flecs.PreStore, draw_editor_ball),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_editor_anchor", flecs.PreStore, draw_editor_anchor),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_editor_portal", flecs.PreStore, draw_editor_portal),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_editor_black_hole", flecs.PreStore, draw_editor_black_hole),
+            .run_states = .{ .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_editor_rectangle", flecs.PreStore, draw_editor_rectangle),
+            .run_states = .{ .Editor = true },
+        },
     });
 }

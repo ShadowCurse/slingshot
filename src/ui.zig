@@ -1045,28 +1045,30 @@ pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, game_stat
     _ = allocator;
 
     _ = flecs.ADD_SYSTEM(world, "reset_button", flecs.PreStore, reset_button);
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu),
-        .run_states = .{ .MainMenu = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection),
-        .run_states = .{ .LevelSelection = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info),
-        .run_states = .{ .Running = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings),
-        .run_states = .{ .Settings = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused),
-        .run_states = .{ .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win),
-        .run_states = .{ .Win = true },
+    game_state.add_system_run_conditions(&.{
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_main_menu", flecs.PreStore, draw_main_menu),
+            .run_states = .{ .MainMenu = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_level_selection", flecs.PreStore, draw_level_selection),
+            .run_states = .{ .LevelSelection = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_current_level_info", flecs.PreStore, draw_current_level_info),
+            .run_states = .{ .Running = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_settings", flecs.PreStore, draw_settings),
+            .run_states = .{ .Settings = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_paused", flecs.PreStore, draw_paused),
+            .run_states = .{ .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_win", flecs.PreStore, draw_win),
+            .run_states = .{ .Win = true },
+        },
     });
 }

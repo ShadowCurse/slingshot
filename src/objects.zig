@@ -1426,65 +1426,67 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
 pub fn FLECS_INIT_SYSTEMS(world: *flecs.world_t, allocator: Allocator, game_state: *GameStateStack) !void {
     _ = allocator;
 
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions),
-        .run_states = .{ .Running = true, .Editor = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls),
-        .run_states = .{ .Running = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach),
-        .run_states = .{ .Running = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints),
-        .run_states = .{ .Running = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals),
-        .run_states = .{ .Running = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes),
-        .run_states = .{ .Running = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
+    game_state.add_system_run_conditions(&.{
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_positions", flecs.PreUpdate, update_positions),
+            .run_states = .{ .Running = true, .Editor = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_balls", flecs.PreUpdate, update_balls),
+            .run_states = .{ .Running = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_anchors_try_attach", flecs.OnUpdate, update_anchors_try_attach),
+            .run_states = .{ .Running = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_joints", flecs.OnUpdate, update_joints),
+            .run_states = .{ .Running = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_portals", flecs.OnUpdate, update_portals),
+            .run_states = .{ .Running = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "update_blackholes", flecs.OnUpdate, update_blackholes),
+            .run_states = .{ .Running = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "pre_draw_balls", flecs.PreFrame, pre_draw_balls),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
 
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
-    });
-    game_state.add_system_run_condition(.{
-        .entity = flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls),
-        .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_spawners", flecs.OnUpdate, draw_spawners),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_anchors", flecs.OnUpdate, draw_anchors),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_portals", flecs.OnUpdate, draw_portals),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_blackholes", flecs.OnUpdate, draw_blackholes),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_joints", flecs.OnUpdate, draw_joints),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_rectangles", flecs.OnUpdate, draw_rectangles),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_texts", flecs.OnUpdate, draw_texts),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
+        .{
+            .entity = flecs.ADD_SYSTEM(world, "draw_balls", flecs.OnUpdate, draw_balls),
+            .run_states = .{ .Running = true, .Editor = true, .Paused = true },
+        },
     });
 }

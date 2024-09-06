@@ -112,10 +112,12 @@ pub const GameState = struct {
         };
     }
 
-    pub fn add_system_run_condition(self: *Self, condition: RunCondition) void {
-        self.system_run_conditions[self.system_run_condition_len] = condition;
-        self.system_run_condition_len += 1;
-        std.debug.assert(self.system_run_condition_len < Self.RUN_CONDITION_SIZE);
+    pub fn add_system_run_conditions(self: *Self, conditions: []const RunCondition) void {
+        for (conditions) |c| {
+            self.system_run_conditions[self.system_run_condition_len] = c;
+            self.system_run_condition_len += 1;
+            std.debug.assert(self.system_run_condition_len < Self.RUN_CONDITION_SIZE);
+        }
     }
 
     pub fn update_run_conditions(self: *const Self, ecs_world: *flecs.world_t) void {
@@ -410,26 +412,26 @@ pub const GameV2 = struct {
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_start", flecs.OnLoad, draw_start);
 
         // Game
-        game_state.add_system_run_condition(.{
-            .entity = flecs.ADD_SYSTEM(ecs_world, "update_timer", flecs.PreUpdate, update_timer),
-            .run_states = .{ .Running = true },
-        });
-
-        game_state.add_system_run_condition(.{
-            .entity = flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics),
-            .run_states = .{ .Running = true },
+        game_state.add_system_run_conditions(&.{
+            .{
+                .entity = flecs.ADD_SYSTEM(ecs_world, "update_timer", flecs.PreUpdate, update_timer),
+                .run_states = .{ .Running = true },
+            },
+            .{
+                .entity = flecs.ADD_SYSTEM(ecs_world, "update_physics", flecs.PreUpdate, update_physics),
+                .run_states = .{ .Running = true },
+            },
+            .{
+                .entity = flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera),
+                .run_states = .{ .Running = true },
+            },
+            .{
+                .entity = flecs.ADD_SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, check_win_contidion),
+                .run_states = .{ .Running = true },
+            },
         });
         _ = flecs.ADD_SYSTEM(ecs_world, "process_keys", flecs.PreUpdate, process_keys);
         _ = flecs.ADD_SYSTEM(ecs_world, "update_mouse_pos", flecs.PreUpdate, update_mouse_pos);
-        game_state.add_system_run_condition(.{
-            .entity = flecs.ADD_SYSTEM(ecs_world, "update_game_camera", flecs.PreUpdate, update_game_camera),
-            .run_states = .{ .Running = true },
-        });
-
-        game_state.add_system_run_condition(.{
-            .entity = flecs.ADD_SYSTEM(ecs_world, "check_win_contidion", flecs.PreUpdate, check_win_contidion),
-            .run_states = .{ .Running = true },
-        });
 
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_game_start", flecs.PreUpdate, draw_game_start);
         _ = flecs.ADD_SYSTEM(ecs_world, "draw_mouse_pos", flecs.OnUpdate, draw_mouse_pos);
