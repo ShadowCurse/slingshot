@@ -2,9 +2,9 @@
 
 ## Screenshots
 
-<img src="./img/main_menu.png" width="200">
-<img src="./img/tutorial_black_hole.png" width="200">
-<img src="./img/level_1.png" width="200">
+<img src="./img/main_menu.png" width="400">
+<img src="./img/tutorial_black_hole.png" width="400">
+<img src="./img/level_1.png" width="400">
 
 
 ## Setup
