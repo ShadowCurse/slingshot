@@ -191,6 +191,7 @@ pub fn build(b: *std.Build) void {
             },
         ) catch @panic("Out of memory");
         defer b.allocator.free(cache_include);
+        const cache_path = std.Build.LazyPath{ .cwd_relative = cache_include };
 
         const cpp_include = std.fs.path.join(
             b.allocator,
@@ -203,18 +204,18 @@ pub fn build(b: *std.Build) void {
                 "v1",
             },
         ) catch @panic("Out of memory");
-        defer b.allocator.free(cache_include);
+        defer b.allocator.free(cpp_include);
 
-        imgui.addIncludePath(b.path(cache_include));
-        cimgui.addIncludePath(b.path(cache_include));
+        imgui.addIncludePath(cache_path);
+        cimgui.addIncludePath(cache_path);
 
         // It is important to include cpp_include
         // before everything else
-        rl_imgui.addIncludePath(b.path(cpp_include));
-        rl_imgui.addIncludePath(b.path(cache_include));
+        rl_imgui.addIncludePath(std.Build.LazyPath{ .cwd_relative = cpp_include });
+        rl_imgui.addIncludePath(cache_path);
 
-        box2c.addIncludePath(b.path(cache_include));
-        flecs.addIncludePath(b.path(cache_include));
+        box2c.addIncludePath(cache_path);
+        flecs.addIncludePath(cache_path);
 
         const lib = b.addStaticLibrary(.{
             .name = "slingshot",
@@ -222,7 +223,7 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
         });
-        lib.addIncludePath(b.path(cache_include));
+        lib.addIncludePath(cache_path);
 
         lib.defineCMacro("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", null);
         lib.addIncludePath(b.path("cimgui"));
