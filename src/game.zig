@@ -302,15 +302,13 @@ fn update_mouse_pos(
 }
 
 pub fn update_physics(
-    _delta_time: DELTA_TIME(),
     _physics_world: SINGLETON(PhysicsWorld),
     _sensor_events: SINGLETON_MUT(SensorEvents),
 ) void {
-    const delta_time = _delta_time.get();
     const physics_world = _physics_world.get();
     const sensor_events = _sensor_events.get_mut();
 
-    b2.b2World_Step(physics_world.id, delta_time, 4);
+    b2.b2World_Step(physics_world.id, 1.0 / @as(f32, TARGET_FPS), 4);
     sensor_events.* = SensorEvents.new(physics_world.id);
 }
 
