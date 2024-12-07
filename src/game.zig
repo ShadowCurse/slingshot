@@ -210,7 +210,7 @@ fn draw_game_start(
     const editor_camera = _editor_camera.get();
 
     if (game_state.current_state.Editor) {
-        rl.BeginMode2D(editor_camera.camera);
+        rl.BeginMode2D(editor_camera.camera.camera);
     } else {
         rl.BeginMode2D(game_camera.camera);
     }
@@ -287,7 +287,7 @@ fn update_mouse_pos(
     const mouse_pos = _mouse_pos.get_mut();
 
     const camera = if (game_state.current_state.Editor)
-        editor_camera.camera
+        editor_camera.camera.camera
     else
         game_camera.camera;
 
@@ -386,7 +386,7 @@ pub const GameV2 = struct {
 
         try UI_FLECS_INIT_COMPONENTS(ecs_world, &settings);
         try LEVEL_FLECS_INIT_COMPONENTS(ecs_world, allocator);
-        try EDITOR_FLECS_INIT_COMPONENTS(ecs_world, allocator);
+        try EDITOR_FLECS_INIT_COMPONENTS(ecs_world, allocator, &settings);
         try OBJECTS_FLECS_INIT_COMPONENTS(ecs_world, allocator);
 
         flecs.TAG(ecs_world, WinTarget);

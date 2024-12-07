@@ -21,9 +21,13 @@ const PhysicsWorld = __game.PhysicsWorld;
 const MousePosition = __game.MousePosition;
 const States = __game.States;
 const GameState = __game.GameState;
+const GameCamera = __game.GameCamera;
 
 const __level = @import("level.zig");
 const LevelState = __level.LevelState;
+
+const __settings = @import("settings.zig");
+const Settings = __settings.Settings;
 
 const __objects = @import("objects.zig");
 const AABB = __objects.AABB;
@@ -78,7 +82,7 @@ pub const SelectedEntity = struct {
 };
 
 pub const EditorCamera = struct {
-    camera: rl.Camera2D,
+    camera: GameCamera,
 };
 
 pub const EditorState = struct {
@@ -376,12 +380,12 @@ fn update_editor_camera(
 
     if (rl.IsMouseButtonDown(rl.MOUSE_BUTTON_MIDDLE)) {
         const delta = rl.GetMouseDelta();
-        editor_camera.camera.target.x -= delta.x;
-        editor_camera.camera.target.y -= delta.y;
+        editor_camera.camera.camera.target.x -= delta.x;
+        editor_camera.camera.camera.target.y -= delta.y;
     }
 
     const mouse_wheel_move = rl.GetMouseWheelMove() / 10.0;
-    editor_camera.camera.zoom += mouse_wheel_move;
+    editor_camera.camera.camera.zoom += mouse_wheel_move;
 }
 
 fn enter_editor_mode(
@@ -1382,7 +1386,7 @@ fn draw_editor_level(
     }
 }
 
-pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void {
+pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator, settings: *const Settings) !void {
     _ = allocator;
     flecs.COMPONENT(world, EditorState);
     flecs.COMPONENT(world, EditorCamera);
@@ -1391,12 +1395,10 @@ pub fn FLECS_INIT_COMPONENTS(world: *flecs.world_t, allocator: Allocator) !void 
     _ = flecs.singleton_set(world, EditorState, .{});
     _ = flecs.singleton_set(world, SelectedEntity, .{});
 
-    const camera = rl.Camera2D{
-        .offset = rl.Vector2{ .x = 0.0, .y = 0.0 },
-        .target = rl.Vector2{ .x = 0.0, .y = 0.0 },
-        .rotation = 0.0,
-        .zoom = 1.0,
+    var camera = GameCamera{
+        .camera = std.mem.zeroInit(rl.Camera2D, .{}),
     };
+    camera.update_resolution(settings.resolution_width, settings.resolution_height);
     _ = flecs.singleton_set(world, EditorCamera, .{ .camera = camera });
 }
 
